@@ -56,9 +56,13 @@ import { provideToonflowHost } from "@/utils/toonflowHost";
 import productionAgentStore from "@/stores/productionAgent";
 import projectStore from "@/stores/project";
 const { project } = storeToRefs(projectStore());
+const { episodesId, status } = storeToRefs(productionAgentStore());
 
-// 向 UMD 节点注入宿主能力（show 模式：无选择器）
-provideToonflowHost({ flowId: "showFlow" });
+provideToonflowHost({
+  flowId: "showFlow",
+  episodesId: () => episodesId.value,
+  projectId: () => project.value?.id,
+});
 
 const defaultEdgeOptions = markRaw({
   type: "simple-bezier",
@@ -74,11 +78,6 @@ onMounted(async () => {
 });
 
 const episodesOptions = ref<{ label: string; value: number }[]>([]);
-
-const { episodesId, status } = storeToRefs(productionAgentStore());
-
-provide("episodesId", episodesId);
-provide("projectId", computed(() => project.value?.id));
 
 async function getScriptData() {
   //获取剧本

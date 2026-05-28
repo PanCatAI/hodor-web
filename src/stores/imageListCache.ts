@@ -1,4 +1,3 @@
-import "@/views/production/components/workbench/type/type";
 import axios from "@/utils/axios";
 
 /**
