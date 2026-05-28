@@ -130,7 +130,7 @@ function onAddNode(nodeEntry: NodeListEntry) {
     position: { x: ctxMenu.flowX, y: ctxMenu.flowY },
     data: {
       pluginId: nodeEntry.nodeId,
-      data: nodeEntry.defaultData ? { ...nodeEntry.defaultData } : {},
+      data: {},
     },
   });
 }
