@@ -53,3 +53,8 @@ declare module "*.avif" {
   const content: string;
   export default content;
 }
+
+declare module "*.css";
+declare module "*.scss";
+declare module "*.sass";
+declare module "*.less";

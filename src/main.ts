@@ -1,3 +1,8 @@
+import * as Vue from "vue";
+import * as VueFlow from '@vue-flow/core'
+(window as any).Vue = Vue;
+(window as any).VueFlow = VueFlow
+
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
@@ -20,10 +25,10 @@ import "splitpanes/dist/splitpanes.css";
 
 import "./assets/main.scss";
 
-import { imageOptimizer } from '@/utils/imageOptimizer'
+import { imageOptimizer } from "@/utils/imageOptimizer";
 
 const app = createApp(App);
-app.use(imageOptimizer)
+app.use(imageOptimizer);
 install(app, "i");
 app.use(createPinia().use(piniaPluginPersistedstate));
 app.use(router);

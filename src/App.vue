@@ -15,6 +15,7 @@ import { initTheme } from "@/utils/theme";
 import { type GlobalConfigProvider } from "tdesign-vue-next";
 const { baseUrl, isElectron } = storeToRefs(settingStore());
 import { config } from "md-editor-v3";
+import { loadPluginNode } from "@/utils/loadPluginNode";
 
 watch(
   () => isElectron.value,
@@ -40,6 +41,7 @@ onBeforeMount(() => {
 // 初始化主题
 onMounted(() => {
   getPort();
+  loadPluginNode(["http://192.168.2.49:5180"]);
 });
 
 async function handleLinkClick(event: MouseEvent) {

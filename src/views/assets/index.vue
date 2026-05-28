@@ -94,7 +94,7 @@
                           </div>
                           <t-image-viewer v-else :images="[subRow.src]" :closeOnEscKeydown="true" :closeOnOverlay="true">
                             <template #trigger="{ open }">
-                              <div class="imageTrigger" @click="subRow.src && getBigImageUrl(subRow, open())">
+                              <div class="imageTrigger" @click="subRow.src && (getBigImageUrl(subRow), open())">
                                 <img v-if="subRow.src" :src="subRow.src" :alt="subRow.name" class="previewImage" />
                                 <div v-else class="noImage">
                                   <t-icon name="image" size="24px" />
@@ -143,7 +143,7 @@
                   <div class="previewCell">
                     <t-image-viewer :images="[row.src]" :closeOnEscKeydown="true" :closeOnOverlay="true">
                       <template #trigger="{ open }">
-                        <div class="imageTrigger" @click="row.src && getBigImageUrl(row, open())">
+                        <div class="imageTrigger" @click="row.src && (getBigImageUrl(row), open())">
                           <img v-if="row.src" :src="row.src" :alt="row.name" class="previewImage" />
                           <div v-else class="noImage">
                             <t-icon name="image" size="24px" />
@@ -171,7 +171,7 @@
                     </div>
                     <t-image-viewer v-else :images="[row.src]" :closeOnEscKeydown="true" :closeOnOverlay="true">
                       <template #trigger="{ open }">
-                        <div class="imageTrigger" @click="row.src && getBigImageUrl(row, open())">
+                        <div class="imageTrigger" @click="row.src && (getBigImageUrl(row), open())">
                           <img v-if="row.src" :src="row.src" :alt="row.name" class="previewImage" />
                           <div v-else class="noImage">
                             <t-icon name="image" size="24px" />
@@ -1311,14 +1311,10 @@ watch(generatingData, (val) => {
   }
 });
 
-async function getBigImageUrl(row: Asset, fn: Function) {
-  const { data } = await axios.post("/common/getBigImage", {
-    url: row.src,
-  });
-  row.src = data;
-  nextTick(() => {
-    fn();
-  });
+function getBigImageUrl(row: Asset) {
+  if (!row.src || row.src.includes("size=")) return;
+  const sep = row.src.includes("?") ? "&" : "?";
+  row.src = `${row.src}${sep}size=100`;
 }
 </script>
 

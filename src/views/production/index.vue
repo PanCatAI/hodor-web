@@ -1,46 +1,36 @@
 <template>
-  <VueFlow
-    class="flowMain"
-    :class="{ 'is-interacting': isInteracting && otherSetting.interacting, 'space-dragging': isSpacePressed }"
-    id="mainFlowBox"
-    @mousedown="onSpaceMouseDown"
-    :nodes="episodesId ? nodes : []"
-    :edges="episodesId ? edges : []"
-    :nodes-draggable="!isSpacePressed"
-    :nodes-connectable="!isSpacePressed"
-    :elements-selectable="!isSpacePressed"
-    :max-zoom="10"
-    :min-zoom="0.1"
-    fit-view-on-init
-    :pan-on-scroll="canvasWheelEvent == 'scroll' ? true : false"
-    :zoom-on-scroll="canvasWheelEvent == 'zoom' ? true : false"
-    :selection-key-code="null"
-    :multi-selection-key-code="null">
-    <template #node-script="props">
-      <scriptNode :id="props.id" v-model="flowData.script" :handleIds="props.data.handleIds" />
-    </template>
-    <template #node-scriptPlan="props">
-      <scriptPlan :id="props.id" v-model="flowData.scriptPlan" :handleIds="props.data.handleIds" />
-    </template>
-    <template #node-storyboardTable="props">
-      <storyboardTable :id="props.id" v-model="flowData.storyboardTable" :handleIds="props.data.handleIds" />
-    </template>
-    <template #node-assets="props">
-      <assets :id="props.id" v-model="flowData.assets" :handleIds="props.data.handleIds" />
-    </template>
-    <template #node-storyboard="props">
-      <storyboard :id="props.id" v-model="flowData.storyboard" :assetsData="flowData.assets" :handleIds="props.data.handleIds" />
-    </template>
-    <template #node-workbench="props">
-      <workbench :id="props.id" v-model="flowData.workbench" :handleIds="props.data.handleIds" />
-    </template>
-    <!-- <template #node-poster="props">
-      <poster :id="props.id" v-model="flowData.poster" :handleIds="props.data.handleIds" />
-    </template> -->
-    <Background></Background>
-    <Controls />
-    <div class="floatingWindow">
-      <div class="episodesSelect f ac">
+  <div class="flowWrap">
+    <VueFlow
+      id="showFlow"
+      :nodes="episodesId ? nodes : []"
+      :only-render-visible-elements="false"
+      :nodes-draggable="true"
+      :nodes-connectable="false"
+      :nodes-focusable="false"
+      :edges-focusable="false"
+      :edges-updatable="false"
+      :elevate-nodes-on-select="true"
+      :elevate-edges-on-select="false"
+      :disable-keyboard-a11y="true"
+      :select-nodes-on-drag="false"
+      :auto-pan-on-node-drag="false"
+      :auto-pan-on-connect="false"
+      :zoom-on-double-click="false"
+      :delete-key-code="null"
+      :selection-key-code="null"
+      :multi-selection-key-code="null"
+      :zoom-activation-key-code="null"
+      :pan-activation-key-code="null"
+      :default-edge-options="defaultEdgeOptions"
+      :min-zoom="0.5"
+      :max-zoom="2">
+      <template #node-pluginNode>
+        <pluginNode />
+      </template>
+      <Background />
+      <Controls />
+      <MiniMap pannable zoomable position="bottom-left" style="margin-left: 60px" />
+      <Panel position="top-left">
         <t-select
           :value="episodesId"
           :placeholder="$t('workbench.production.selectPlaceholder')"
@@ -52,233 +42,434 @@
             <i-document-folder size="24" />
           </template>
         </t-select>
-        <t-tooltip placement="bottom" theme="primary" :content="$t('workbench.production.getFlowData')">
-          <t-button class="guide-refresh-btn" @click="refFlowData" variant="outline">
-            <template #icon>
-              <i-refresh size="16" />
-            </template>
-          </t-button>
-        </t-tooltip>
-        <t-tooltip placement="bottom" theme="primary" :content="$t('workbench.production.autoLayoutLR')">
-          <t-button class="guide-layout-btn" @click="layoutGraph()" variant="outline" style="margin-left: 8px">
-            <template #icon>
-              <i-tree-diagram size="16" />
-            </template>
-          </t-button>
-        </t-tooltip>
-        <i-loading-four class="spin" size="16" style="margin-left: 0.5rem" v-show="loading"></i-loading-four>
-        <!-- <t-tooltip theme="primary" content="$t('workbench.production.autoLayoutTB')">
-          <div class="item c" @click="layoutGraph('TB')">
-            <i-branch-one theme="outline" size="24" />
-          </div>
-        </t-tooltip> -->
-      </div>
-      <div class="openRightChatBoxBtn c" v-show="!openShowVisible" @click.stop="openShowVisible = true">
-        <i-menu-unfold-one theme="outline" size="24" />
-      </div>
-      <transition name="slide" v-show="openShowVisible" v-if="episodesId">
-        <rightChatBox :title="title" v-model="flowData" @close="openShowVisible = false" />
-      </transition>
-    </div>
-    <t-guide v-model="current" :steps="steps" @finish="() => (current = -1)" />
-    <t-tag variant="outline" class="fps" v-if="!openShowVisible">{{ fps }}</t-tag>
-  </VueFlow>
+      </Panel>
+    </VueFlow>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { useLocalStorage, useEventListener } from "@vueuse/core";
-import { VueFlow, useVueFlow } from "@vue-flow/core";
+import axios from "@/utils/axios";
+import { VueFlow, Panel, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
+import { MiniMap } from "@vue-flow/minimap";
 import { Controls } from "@vue-flow/controls";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/controls/dist/style.css";
-//子node组件
-import scriptNode from "./node/script.vue";
-import scriptPlan from "./node/scriptPlan.vue";
-import assets from "./node/assets.vue";
-import storyboardTable from "./node/storyboardTable.vue";
-import storyboard from "./node/storyboard.vue";
-import workbench from "./node/workbench.vue";
-import poster from "./node/poster.vue";
-import rightChatBox from "./components/rightChatBox/index.vue";
-import { useLayout } from "./utils/dagre";
-import { useFlowBuilder } from "./utils/flowBuilder";
-import axios from "@/utils/axios";
-import projectStore from "@/stores/project";
-
-const { project } = storeToRefs(projectStore());
-import settingStore from "@/stores/setting";
-const { canvasWheelEvent, otherSetting } = storeToRefs(settingStore());
-const openShowVisible = ref(true);
-const {
-  toObject,
-  fromObject,
-  fitView,
-  findNode,
-  onNodeDragStart,
-  onNodeDragStop,
-  onMoveStart,
-  onMoveEnd,
-  updateNodeInternals,
-  getNodes,
-  getViewport,
-  setViewport,
-} = useVueFlow({ id: "mainFlowBox" });
-
-// 按住空格+左键拖拽画布（即使在节点上）
-const isSpacePressed = ref(false);
-let dragOrigin = { x: 0, y: 0, vx: 0, vy: 0 };
-
-function onSpaceMouseDown(e: MouseEvent) {
-  if (!isSpacePressed.value || e.button !== 0) return;
-  e.stopPropagation();
-  e.preventDefault();
-  const vp = getViewport();
-  dragOrigin = { x: e.clientX, y: e.clientY, vx: vp.x, vy: vp.y };
-  document.addEventListener("mousemove", onSpaceMouseMove);
-  document.addEventListener("mouseup", onSpaceMouseUp, { once: true });
-}
-function onSpaceMouseMove(e: MouseEvent) {
-  setViewport({ x: dragOrigin.vx + e.clientX - dragOrigin.x, y: dragOrigin.vy + e.clientY - dragOrigin.y, zoom: getViewport().zoom });
-}
-function onSpaceMouseUp() {
-  document.removeEventListener("mousemove", onSpaceMouseMove);
-}
-
-useEventListener(document, "keydown", (e: KeyboardEvent) => {
-  if (e.code === "Space" && !e.repeat) {
-    e.preventDefault();
-    isSpacePressed.value = true;
-  }
-});
-useEventListener(document, "keyup", (e: KeyboardEvent) => {
-  if (e.code === "Space") isSpacePressed.value = false;
-});
-
-// 拖拽/平移期间降低渲染复杂度，优化性能
-const isInteracting = ref(false);
-let interactionTimer: ReturnType<typeof setTimeout> | null = null;
-
-function startInteracting() {
-  if (interactionTimer) clearTimeout(interactionTimer);
-  isInteracting.value = true;
-}
-function stopInteracting() {
-  // 延迟恢复，避免频繁切换
-  if (interactionTimer) clearTimeout(interactionTimer);
-  interactionTimer = setTimeout(() => {
-    isInteracting.value = false;
-  }, 150);
-}
-
-onNodeDragStart(() => startInteracting());
-onMoveStart(() => startInteracting());
-onMoveEnd(() => stopInteracting());
-const { layout } = useLayout("mainFlowBox");
+import pluginNode from "@/components/edit/pluginNode.vue";
+import { provideToonflowHost } from "@/utils/toonflowHost";
 
 import productionAgentStore from "@/stores/productionAgent";
-const { episodesId, flowData, status } = storeToRefs(productionAgentStore());
-provide("episodesId", episodesId);
+import projectStore from "@/stores/project";
+const { project } = storeToRefs(projectStore());
 
-const loading = ref(false);
+// 向 UMD 节点注入宿主能力（show 模式：无选择器）
+provideToonflowHost({ flowId: "showFlow" });
 
-// 节点位置
-const nodePositions = ref<Record<string, { x: number; y: number }>>({
-  script: { x: 0, y: 0 },
-  scriptPlan: { x: 900, y: 0 },
-  assets: { x: 1200, y: 4000 },
-  storyboardTable: { x: 1800, y: 0 },
-  storyboard: { x: 2500, y: 0 },
-  workbench: { x: 3000, y: 0 },
-  // poster: { x: 4500, y: 0 },
-});
-const { nodes, edges } = useFlowBuilder(flowData, nodePositions);
-
-// 用户拖拽节点后，同步位置到 nodePositions，防止 flowData 更新时位置被复原
-onNodeDragStop(async ({ nodes: draggedNodes }) => {
-  await nextTick();
-  stopInteracting();
-  for (const node of draggedNodes) {
-    nodePositions.value[node.id] = { x: node.position.x, y: node.position.y };
-  }
+const defaultEdgeOptions = markRaw({
+  type: "simple-bezier",
+  animated: false,
+  focusable: false,
+  selectable: false,
+  updatable: false,
+  interactionWidth: 0,
 });
 
-// flowData 变化时，将 VueFlow 中节点的当前实际位置同步到 nodePositions，防止位置回跳
-watch(
-  flowData,
-  () => {
-    for (const node of getNodes.value) {
-      nodePositions.value[node.id] = { x: node.position.x, y: node.position.y };
-    }
-  },
-  { deep: true },
-);
-
-async function waitForNodesReady(maxRetries = 60, delay = 100) {
-  while (maxRetries-- > 0) {
-    const nodes = getNodes.value;
-    if (nodes.length > 0) {
-      // 等待所有节点的 DOM 尺寸都已被 VueFlow 测量完成
-      const allMeasured = nodes.every((n) => n.dimensions?.width && n.dimensions.width > 0);
-      if (allMeasured) return true;
-    }
-    await new Promise((resolve) => setTimeout(resolve, delay));
-  }
-  return false;
-}
+// const nodes = shallowRef<Node[]>([
+//   {
+//     id: "1",
+//     type: "pluginNode",
+//     position: { x: 0, y: 0 },
+//     data: {
+//       pluginId: "toonflowPlugin:script",
+//       data: {
+//         script:
+//           // "测试节点123123123123<tg><del>123</del><ins>好好好</ins></tg>这是一段普通文字，后面跟着修改内容<tg><del>旧文本内容</del><ins>新文本内容</ins></tg>，继续阅读下面的段落。\n\n第二段落开始，这里有<tg><del>需要删除的文字</del><ins>替换后的文字</ins></tg>，以及更多的<tg><del>错误描述</del><ins>正确描述</ins></tg>需要处理。\n\n在某些情况下<tg><del>原始版本A</del><ins>更新版本B</ins></tg>会出现连续修改，例如<tg><del>第一处修改</del><ins>修改一替换</ins></tg>紧接着<tg><del>第二处修改</del><ins>修改二替换</ins></tg>。\n\n段落末尾的修改<tg><del>末尾旧内容</del><ins>末尾新内容</ins></tg>\n\n<tg><del>开头就是修改内容</del><ins>开头替换为新内容</ins></tg>这是紧跟在修改后的普通文本。\n\n仅删除的情况：这段话里<tg><del>这部分将被删除</del><ins></ins></tg>不留任何替换。\n\n仅新增的情况：这里<tg><del></del><ins>插入全新的文字内容</ins></tg>是新插入的文字。\n\n较长内容的修改<tg><del>这是一段较长的旧文本，包含了很多需要被替换掉的内容描述</del><ins>这是替换后的新文本，经过精心修改和优化后的内容</ins></tg>继续后面的内容。",
+//           "# 123",
+//       },
+//     },
+//   },
+//   {
+//     id: "2",
+//     type: "pluginNode",
+//     position: { x: 650, y: 0 },
+//     data: {
+//       pluginId: "toonflowPlugin:assets",
+//       data: {
+//         assets: [
+//           {
+//             id: 1,
+//             name: "勇者角色",
+//             desc: "一位手持长剑的勇敢战士",
+//             prompt: "a brave warrior holding a sword, fantasy style, detailed armor",
+//             src: "https://picsum.photos/seed/role1/400/400",
+//             state: "已完成",
+//             type: "role",
+//             flowId: 101,
+//             errorReason: undefined,
+//             derive: [
+//               {
+//                 id: 101,
+//                 assetsId: 1,
+//                 name: "勇者角色-变体1",
+//                 prompt: "a brave warrior holding a sword, dark version",
+//                 desc: "暗色风格变体",
+//                 src: "https://picsum.photos/seed/role1_d1/400/400",
+//                 flowId: 1011,
+//                 state: "已完成",
+//                 type: "role",
+//               },
+//               {
+//                 id: 102,
+//                 assetsId: 1,
+//                 name: "勇者角色-变体2",
+//                 prompt: "a brave warrior holding a sword, light version",
+//                 desc: "亮色风格变体",
+//                 src: "https://picsum.photos/seed/role1_d2/400/400",
+//                 flowId: 1012,
+//                 state: "生成中",
+//                 type: "role",
+//               },
+//             ],
+//           },
+//           {
+//             id: 2,
+//             name: "魔法师",
+//             desc: "身披紫袍的神秘魔法师",
+//             prompt: "a mysterious mage in purple robe, holding magic staff, glowing effects",
+//             src: "https://picsum.photos/seed/role2/400/400",
+//             state: "已完成",
+//             type: "role",
+//             flowId: 102,
+//             errorReason: undefined,
+//             derive: [
+//               {
+//                 id: 201,
+//                 assetsId: 2,
+//                 name: "魔法师-变体1",
+//                 prompt: "a mysterious mage, fire magic version",
+//                 desc: "火焰魔法版本",
+//                 src: "https://picsum.photos/seed/role2_d1/400/400",
+//                 flowId: 2011,
+//                 state: "已完成",
+//                 type: "role",
+//               },
+//             ],
+//           },
+//           {
+//             id: 3,
+//             name: "神圣之剑",
+//             desc: "散发着圣光的传说武器",
+//             prompt: "a holy sword with divine light, legendary weapon, glowing runes",
+//             src: "https://picsum.photos/seed/tool1/400/400",
+//             state: "已完成",
+//             type: "tool",
+//             flowId: 103,
+//             errorReason: undefined,
+//             derive: [
+//               {
+//                 id: 301,
+//                 assetsId: 3,
+//                 name: "神圣之剑-变体1",
+//                 prompt: "a holy sword, dark enchanted version",
+//                 desc: "暗魔附魔版本",
+//                 src: "https://picsum.photos/seed/tool1_d1/400/400",
+//                 state: "生成失败",
+//                 type: "tool",
+//                 errorReason: "模型超时，请重试",
+//               },
+//             ],
+//           },
+//           {
+//             id: 4,
+//             name: "古老森林",
+//             desc: "充满神秘气息的古老森林场景",
+//             prompt: "an ancient mystical forest, fog, tall trees, fantasy atmosphere, detailed",
+//             src: "https://picsum.photos/seed/scene1/800/450",
+//             state: "已完成",
+//             type: "scene",
+//             flowId: 104,
+//             errorReason: undefined,
+//             derive: [
+//               {
+//                 id: 401,
+//                 assetsId: 4,
+//                 name: "古老森林-夜晚版",
+//                 prompt: "an ancient mystical forest at night, moonlight, fog",
+//                 desc: "夜晚月光版本",
+//                 src: "https://picsum.photos/seed/scene1_d1/800/450",
+//                 flowId: 4011,
+//                 state: "已完成",
+//                 type: "scene",
+//               },
+//               {
+//                 id: 402,
+//                 assetsId: 4,
+//                 name: "古老森林-黄昏版",
+//                 prompt: "an ancient mystical forest at sunset, golden light",
+//                 desc: "黄昏金光版本",
+//                 src: "https://picsum.photos/seed/scene1_d2/800/450",
+//                 state: "未生成",
+//                 type: "scene",
+//               },
+//             ],
+//           },
+//           {
+//             id: 5,
+//             name: "城堡废墟",
+//             desc: "饱经沧桑的中世纪城堡废墟",
+//             prompt: "a ruined medieval castle, broken walls, overgrown with vines, dramatic lighting",
+//             src: "https://picsum.photos/seed/scene2/800/450",
+//             state: "生成中",
+//             type: "scene",
+//             flowId: 105,
+//             errorReason: undefined,
+//             derive: [],
+//           },
+//           {
+//             id: 6,
+//             name: "开场动画片段",
+//             desc: "游戏开场白动画剪辑",
+//             prompt: "cinematic opening sequence, epic fantasy, dramatic music, title reveal",
+//             src: "https://picsum.photos/seed/clip1/800/450",
+//             state: "未生成",
+//             type: "clip",
+//             errorReason: undefined,
+//             derive: [],
+//           },
+//           {
+//             id: 7,
+//             name: "战斗特效片段",
+//             desc: "激烈战斗场面的特效剪辑",
+//             prompt: "intense battle sequence, magic effects, sword clash, particle effects",
+//             src: "https://picsum.photos/seed/clip2/800/450",
+//             state: "生成失败",
+//             type: "clip",
+//             flowId: 107,
+//             errorReason: "资源不足，生成队列已满",
+//             derive: [
+//               {
+//                 id: 701,
+//                 assetsId: 7,
+//                 name: "战斗特效-简化版",
+//                 prompt: "battle sequence, simplified effects",
+//                 desc: "简化特效版本",
+//                 src: "https://picsum.photos/seed/clip2_d1/800/450",
+//                 state: "未生成",
+//                 type: "clip",
+//               },
+//             ],
+//           },
+//         ],
+//       },
+//     },
+//   },
+//   {
+//     id: "3",
+//     type: "pluginNode",
+//     position: { x: 1300, y: 0 },
+//     data: {
+//       pluginId: "toonflowPlugin:scriptPlan",
+//       data: {
+//         scriptPlan:
+//           "这是一个<tg><del>剧本规划</del><ins>导演创作方案</ins></tg>的示例内容，包含了多个场景和角色的描述，以及他们之间的关系和互动。通过这个<tg><del>剧本规划</del><ins>导演方案</ins></tg>，创作者可以清晰地了解整个故事的<tg><del>结构和发展方向</del><ins>叙事脉络与视觉风格</ins></tg>，从而更好地进行创作和制作。\n\n场景一：勇者与魔法师的相遇\n在一个<tg><del>风雨交加的夜晚</del><ins>雷声轰鸣的深夜</ins></tg>，勇者在山顶遇到了神秘的魔法师。两人因为<tg><del>误会</del><ins>立场分歧</ins></tg>而发生冲突，但最终联手对抗共同的敌人，建立了<tg><del>深厚的友谊</del><ins>超越生死的羁绊</ins></tg>。\n\n场景二：古老森林的冒险\n勇者和魔法师进入了一片<tg><del>充满危险的</del><ins>暗藏未知威胁的</ins></tg>古老森林，他们需要克服各种<tg><del>障碍和敌人</del><ins>陷阱、幻境与追杀</ins></tg>，寻找传说中的宝藏。在这个过程中，他们也逐渐揭开了彼此的<tg><del>过去和内心的秘密</del><ins>隐藏身份与命运羁绊</ins></tg>。\n\n场景三：城堡废墟的决战\n最终，勇者和魔法师来到了一个被诅咒的城堡废墟，在这里他们将面对<tg><del>最强大的敌人</del><ins>幕后真正的黑手</ins></tg>，并决定整个世界的命运。通过这场决战，他们不仅展现了自己的<tg><del>力量</del><ins>意志与牺牲精神</ins></tg>，也证明了<tg><del>友谊和信念的重要性</del><ins>守护与信仰能够战胜一切黑暗</ins></tg>。<tg><del></del><ins>\n\n场景四：战后的余晖\n决战结束，废墟在晨光中静静沉寂，勇者将神圣之剑插入大地，两人相视而笑，镜头缓缓拉远，交代世界重归和平的结局。</ins></tg>",
+//       },
+//     },
+//   },
+//   {
+//     id: "4",
+//     type: "pluginNode",
+//     position: { x: 1950, y: 0 },
+//     data: {
+//       pluginId: "toonflowPlugin:storyboardTable",
+//       data: {
+//         storyboardTable: `<table border="1" width="100%" cellspacing="0" cellpadding="8" style="border-collapse:collapse;width:100%;table-layout:fixed;">
+//   <colgroup>
+//     <col style="width:60px"/>
+//     <col style="width:80px"/>
+//     <col style="width:200px"/>
+//     <col style="width:200px"/>
+//     <col style="width:150px"/>
+//     <col style="width:150px"/>
+//     <col style="width:100px"/>
+//     <col style="width:150px"/>
+//   </colgroup>
+//   <thead>
+//     <tr style="background-color:#2c3e50;color:#ffffff;text-align:center;">
+//       <th style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">镜号</th>
+//       <th style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">景别</th>
+//       <th style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">画面内容</th>
+//       <th style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">参考图</th>
+//       <th style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">对白/旁白</th>
+//       <th style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">音效/音乐</th>
+//       <th style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">时长(s)</th>
+//       <th style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">备注</th>
+//     </tr>
+//   </thead>
+//   <tbody>
+//     <tr style="background-color:#ecf0f1;text-align:center;vertical-align:middle;">
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">001</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">远景</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;text-align:left;">清晨，镜头从高空俯瞰整个城市，阳光洒落在楼群之间，薄雾弥漫，城市慢慢苏醒。</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;height:80px;min-width:150px;">[参考图]</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">——</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">晨鸟鸣叫，轻柔背景音乐</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">5</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">开场镜头，奠定基调</td>
+//     </tr>
+//     <tr style="background-color:#ffffff;text-align:center;vertical-align:middle;">
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">002</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">全景</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;text-align:left;">主角从公寓楼走出，背着双肩包，步伐轻快，迎着阳光走向街道。</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;height:80px;min-width:150px;">[参考图]</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">今天一定会有好事发生。</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">轻快节奏音乐</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">4</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">主角登场</td>
+//     </tr>
+//     <tr style="background-color:#ecf0f1;text-align:center;vertical-align:middle;">
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">003</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">中景</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;text-align:left;">主角在街边早餐摊前停下，与摊主交谈，笑容满面，掏出手机扫码付款。</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;height:80px;min-width:150px;">[参考图]</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">老板，老样子！</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">街道嘈杂环境音</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">6</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">体现日常生活感</td>
+//     </tr>
+//     <tr style="background-color:#ffffff;text-align:center;vertical-align:middle;">
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">004</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">近景</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;text-align:left;">主角手机震动，低头看到一条陌生消息，表情从轻松转为疑惑，眉头微皱。</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;height:80px;min-width:150px;">[参考图]</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">这是……谁？</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">手机震动音效，悬疑音调渐入</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">4</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">埋下悬念</td>
+//     </tr>
+//     <tr style="background-color:#ecf0f1;text-align:center;vertical-align:middle;">
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">005</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">特写</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;text-align:left;">手机屏幕特写，显示消息内容："你知道真相吗？"，发件人显示为"未知"。</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;height:80px;min-width:150px;">[参考图]</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">——</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">悬疑音效拉升</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">3</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">转折点，推动剧情</td>
+//     </tr>
+//     <tr style="background-color:#ffffff;text-align:center;vertical-align:middle;">
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">006</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">中近景</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;text-align:left;">主角抬起头，环顾四周，人群川流不息，镜头缓慢推进至主角脸部，神情凝重。</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;height:80px;min-width:150px;">[参考图]</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">（内心独白）我必须找到答案。</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">背景音乐渐强，节奏加快</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">5</td>
+//       <td style="border:1px solid #bdc3c7;padding:10px;font-size:13px;">第一幕结尾</td>
+//     </tr>
+//   </tbody>
+// </table>`,
+//       },
+//     },
+//   },
+//   {
+//     id: "5",
+//     type: "pluginNode",
+//     position: { x: 3000, y: 0 },
+//     data: {
+//       pluginId: "toonflowPlugin:storyboard",
+//       data: {
+//         storyboard: [
+//           {
+//             id: 1,
+//             duration: 5,
+//             prompt: "勇者站在山顶俯瞰远方的城堡，风吹动斗篷，镜头缓慢推进",
+//             trackId: 1001,
+//             associateAssetsIds: [1, 3],
+//             src: "https://picsum.photos/seed/sb1/450/800",
+//             state: "已完成",
+//             flowId: 5001,
+//             reason: undefined,
+//             videoDesc: "开场镜头，勇者眺望远方，展现宏大世界观",
+//             shouldGenerateImage: 1,
+//           },
+//           {
+//             id: 2,
+//             duration: 3,
+//             prompt: "魔法师在古老森林中施展紫色魔法，光芒四射，周围树木被照亮",
+//             trackId: 1002,
+//             associateAssetsIds: [2, 4],
+//             src: "https://picsum.photos/seed/sb2/450/800",
+//             state: "已完成",
+//             flowId: 5002,
+//             reason: undefined,
+//             videoDesc: "魔法师在森林中施法的特写镜头",
+//             shouldGenerateImage: 1,
+//           },
+//           {
+//             id: 3,
+//             duration: 4,
+//             prompt: "城堡废墟中两人对峙，紧张气氛，乌云密布，闪电劈过天空",
+//             trackId: 1003,
+//             associateAssetsIds: [1, 2, 5],
+//             src: null,
+//             state: "生成中",
+//             flowId: 5003,
+//             reason: undefined,
+//             videoDesc: "高潮对峙场景，勇者与魔法师在废墟相遇",
+//             shouldGenerateImage: 1,
+//           },
+//           {
+//             id: 4,
+//             duration: 6,
+//             prompt: "激烈的剑与魔法交锋，火花与魔法粒子碰撞，快速剪辑节奏",
+//             trackId: 1004,
+//             associateAssetsIds: [1, 2, 3, 7],
+//             src: null,
+//             state: "未生成",
+//             reason: undefined,
+//             videoDesc: "核心战斗场景，剑术与魔法的正面交锋",
+//             shouldGenerateImage: 0,
+//           },
+//           {
+//             id: 5,
+//             duration: 8,
+//             prompt: "战斗结束后，阳光穿透云层洒向大地，勇者将剑插入地面，镜头缓慢拉远",
+//             trackId: 1005,
+//             associateAssetsIds: [1, 3, 4],
+//             src: null,
+//             state: "生成失败",
+//             flowId: 5005,
+//             reason: "生成超时，服务端资源不足，请稍后重试",
+//             videoDesc: "战斗结束的尾声，展现和平降临的氛围",
+//             shouldGenerateImage: 1,
+//           },
+//           {
+//             id: 6,
+//             duration: 2,
+//             prompt: "黑幕渐入，标题文字逐字浮现，背景音乐渐强",
+//             associateAssetsIds: [],
+//             src: null,
+//             state: "未生成",
+//             reason: undefined,
+//             videoDesc: "片尾标题展示画面",
+//             shouldGenerateImage: 0,
+//           },
+//         ],
+//       },
+//     },
+//   },
+// ]);
 
 onMounted(async () => {
   await getScriptData();
   if (!episodesId.value) return;
-
-  const nodesReady = await waitForNodesReady();
-  if (nodesReady) {
-    await layoutGraph();
-  }
 });
 
 const episodesOptions = ref<{ label: string; value: number }[]>([]);
-function confirmEpisodesSwitch() {
-  if (status.value !== "pending" && status.value !== "streaming") {
-    return Promise.resolve(true);
-  }
 
-  return new Promise<boolean>((resolve) => {
-    const dialog = DialogPlugin.confirm({
-      header: $t("workbench.production.confirm"),
-      body: $t("workbench.production.confirmEpisodesSwitch"),
-      confirmBtn: $t("workbench.production.save"),
-      cancelBtn: $t("workbench.production.cancel"),
-      theme: "warning",
-      onConfirm: () => {
-        dialog.destroy();
-        resolve(true);
-      },
-      onCancel: () => {
-        dialog.destroy();
-        resolve(false);
-      },
-      onClose: () => {
-        dialog.destroy();
-        resolve(false);
-      },
-    });
-  });
-}
-
-function handleEpisodesChange(value: unknown) {
-  const rawValue = Array.isArray(value) ? value[0] : value;
-  const nextEpisodesId = Number(rawValue);
-  if (!Number.isFinite(nextEpisodesId) || nextEpisodesId === episodesId.value) return;
-
-  void (async () => {
-    if (!(await confirmEpisodesSwitch())) return;
-
-    episodesId.value = nextEpisodesId;
-    await productionAgentStore().getFlowData();
-  })();
-}
+const { episodesId, flowData, status } = storeToRefs(productionAgentStore());
+provide("episodesId", episodesId);
 
 async function getScriptData() {
   //获取剧本
@@ -299,306 +490,22 @@ async function getScriptData() {
   }
 }
 
-async function layoutGraph(direction: "LR" | "TB" = "LR") {
-  // 等待 DOM 渲染完成
-  await nextTick();
-
-  // 强制 VueFlow 重新测量所有节点尺寸
-  const nodeIds = getNodes.value.map((n) => n.id);
-  updateNodeInternals(nodeIds);
-  await nextTick();
-
-  // 等待所有节点的 dimensions 都已被 VueFlow 正确测量且尺寸稳定
-  let retries = 30;
-  let lastSnapshot = "";
-  let stableCount = 0;
-  while (retries-- > 0) {
-    const allMeasured = nodeIds.every((id) => {
-      const node = findNode(id);
-      return node?.dimensions?.width && node.dimensions.width > 0;
-    });
-    if (allMeasured) {
-      // 检查尺寸是否稳定（连续两次相同才算就绪）
-      const snapshot = nodeIds
-        .map((id) => {
-          const node = findNode(id);
-          return `${id}:${node?.dimensions?.width}x${node?.dimensions?.height}`;
-        })
-        .join(",");
-      if (snapshot === lastSnapshot) {
-        stableCount++;
-        if (stableCount >= 2) break;
-      } else {
-        stableCount = 0;
-        lastSnapshot = snapshot;
-      }
-    }
-    await new Promise((r) => setTimeout(r, 80));
-  }
-
-  const oldData = toObject();
-
-  // 从 VueFlow 内部获取已测量的尺寸（流坐标系，无需 zoom 换算）
-  const dims = new Map<string, { w: number; h: number }>();
-  for (const n of oldData.nodes) {
-    const vNode = findNode(n.id);
-    dims.set(n.id, {
-      w: vNode?.dimensions?.width ?? 150,
-      h: vNode?.dimensions?.height ?? 50,
-    });
-  }
-
-  const gap = 80; // 节点之间的最小留白
-
-  if (direction === "LR") {
-    // 手动布局：主链从左到右排列，assets 放在 script 正下方
-    const mainChain = ["script", "scriptPlan", "storyboardTable", "storyboard", "workbench", "poster"];
-    const chainNodes = mainChain.filter((id) => oldData.nodes.some((n) => n.id === id));
-
-    // 逐个排列主链节点，x 基于前一个节点的右边缘 + gap，顶部对齐
-    let curX = 0;
-    for (const id of chainNodes) {
-      const node = oldData.nodes.find((n) => n.id === id);
-      const dim = dims.get(id);
-      if (!node || !dim) continue;
-      node.position.x = curX;
-      node.position.y = 0;
-      curX += dim.w + gap;
-    }
-
-    // assets 放在 script 正下方
-    const scriptNode = oldData.nodes.find((n) => n.id === "script");
-    const assetsNode = oldData.nodes.find((n) => n.id === "assets");
-    const scriptDim = dims.get("script");
-    if (scriptNode && assetsNode && scriptDim) {
-      assetsNode.position.x = scriptNode.position.x;
-      assetsNode.position.y = scriptNode.position.y + scriptDim.h + gap;
-    }
-
-    // 确保 assets 不与主链中其他节点重叠（检查水平方向）
-    if (assetsNode) {
-      const assetsDim = dims.get("assets");
-      if (assetsDim) {
-        const assetsRight = assetsNode.position.x + assetsDim.w;
-        const assetsTop = assetsNode.position.y;
-        const assetsBottom = assetsTop + assetsDim.h;
-        for (const id of chainNodes) {
-          if (id === "script") continue;
-          const node = oldData.nodes.find((n) => n.id === id);
-          const dim = dims.get(id);
-          if (!node || !dim) continue;
-          const nodeTop = node.position.y;
-          const nodeBottom = nodeTop + dim.h;
-          // 检查垂直范围是否有交集
-          const vertOverlap = assetsTop < nodeBottom && assetsBottom > nodeTop;
-          if (vertOverlap && node.position.x < assetsRight) {
-            // 将该节点及其后续都右移
-            const shift = assetsRight + gap - node.position.x;
-            const idx = chainNodes.indexOf(id);
-            for (let i = idx; i < chainNodes.length; i++) {
-              const shiftNode = oldData.nodes.find((n) => n.id === chainNodes[i]);
-              if (shiftNode) shiftNode.position.x += shift;
-            }
-            break;
-          }
-        }
-      }
-    }
-  } else {
-    // TB 方向使用 dagre 自动布局
-    const widths = [...dims.values()].map((d) => d.w);
-    const heights = [...dims.values()].map((d) => d.h);
-    const avgWidth = widths.length ? widths.reduce((a, b) => a + b, 0) / widths.length : 150;
-    const avgHeight = heights.length ? heights.reduce((a, b) => a + b, 0) / heights.length : 50;
-    const ranksep = avgHeight * 0.5 + gap;
-    const nodesep = avgWidth * 0.3 + gap;
-    oldData.nodes = layout(oldData.nodes, oldData.edges, direction, nodesep, ranksep);
-  }
-
-  await fromObject(oldData);
-  await nextTick();
-
-  // 布局后同步新位置到 nodePositions，防止后续 flowData 变化时回跳
-  for (const node of getNodes.value) {
-    nodePositions.value[node.id] = { x: node.position.x, y: node.position.y };
-  }
-
-  fitView({ duration: 300 });
+function handleEpisodesChange(value: unknown) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const nextEpisodesId = Number(rawValue);
+  if (!Number.isFinite(nextEpisodesId) || nextEpisodesId === episodesId.value) return;
+  episodesId.value = nextEpisodesId;
+  productionAgentStore().getFlowData();
 }
 
-const title = computed(() => {
-  const episode = episodesOptions.value.find((option) => option.value === episodesId.value);
-  return episode ? episode.label : "";
-});
+import { useFlowBuilder } from "./useFlowBuilder";
 
-watch(
-  () => episodesId.value,
-  async (newVal) => {
-    if (!newVal || newVal < 0) return;
-    await refFlowData();
-    productionAgentStore().updateContext();
-    await productionAgentStore().getHistory();
-  },
-);
-
-async function refFlowData() {
-  await productionAgentStore().getFlowData();
-  layoutGraph();
-}
-
-const current = useLocalStorage("productionCurrent", 0);
-const steps = [
-  {
-    element: ".episodesSelect",
-    title: $t("workbench.production.guideSwitchEpisode"),
-    body: $t("workbench.production.guideSwitchEpisodeBody"),
-    placement: "bottom",
-  },
-  {
-    element: ".guide-refresh-btn",
-    title: $t("workbench.production.guideRefresh"),
-    body: $t("workbench.production.guideRefreshBody"),
-    placement: "bottom",
-  },
-  {
-    element: ".guide-layout-btn",
-    title: $t("workbench.production.guideLayoutBtn"),
-    body: $t("workbench.production.guideLayoutBtnBody"),
-    placement: "bottom",
-  },
-  {
-    element: ".vue-flow__controls",
-    title: $t("workbench.production.guideCanvasNav"),
-    body: $t("workbench.production.guideCanvasNavBody"),
-    placement: "right",
-  },
-] as any;
-
-const fps = ref(0);
-let lastFrameTime = performance.now();
-let frameCount = 0;
-function animate() {
-  const now = performance.now();
-  frameCount++;
-  const elapsed = now - lastFrameTime;
-  if (elapsed >= 500) {
-    fps.value = Math.round((frameCount * 1000) / elapsed);
-    frameCount = 0;
-    lastFrameTime = now;
-  }
-  if (!openShowVisible.value) {
-    requestAnimationFrame(animate);
-  }
-}
-
-watch(openShowVisible, (val) => {
-  if (!val) {
-    animate();
-  }
-});
+const { nodes } = useFlowBuilder(flowData);
 </script>
-<style lang="scss" scoped>
-.flowMain {
+
+<style scoped>
+.flowWrap {
+  width: 100%;
   height: 100%;
-  &.space-dragging {
-    cursor: grab !important;
-    :deep(*) {
-      cursor: grab !important;
-    }
-  }
-  .floatingWindow {
-    width: 100%;
-    height: 100%;
-    position: relative;
-    overflow: hidden;
-    .episodesSelect {
-      position: absolute;
-      top: 10px;
-      left: 0px;
-      z-index: 9999;
-      cursor: pointer;
-
-      .item {
-        width: 50px;
-        padding: 5px;
-        color: var(--mainColor);
-        &:hover {
-          background-color: var(--td-bg-color-container-hover);
-          border-radius: 4px;
-          cursor: pointer;
-        }
-      }
-    }
-    .openRightChatBoxBtn {
-      position: absolute;
-      top: 10px;
-      right: 0;
-      width: 40px;
-      height: 40px;
-      background-color: var(--td-bg-color-secondarycontainer);
-      border-radius: 10px;
-      z-index: 10;
-      cursor: pointer;
-    }
-  }
-  :deep(.slide-enter-active),
-  :deep(.slide-leave-active) {
-    transition: transform 0.3s ease-out;
-  }
-  :deep(.slide-enter-from) {
-    transform: translateX(100%);
-  }
-  :deep(.slide-leave-to) {
-    transform: translateX(100%);
-  }
-}
-// 拖拽/平移时优化渲染性能
-.flowMain.is-interacting {
-  :deep(.vue-flow__node) {
-    will-change: transform;
-    contain: layout style paint;
-  }
-  :deep(.vue-flow__transformationpane) {
-    will-change: transform;
-  }
-  :deep(.t-image),
-  :deep(.assetImage),
-  :deep(.frameImg),
-  :deep(.assetImageWrap) {
-    pointer-events: none;
-    contain: strict;
-  }
-  // 禁用 hover 效果，减少样式重算
-  :deep(.imageToolsWrap),
-  :deep(.addBetween) {
-    display: none !important;
-  }
-}
-$handelSize: 12px;
-
-:deep(.source) {
-  height: $handelSize;
-  width: $handelSize;
-}
-:deep(.target) {
-  height: $handelSize;
-  width: $handelSize;
-}
-:deep(.dragHandle) {
-  padding: 4px;
-  border-radius: 4px;
-  transition: backdrop-filter 0.3s ease-out;
-  &:hover {
-    cursor: move;
-    backdrop-filter: brightness(0.95);
-  }
-}
-.fps {
-  position: absolute;
-  bottom: 10px;
-  right: 0px;
-  padding: 2px 6px;
-  font-size: 12px;
-  border-radius: 4px;
 }
 </style>

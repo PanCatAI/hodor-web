@@ -8,7 +8,7 @@
       </t-button>
     </t-tooltip>
     <t-tooltip theme="primary" :content="$t('components.imageTools.preview')" :placement="placement">
-      <t-image-viewer v-model:visible="previewVisible" :images="[previewSrc]">
+      <t-image-viewer v-model:visible="previewVisible" :images="[bigSrc]">
         <template #trigger>
           <t-button variant="outline" size="small" shape="square" @click.stop="handlePreview">
             <template #icon>
@@ -29,41 +29,54 @@
 </template>
 
 <script setup lang="ts">
-import axios from "@/utils/axios";
-
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   src: string;
   placement?: string;
   position?: "none" | "br" | "bl" | "tr" | "tl";
   margin?: string;
-}>();
-
-const placement = computed<any>(function () {
-  return props.placement || "bottom";
+  size?: number;
+}>(), {
+  placement: "bottom",
+  position: "none",
+  margin: "4px",
+  size: 100,
 });
 
-const positionStyle = computed<any>(function () {
-  const margin = props.margin ?? "4px";
-  const position = props.position || "none";
+const placement = computed<any>(() => props.placement);
+
+const bigSrc = computed(() => {
+  const sep = props.src.includes("?") ? "&" : "?";
+  return `${props.src}${sep}size=${props.size}`;
+});
+
+const positionStyle = computed<any>(() => {
   const map: Record<string, any> = {
-    br: { position: "absolute", bottom: margin, right: margin },
-    bl: { position: "absolute", bottom: margin, left: margin },
-    tr: { position: "absolute", top: margin, right: margin },
-    tl: { position: "absolute", top: margin, left: margin },
-    none: { margin: margin },
+    br: { position: "absolute", bottom: props.margin, right: props.margin },
+    bl: { position: "absolute", bottom: props.margin, left: props.margin },
+    tr: { position: "absolute", top: props.margin, right: props.margin },
+    tl: { position: "absolute", top: props.margin, left: props.margin },
+    none: { margin: props.margin },
   };
-  return map[position];
+  return map[props.position];
 });
 
 const previewVisible = ref(false);
-const previewSrc = ref("");
 
-async function handlePreview() {
-  const { data } = await axios.post("/common/getBigImage", {
-    url: props.src,
-  });
-  previewSrc.value = data;
+function handlePreview() {
   previewVisible.value = true;
+}
+
+function triggerAnchorClick(href: string, filename: string, newTab = false) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  if (newTab) {
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+  }
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 async function handleCopy() {
@@ -101,38 +114,21 @@ async function handleCopy() {
 }
 
 async function handleDownload() {
-  const { data } = await axios.post("/common/getBigImage", {
-    url: props.src,
-  });
+  const url = bigSrc.value;
+  const filename = url.split("/").pop()?.split("?")[0] || "image";
   let objectUrl = "";
   try {
-    const response = await fetch(data, { mode: "cors" });
-    if (!response.ok) {
-      throw new Error($t("components.imageTools.msg.downloadFailed"));
-    }
+    const response = await fetch(url, { mode: "cors" });
+    if (!response.ok) throw new Error($t("components.imageTools.msg.downloadFailed"));
     const blob = await response.blob();
     objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = data.split("/").pop() || "image";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    triggerAnchorClick(objectUrl, filename);
     window.$message.success($t("components.imageTools.msg.downloadStarted"));
   } catch {
-    const a = document.createElement("a");
-    a.href = data;
-    a.download = data.split("/").pop() || "image";
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    triggerAnchorClick(url, filename, true);
     window.$message.warning($t("components.imageTools.msg.downloadBlockedOpenNewWindow"));
   } finally {
-    if (objectUrl) {
-      URL.revokeObjectURL(objectUrl);
-    }
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
 }
 </script>
