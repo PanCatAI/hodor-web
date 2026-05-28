@@ -58,7 +58,8 @@
       "requestConfig": "リクエストURL",
       "about": "アップデートの確認",
       "logoutConfig": "ログアウト",
-      "skillsSkillsManagement": "スキルスキル管理"
+      "skillsSkillsManagement": "スキルスキル管理",
+      "modelMap": "プロンプトワードテンプレートのマッピング"
     },
     "language": {
       "desc": "インターフェースの表示言語を選択します",

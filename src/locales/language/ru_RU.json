@@ -58,7 +58,8 @@
       "requestConfig": "URL запросов",
       "about": "Проверить обновления",
       "logoutConfig": "Выйти",
-      "skillsSkillsManagement": "НавыкиУправление навыками"
+      "skillsSkillsManagement": "НавыкиУправление навыками",
+      "modelMap": "Быстрое сопоставление шаблонов слов"
     },
     "language": {
       "desc": "Выберите язык интерфейса",

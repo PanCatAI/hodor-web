@@ -58,7 +58,8 @@
       "requestConfig": "Request URL",
       "about": "Check for Updates",
       "logoutConfig": "Logout",
-      "skillsSkillsManagement": "SkillsSkills Management"
+      "skillsSkillsManagement": "SkillsSkills Management",
+      "modelMap": "Prompt word template mapping"
     },
     "language": {
       "desc": "Select the interface display language",

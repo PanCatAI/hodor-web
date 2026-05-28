@@ -1,3 +1,4 @@
+import productionAgentStore from "@/stores/productionAgent";
 import { computed, type Ref } from "vue";
 import { type Node } from "@vue-flow/core";
 
@@ -52,8 +53,8 @@ interface VideoList {
 
 export interface FlowData {
   script: string;
-  scriptPlan: string;
   assets: AssetItem[];
+  scriptPlan: string;
   storyboardTable: string;
   storyboard: Storyboard[];
   workbench: {
@@ -64,9 +65,13 @@ export interface FlowData {
 export type NodePositions = Record<string, { x: number; y: number }>;
 
 // ==================== 构建函数 ====================
-export function useFlowBuilder(flowData: Ref<FlowData | Node[]>, spacing = 600) {
-  const nodes = computed<Node[]>(() => {
+export function useFlowBuilder(spacing = 600) {
+  const { flowData } = storeToRefs(productionAgentStore());
+  const nodes = ref<Node[]>([]);
+
+  onMounted(() => {
     const value = flowData.value;
+    console.log("%c Line:72 🌭 value", "background:#ffdd4d", value);
 
     // 新格式：已经是 Node[]
     if (Array.isArray(value)) {
@@ -76,14 +81,14 @@ export function useFlowBuilder(flowData: Ref<FlowData | Node[]>, spacing = 600) 
     // 旧格式：FlowData 对象
     const compMap: Record<string, string> = {
       script: "toonflowPlugin:script",
-      scriptPlan: "toonflowPlugin:scriptPlan",
       assets: "toonflowPlugin:assets",
+      scriptPlan: "toonflowPlugin:scriptPlan",
       storyboardTable: "toonflowPlugin:storyboardTable",
       storyboard: "toonflowPlugin:storyboard",
     };
 
     let col = 0;
-    return Object.keys(value)
+    nodes.value = Object.keys(value)
       .map((key) => {
         const pluginId = compMap[key];
         if (!pluginId) return null;
@@ -101,6 +106,5 @@ export function useFlowBuilder(flowData: Ref<FlowData | Node[]>, spacing = 600) 
       })
       .filter(Boolean) as Node[];
   });
-
   return { nodes };
 }

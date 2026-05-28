@@ -58,7 +58,8 @@
       "requestConfig": "ที่อยู่คำขอ (API URL)",
       "about": "ตรวจสอบการอัปเดต",
       "logoutConfig": "ออกจากระบบ",
-      "skillsSkillsManagement": "การจัดการทักษะทักษะ"
+      "skillsSkillsManagement": "การจัดการทักษะทักษะ",
+      "modelMap": "การแมปเทมเพลตคำพร้อมท์"
     },
     "language": {
       "desc": "เลือกภาษาที่แสดงบนอินเทอร์เฟซ",

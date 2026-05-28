@@ -57,7 +57,8 @@
       "requestConfig": "Địa chỉ yêu cầu (API)",
       "about": "Kiểm tra cập nhật",
       "logoutConfig": "Đăng xuất",
-      "skillsSkillsManagement": "Kỹ năngQuản lý kỹ năng"
+      "skillsSkillsManagement": "Kỹ năngQuản lý kỹ năng",
+      "modelMap": "Ánh xạ mẫu từ nhắc nhở"
     },
     "language": {
       "desc": "Chọn ngôn ngữ hiển thị giao diện",

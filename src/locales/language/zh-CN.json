@@ -85,7 +85,7 @@
       "ui": "界面设置",
       "language": "语言设置",
       "vendorConfig": "模型服务",
-      "modelMap": "模型映射",
+      "modelMap": "提示词模板映射",
       "agentConfig": "Agent配置",
       "promptManage": "提示词管理",
       "skillManagement": "Skills技能管理",
