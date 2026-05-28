@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import settingStore from "@/stores/setting";
-import { merge } from "lodash-es";
+import { merge } from "lodash";
 import zhConfig from "tdesign-vue-next/es/locale/zh_CN";
 import enConfig from "tdesign-vue-next/es/locale/en_US";
 import { cachedLocale } from "@/locales";
