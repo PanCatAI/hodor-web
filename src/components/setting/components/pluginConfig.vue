@@ -136,8 +136,6 @@
         </template>
         <VueFlow
           id="checkFlow"
-          v-model:nodes="viewNodes"
-          v-model:edges="viewEdges"
           :only-render-visible-elements="false"
           :nodes-draggable="true"
           :nodes-connectable="true"
@@ -159,7 +157,6 @@
           :min-zoom="0.5"
           :max-zoom="2">
           <template #node-pluginNode="nodeProps">
-            {{ nodeProps.data }}
             <div class="exampleBox">
               <div class="bar">
                 <span class="barTitle">{{ nodeProps.data?.name || "" }}</span>
@@ -175,6 +172,7 @@
           </template>
           <Background />
           <Controls />
+          <MiniMap pannable zoomable position="bottom-left" style="margin-left: 60px" />
         </VueFlow>
       </div>
     </t-dialog>
@@ -188,8 +186,9 @@ import { provideToonflowHost } from "@/utils/toonflowHost";
 import { VueFlow, useVueFlow, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { Controls } from "@vue-flow/controls";
+import { MiniMap } from "@vue-flow/minimap";
 import edge from "@/components/edit/edge.vue";
-import { loadNodeComp } from "@/utils/loadPluginNode";
+import { loadApiPluginNode } from "@/utils/loadPluginNode";
 
 interface PluginNode {
   path: string;
@@ -210,7 +209,7 @@ interface PluginConfigList {
   nodes: Record<string, PluginNode>;
   buildTime: number;
 }
-const { addNodes, onConnect, addEdges, screenToFlowCoordinate, toObject, fromObject } = useVueFlow("infinitCanvasFlow");
+const { addNodes, removeNodes, toObject } = useVueFlow("checkFlow");
 
 const pluginList = ref<PluginConfigList[]>([]);
 
@@ -318,6 +317,7 @@ async function handleConfirmPlugin() {
 
     pluginDialogVisible.value = false;
     getPluginList();
+    loadApiPluginNode();
   } catch (err: any) {
     window.$message.error(err?.message ?? $t("settings.plugin.addFailed"));
   } finally {
@@ -399,11 +399,8 @@ const contentDialogVisible = ref(false);
 const contentDialogTitle = ref("");
 const contentLoading = ref(false);
 const loadedComp = shallowRef<any>(null);
-const viewNodes = ref<Node[]>([]);
-const viewEdges = ref<Edge[]>([]);
 
 async function checkPlugin(row: PluginNode, id: string) {
-  console.log("%c Line:403 🍇 row", "background:#fca650", row);
   contentDialogTitle.value = `${row.name} - ${row.path}`;
   contentDialogVisible.value = true;
   contentLoading.value = true;
@@ -422,17 +419,20 @@ async function checkPlugin(row: PluginNode, id: string) {
       return;
     }
     const nodeId = `${id}:${row.path.split(".")[0]}`;
-    const c = await loadNodeComp(nodeId);
-    loadedComp.value = c;
+    const mod = window[nodeId as any];
+
+    const comp = (mod as any)?.default ?? mod;
+    loadedComp.value = comp ? markRaw(comp) : comp;
     addNodes({
       id: `${Date.now()}`,
       type: "pluginNode",
-      position: { x: 250, y: 100 },
+      position: { x: 0, y: 0 },
       data: {
         pluginId: nodeId,
-        data: c.defaultData ? { ...c.defaultData } : {},
+        data: loadedComp.value?.defaultData ? { ...loadedComp.value.defaultData } : {},
       },
     });
+    setTimeout(() => {}, 5000);
   } catch (err: any) {
     window.$message.error(err?.message ?? "获取文件内容失败");
     contentDialogVisible.value = false;
@@ -443,8 +443,7 @@ async function checkPlugin(row: PluginNode, id: string) {
 
 function onContentDialogClosed() {
   loadedComp.value = null;
-  viewNodes.value = [];
-  viewEdges.value = [];
+  removeNodes(toObject().nodes.map((n: Node) => n.id));
 }
 </script>
 

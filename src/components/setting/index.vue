@@ -30,7 +30,7 @@
           <skillManagement v-if="activeMenu === 'skillManagement'" />
           <devConfig v-if="activeMenu === 'devConfig'" />
           <modelMap v-if="activeMenu === 'modelMap'" />
-          <pluginConfog v-if="activeMenu == 'pluginConfog'" />
+          <pluginConfig v-if="activeMenu == 'pluginConfig'" />
         </div>
       </div>
     </div>
@@ -57,7 +57,7 @@ import skillManagement from "./components/skillManagement.vue";
 import devConfig from "./components/devConfig.vue";
 import promptManage from "./components/promptManage.vue";
 import modelMap from "./components/modelMap.vue";
-import pluginConfog from "./components/pluginConfog.vue";
+import pluginConfig from "./components/pluginConfig.vue";
 
 const menuItems = [
   { key: "ui", label: "settings.menu.ui", icon: "i-theme" },
@@ -65,7 +65,7 @@ const menuItems = [
   { key: "vendorConfig", label: "settings.menu.vendorConfig", icon: "i-computer" },
   { key: "agentConfog", label: "settings.menu.agentConfig", icon: "i-color-filter" },
 
-  { key: "pluginConfog", label: "settings.menu.pluginConfog", icon: "i-color-filter" },
+  { key: "pluginConfig", label: "settings.menu.pluginConfog", icon: "i-color-filter" },
 
   { key: "promptManage", label: "settings.menu.promptManage", icon: "i-tips" },
   { key: "modelMap", label: "settings.menu.modelMap", icon: "i-focus" },
