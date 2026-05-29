@@ -55,6 +55,7 @@ interface GenerateFlowImageParams {
   ratio: string;
   prompt?: string;
   references?: string[];
+  projectId: number;
 }
 
 export const ai = {
@@ -88,15 +89,13 @@ export const ai = {
     return matched ? (providersLogo[matched.provider] ?? null) : null;
   },
   generateFlowImage: async (params: GenerateFlowImageParams): Promise<{ url: string }> => {
-    const { projectId } = useStore();
-    console.log("%c Line:84 🍒 projectId", "background:#3f7cff", projectId);
     const response = await axios.post("/production/editImage/generateFlowImage", {
       references: params.references ?? [],
       model: params.model,
       quality: params.quality,
       ratio: params.ratio,
       prompt: params.prompt,
-      projectId: projectId,
+      projectId: params.projectId,
     });
     return response.data;
   },

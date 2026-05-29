@@ -31,31 +31,12 @@ export interface NodeListEntry {
   sources: ("show" | "edit")[];
   description?: string;
   icon?: string;
-  defaultData?: Record<string, unknown>;
 }
 
 export const pluginList = shallowRef<PluginEntry[]>([]);
 
 const compCache: Record<string, any> = {};
 const nodePathMap: Record<string, { url: string; path: string }> = {};
-
-function compressBase64Icon(base64: string): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const w = 50;
-      const h = 50;
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/webp"));
-    };
-    img.onerror = () => resolve(base64);
-    img.src = base64;
-  });
-}
 
 function loadUmd(url: string, globalName: string): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -74,7 +55,10 @@ interface ManifestType {
   displayName: string;
   author: string;
   description: string;
-  nodes: Record<string, { path: string; name: string; sources: ("show" | "edit")[]; description?: string }>;
+  nodes: Record<
+    string,
+    { path: string; name: string; sources: ("show" | "edit")[]; description?: string; icon?: string }
+  >;
 }
 
 export async function loadApiPluginNode() {
@@ -110,7 +94,14 @@ export async function loadPluginNode(pluginUrls: string[]) {
     nodes: Object.entries(nodes).map(([key, node]) => {
       const nodeId = `${id}:${key}`;
       nodePathMap[nodeId] = { url, path: node.path };
-      return { nodeId, pluginId: id, name: node.name, sources: node.sources, description: node.description };
+      return {
+        nodeId,
+        pluginId: id,
+        name: node.name,
+        sources: node.sources,
+        description: node.description,
+        icon: node.icon ? `${url}/${node.icon}` : undefined,
+      };
     }),
   }));
 }
@@ -124,15 +115,6 @@ export async function loadNodeComp(nodeId: string, force = false): Promise<any> 
   const mod = await loadUmd(`${record.url}/${record.path}`, nodeId);
   const comp = mod?.default ?? mod;
 
-  const entry = pluginList.value.flatMap((p) => p.nodes).find((n) => n.nodeId === nodeId);
-  if (entry) {
-    const icon = mod.icon;
-    entry.icon = typeof icon === "string" && icon.startsWith("data:image/") ? await compressBase64Icon(icon) : icon;
-    entry.defaultData = mod.defaultData;
-    triggerRef(pluginList);
-  }
-
-  // markRaw 避免 Vue 把组件定义对象套上响应式代理
   compCache[nodeId] = comp ? markRaw(comp) : comp;
   return compCache[nodeId];
 }

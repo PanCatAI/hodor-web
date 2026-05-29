@@ -46,6 +46,8 @@
 import axios from "@/utils/axios";
 import { type HANDLE_TYPE, type NodeListEntry } from "@/utils/loadPluginNode";
 import { provideToonflowHost } from "@/utils/toonflowHost";
+import projectStore from "@/stores/project";
+import productionAgentStore from "@/stores/productionAgent";
 import { VueFlow, useVueFlow, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { MiniMap } from "@vue-flow/minimap";
@@ -92,8 +94,13 @@ watch(
   { immediate: true },
 );
 
+const { project } = storeToRefs(projectStore());
+const { episodesId } = storeToRefs(productionAgentStore());
+
 provideToonflowHost({
   flowId: "editFlow",
+  episodesId: () => episodesId.value,
+  projectId: () => project.value?.id,
   selectorTypes: props.selectorMode,
   onSelect: (data) => emit("select", data as HandleData),
 });
@@ -123,7 +130,7 @@ function onAddNode(nodeEntry: NodeListEntry) {
     position: { x: ctxMenu.flowX, y: ctxMenu.flowY },
     data: {
       pluginId: nodeEntry.nodeId,
-      data: nodeEntry.defaultData ? { ...nodeEntry.defaultData } : {},
+      data: {},
     },
   });
 }
