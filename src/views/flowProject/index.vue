@@ -49,8 +49,10 @@
 import projectDialog from "./components/projectDialog.vue";
 import dayjs from "dayjs";
 import axios from "@/utils/axios";
-import projectStore from "@/stores/flowProject";
-const { allFlowProject, flowProject } = storeToRefs(projectStore());
+import flowProjectStore from "@/stores/flowProject";
+import projectStore from "@/stores/project";
+const { allFlowProject, flowProject } = storeToRefs(flowProjectStore());
+const { project } = storeToRefs(projectStore());
 
 const dialogShow = ref(false);
 const editProjectData = ref<{
@@ -67,6 +69,7 @@ async function getallFlowProject() {
 
 onMounted(() => {
   flowProject.value = null;
+  project.value = null;
   getallFlowProject();
 });
 
