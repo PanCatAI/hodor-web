@@ -77,10 +77,28 @@ interface ManifestType {
   nodes: Record<string, { path: string; name: string; sources: ("show" | "edit")[]; description?: string }>;
 }
 
+export async function loadApiPluginNode() {
+  const res = await axios.get("/setting/pluginConfig/getPlugin");
+
+  pluginList.value = (res.data as any[]).map(({ url, id, version, ToonflowVersion, displayName, author, description, nodes }) => ({
+    id,
+    version,
+    ToonflowVersion,
+    displayName,
+    author,
+    description,
+    nodes: Object.entries(nodes).map(([key, node]: [string, any]) => {
+      const nodeId = `${id}:${key}`;
+      nodePathMap[nodeId] = { url, path: node.path };
+      return { nodeId, pluginId: id, name: node.name, sources: node.sources, description: node.description };
+    }),
+  }));
+}
 export async function loadPluginNode(pluginUrls: string[]) {
   const manifests = await Promise.all(
     pluginUrls.map((url) => axios.get<ManifestType>(`${url}/manifest.json`).then(({ data }) => ({ url, ...data }))),
   );
+  console.log("%c Line:99 🍭 manifests", "background:#93c0a4", manifests);
 
   pluginList.value = manifests.map(({ url, id, version, ToonflowVersion, displayName, author, description, nodes }) => ({
     id,
@@ -96,7 +114,6 @@ export async function loadPluginNode(pluginUrls: string[]) {
     }),
   }));
 }
-
 export async function loadNodeComp(nodeId: string, force = false): Promise<any> {
   if (!force && compCache[nodeId]) return compCache[nodeId];
   if (force) delete compCache[nodeId];

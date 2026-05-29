@@ -27,6 +27,10 @@ const router = createRouter({
           path: "/task",
           component: () => import("@/views/task/index.vue"),
         },
+        {
+          path: "/flowProject",
+          component: () => import("@/views/flowProject/index.vue"),
+        },
         // {
         //   path: "/detail",
         //   component: () => import("@/views/detail/index.vue"),
@@ -58,6 +62,10 @@ const router = createRouter({
         {
           path: "/test",
           component: () => import("@/views/test/index.vue"),
+        },
+        {
+          path: "/infiniteCanvas",
+          component: () => import("@/views/infiniteCanvas/index.vue"),
         },
       ],
     },

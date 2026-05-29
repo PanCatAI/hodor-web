@@ -78,7 +78,10 @@ const episodesOptions = ref<{ label: string; value: number }[]>([]);
 const { episodesId, status } = storeToRefs(productionAgentStore());
 
 provide("episodesId", episodesId);
-provide("projectId", computed(() => project.value?.id));
+provide(
+  "projectId",
+  computed(() => project.value?.id),
+);
 
 async function getScriptData() {
   //获取剧本

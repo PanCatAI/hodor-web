@@ -71,7 +71,6 @@ export function useFlowBuilder(spacing = 600) {
 
   onMounted(() => {
     const value = flowData.value;
-    console.log("%c Line:72 🌭 value", "background:#ffdd4d", value);
 
     // 新格式：已经是 Node[]
     if (Array.isArray(value)) {

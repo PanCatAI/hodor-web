@@ -10,12 +10,7 @@
               <i-right theme="outline" size="12" />
             </div>
             <ul class="contextMenuSub">
-              <li
-                v-for="node in plugin.editNodes"
-                :key="node.nodeId"
-                class="contextMenuSubItem"
-                @click="handleSelect(node)"
-              >
+              <li v-for="node in plugin.editNodes" :key="node.nodeId" class="contextMenuSubItem" @click="handleSelect(node)">
                 <div class="nodeIcon">
                   <img v-if="node.icon" :src="node.icon" />
                   <i-compass v-else theme="outline" size="14" fill="var(--td-brand-color)" />
@@ -37,11 +32,17 @@
 <script setup lang="ts">
 import { pluginList, type NodeListEntry } from "@/utils/loadPluginNode";
 
-const props = defineProps<{
-  visible: boolean;
-  x: number;
-  y: number;
-}>();
+const props = withDefaults(
+  defineProps<{
+    visible: boolean;
+    x: number;
+    y: number;
+    sourceType?: "edit" | "show" | "all";
+  }>(),
+  {
+    sourceType: "edit",
+  },
+);
 
 const emit = defineEmits<{
   close: [];
@@ -57,7 +58,7 @@ const filteredPlugins = computed(() =>
   pluginList.value
     .map((plugin) => ({
       ...plugin,
-      editNodes: plugin.nodes.filter((n) => n.sources.includes("edit")),
+      editNodes: props.sourceType == "all" ? plugin.nodes : plugin.nodes.filter((n) => n.sources.includes(props.sourceType as "edit" | "show")),
     }))
     .filter((p) => p.editNodes.length > 0),
 );
