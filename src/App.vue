@@ -40,8 +40,10 @@ onBeforeMount(() => {
 });
 
 // 初始化主题
-onMounted(() => {
-  getPort();
+onMounted(async () => {
+  (window as any).handleLinkClick = handleLinkClick;
+  await getPort();
+  // loadApiPluginNode();
   loadPluginNode(["http://192.168.2.49:5180"]);
   registerUmd(["http://192.168.2.49:5180"]);
 });
@@ -62,10 +64,6 @@ async function handleLinkClick(event: MouseEvent) {
 
   return false;
 }
-
-onMounted(() => {
-  (window as any).handleLinkClick = handleLinkClick;
-});
 
 async function getPort() {
   await nextTick();
