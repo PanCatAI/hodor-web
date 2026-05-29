@@ -35,7 +35,7 @@
       <Controls />
       <MiniMap pannable zoomable position="bottom-left" style="margin-left: 60px" />
     </VueFlow>
-    <contextMenu :visible="ctxMenu.visible" :x="ctxMenu.x" :y="ctxMenu.y" @close="ctxMenu.visible = false" @select="onAddNode" sourceType="all" />
+    <contextMenu :visible="ctxMenu.visible" :x="ctxMenu.x" :y="ctxMenu.y" @close="ctxMenu.visible = false" @select="onAddNode" />
   </div>
 </template>
 
@@ -51,14 +51,14 @@ import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/controls/dist/style.css";
 import pluginNode from "@/components/edit/pluginNode.vue";
 import edge from "@/components/edit/edge.vue";
-import { provideToonflowHost } from "@/utils/toonflowHost";
+import provideUmd from "@/utils/umd/provideUmd";
 import contextMenu from "@/components/edit/contextMenu.vue";
 import projectStore from "@/stores/flowProject";
 const { flowProject } = storeToRefs(projectStore());
 
 // 向 UMD 节点注入宿主能力（show 模式：无选择器）
 
-provideToonflowHost({ flowId: "infinitCanvasFlow" });
+provideUmd({ flowId: "infinitCanvasFlow" });
 
 const nodes = ref<Node[]>([]);
 const edges = ref<Edge[]>([]);
@@ -99,7 +99,7 @@ function onAddNode(nodeEntry: NodeListEntry) {
     position: { x: ctxMenu.flowX, y: ctxMenu.flowY },
     data: {
       pluginId: nodeEntry.nodeId,
-      data: nodeEntry.defaultData ? { ...nodeEntry.defaultData } : {},
+      data: {},
     },
   });
 }
