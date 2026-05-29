@@ -5,7 +5,7 @@
       v-model="nodes"
       :only-render-visible-elements="false"
       :nodes-draggable="true"
-      :nodes-connectable="false"
+      :nodes-connectable="true"
       :nodes-focusable="false"
       :edges-focusable="false"
       :edges-updatable="false"
@@ -21,29 +21,23 @@
       :multi-selection-key-code="null"
       :zoom-activation-key-code="null"
       :pan-activation-key-code="null"
-      :default-edge-options="defaultEdgeOptions"
       :min-zoom="0.5"
       :max-zoom="2">
       <template #node-pluginNode>
         <pluginNode />
       </template>
+      <template #edge-edge="props">
+        <edge v-bind="props" />
+      </template>
       <Background />
       <Controls />
       <MiniMap pannable zoomable position="bottom-left" style="margin-left: 60px" />
-      <Panel position="top-left">
-        <t-select :value="episodesId" :placeholder="$t('workbench.production.selectPlaceholder')" autoWidth :options="episodesOptions" filterable>
-          <template #label>
-            <i-document-folder size="24" />
-          </template>
-        </t-select>
-      </Panel>
     </VueFlow>
   </div>
 </template>
 
 <script setup lang="ts">
-import axios from "@/utils/axios";
-import { VueFlow, Panel, type Node, type Edge } from "@vue-flow/core";
+import { VueFlow, Panel, useVueFlow, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { MiniMap } from "@vue-flow/minimap";
 import { Controls } from "@vue-flow/controls";
@@ -51,53 +45,31 @@ import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/controls/dist/style.css";
 import pluginNode from "@/components/edit/pluginNode.vue";
-import { provideToonflowHost } from "@/utils/toonflowHost";
+import edge from "@/components/edit/edge.vue";
+import provideUmd from "@/utils/umd/provideUmd";
 
-import productionAgentStore from "@/stores/productionAgent";
-import projectStore from "@/stores/project";
-const { project } = storeToRefs(projectStore());
-const { episodesId, status } = storeToRefs(productionAgentStore());
+provideUmd({ flowId: "showFlow" });
 
-provideToonflowHost({
-  flowId: "showFlow",
-  episodesId: () => episodesId.value,
-  projectId: () => project.value?.id,
+const { addNodes, onConnect, addEdges, screenToFlowCoordinate } = useVueFlow("showFlow");
+
+onConnect((params) => {
+  addEdges([{ ...params, type: "edge" }]);
 });
 
-const defaultEdgeOptions = markRaw({
-  type: "simple-bezier",
-  animated: false,
-  focusable: false,
-  selectable: false,
-  updatable: false,
-  interactionWidth: 0,
-});
-
-onMounted(async () => {
-  await getScriptData();
-});
-
-const episodesOptions = ref<{ label: string; value: number }[]>([]);
-
-async function getScriptData() {
-  //获取剧本
-  const { data: scriptRes } = await axios.post("/script/getScrptApi", {
-    projectId: project.value?.id,
-    name: "",
-  });
-  episodesOptions.value = scriptRes.map((ep: any) => ({
-    label: ep.name,
-    value: ep.id,
-  }));
-  if (episodesOptions.value.length) {
-    episodesId.value = episodesOptions.value[0].value;
-  }
-  if (status.value !== "pending" && status.value !== "streaming") {
-    episodesId.value && (await productionAgentStore().getFlowData());
-  }
-}
-import { useFlowBuilder } from "./useFlowBuilder";
-const { nodes } = useFlowBuilder();
+const nodes = shallowRef<Node[]>([
+  {
+    id: "1",
+    type: "pluginNode",
+    position: { x: 500, y: 20 },
+    data: {
+      pluginId: "toonflowPlugin:test",
+      data: {
+        script: "# 123",
+        showNumber: 1,
+      },
+    },
+  },
+]);
 </script>
 
 <style scoped>

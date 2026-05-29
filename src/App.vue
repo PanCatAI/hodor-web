@@ -16,6 +16,7 @@ import { type GlobalConfigProvider } from "tdesign-vue-next";
 const { baseUrl, isElectron } = storeToRefs(settingStore());
 import { config } from "md-editor-v3";
 import { loadPluginNode } from "@/utils/loadPluginNode";
+import { registerUmd } from "@/utils/umd/index";
 
 watch(
   () => isElectron.value,
@@ -42,6 +43,7 @@ onBeforeMount(() => {
 onMounted(() => {
   getPort();
   loadPluginNode(["http://192.168.2.49:5180"]);
+  registerUmd(["http://192.168.2.49:5180"]);
 });
 
 async function handleLinkClick(event: MouseEvent) {
