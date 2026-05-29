@@ -15,8 +15,9 @@ import { initTheme } from "@/utils/theme";
 import { type GlobalConfigProvider } from "tdesign-vue-next";
 const { baseUrl, isElectron } = storeToRefs(settingStore());
 import { config } from "md-editor-v3";
-import { loadPluginNode, loadApiPluginNode } from "@/utils/loadPluginNode";
-import axios from "@/utils/axios";
+import { loadPluginNode } from "@/utils/loadPluginNode";
+import { registerUmd } from "@/utils/umd/index";
+
 watch(
   () => isElectron.value,
   (newVal) => {
@@ -44,6 +45,7 @@ onMounted(async () => {
   await getPort();
   // loadApiPluginNode();
   loadPluginNode(["http://192.168.2.49:5180"]);
+  registerUmd(["http://192.168.2.49:5180"]);
 });
 
 async function handleLinkClick(event: MouseEvent) {

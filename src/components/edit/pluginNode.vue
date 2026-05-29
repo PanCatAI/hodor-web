@@ -50,6 +50,8 @@ import { pluginList, loadNodeComp } from "@/utils/loadPluginNode";
 const { node } = useNode();
 const { removeNodes, addNodes, findNode } = useVueFlow();
 
+provide("NODE_ID", node.id);
+
 const nodeEntry = computed(() => pluginList.value.flatMap((p) => p.nodes).find((n) => n.nodeId === node.data.pluginId) ?? null);
 const comp = shallowRef<any>(null);
 const loading = ref(true);
