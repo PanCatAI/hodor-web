@@ -92,6 +92,7 @@ function onPaneContextMenu(event: MouseEvent) {
   ctxMenu.visible = true;
 }
 function onAddNode(nodeEntry: NodeListEntry) {
+  console.log("%c Line:95 🍧 nodeEntry", "background:#f5ce50", nodeEntry);
   addNodes({
     id: `${nodeEntry.nodeId}_${Date.now()}`,
     type: "pluginNode",

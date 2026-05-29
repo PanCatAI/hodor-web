@@ -55,14 +55,12 @@ interface ManifestType {
   displayName: string;
   author: string;
   description: string;
-  nodes: Record<
-    string,
-    { path: string; name: string; sources: ("show" | "edit")[]; description?: string; icon?: string }
-  >;
+  nodes: Record<string, { path: string; name: string; sources: ("show" | "edit")[]; description?: string; icon?: string }>;
 }
 
 export async function loadApiPluginNode() {
   const res = await axios.get("/setting/pluginConfig/getPlugin");
+  console.log("%c Line:66 🌮 res", "background:#e41a6a", res);
 
   pluginList.value = (res.data as any[]).map(({ url, id, version, ToonflowVersion, displayName, author, description, nodes }) => ({
     id,
