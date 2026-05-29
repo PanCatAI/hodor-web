@@ -1,3 +1,7 @@
+import openAssetManager from "@/utils/ui/openAssetManager";
+import openStoryboardImageCheck from "@/utils/ui/openStoryboardImageCheck";
+import openEditor from "@/utils/ui/openEditor";
+
 import projectStore from "@/stores/project";
 import axios from "@/utils/axios";
 import settingStore from "@/stores/setting";
@@ -15,6 +19,12 @@ const filePost = async (type: string, path: string, data?: string) => {
   return r.data;
 };
 
+const ui = {
+  openEditor,
+  openAssetManager,
+  openStoryboardImageCheck,
+};
+
 export default (provideOptions: ProvideOptions) => {
   const { baseUrl } = storeToRefs(settingStore());
   provide("TOONFLOW_PROVIDE_UMD", {
@@ -28,5 +38,6 @@ export default (provideOptions: ProvideOptions) => {
     sql: createKnexProxy(),
     project: project.value,
     episodesId: provideOptions.episodesId,
+    ui,
   });
 };
