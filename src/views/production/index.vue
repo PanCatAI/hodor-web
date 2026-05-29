@@ -2,7 +2,7 @@
   <div class="flowWrap">
     <VueFlow
       id="showFlow"
-      v-model="nodes"
+      v-model="flowData"
       :only-render-visible-elements="false"
       :nodes-draggable="true"
       :nodes-connectable="true"
@@ -21,23 +21,30 @@
       :multi-selection-key-code="null"
       :zoom-activation-key-code="null"
       :pan-activation-key-code="null"
+      :default-edge-options="defaultEdgeOptions"
       :min-zoom="0.5"
       :max-zoom="2">
       <template #node-pluginNode>
         <pluginNode />
       </template>
-      <template #edge-edge="props">
-        <edge v-bind="props" />
-      </template>
       <Background />
       <Controls />
       <MiniMap pannable zoomable position="bottom-left" style="margin-left: 60px" />
+      <Panel position="top-left">
+        <t-select :value="episodesId" :placeholder="$t('workbench.production.selectPlaceholder')" autoWidth :options="episodesOptions" filterable>
+          <template #label>
+            <i-document-folder size="24" />
+          </template>
+        </t-select>
+      </Panel>
     </VueFlow>
   </div>
 </template>
 
 <script setup lang="ts">
-import { VueFlow, Panel, useVueFlow, type Node, type Edge } from "@vue-flow/core";
+import _ from "lodash";
+import axios from "@/utils/axios";
+import { VueFlow, Panel, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { MiniMap } from "@vue-flow/minimap";
 import { Controls } from "@vue-flow/controls";
@@ -45,31 +52,91 @@ import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/controls/dist/style.css";
 import pluginNode from "@/components/edit/pluginNode.vue";
-import edge from "@/components/edit/edge.vue";
 import provideUmd from "@/utils/umd/provideUmd";
 
-provideUmd({ flowId: "showFlow" });
+import productionAgentStore from "@/stores/productionAgent";
+import projectStore from "@/stores/project";
+const { project } = storeToRefs(projectStore());
+const { flowData, episodesId } = storeToRefs(productionAgentStore());
 
-const { addNodes, onConnect, addEdges, screenToFlowCoordinate } = useVueFlow("showFlow");
+provideUmd({ flowId: "showFlow", episodesId: () => episodesId.value });
 
-onConnect((params) => {
-  addEdges([{ ...params, type: "edge" }]);
+const defaultEdgeOptions = markRaw({
+  type: "simple-bezier",
+  animated: false,
+  focusable: false,
+  selectable: false,
+  updatable: false,
+  interactionWidth: 0,
 });
 
-const nodes = shallowRef<Node[]>([
-  {
-    id: "1",
-    type: "pluginNode",
-    position: { x: 500, y: 20 },
-    data: {
-      pluginId: "toonflowPlugin:test",
-      data: {
-        script: "# 123",
-        showNumber: 1,
-      },
-    },
+onMounted(async () => {
+  await getScriptData();
+});
+
+const episodesOptions = ref<{ label: string; value: number }[]>([]);
+
+async function getScriptData() {
+  //获取剧本
+  const { data: scriptRes } = await axios.post("/script/getScrptApi", {
+    projectId: project.value?.id,
+    name: "",
+  });
+  episodesOptions.value = scriptRes.map((ep: any) => ({
+    label: ep.name,
+    value: ep.id,
+  }));
+  if (episodesOptions.value.length) {
+    episodesId.value = episodesOptions.value[0].value;
+  }
+}
+
+const flowLoading = ref(false);
+
+watch(
+  episodesId,
+  async (newVal) => {
+    flowLoading.value;
+    const { data } = await axios.post("/production/getFlowData", {
+      projectId: project.value?.id,
+      episodesId: episodesId.value,
+    });
+    //兼容
+    if (_.isObject(data) && !Array.isArray(data)) {
+      // 旧格式：FlowData 对象
+      const compMap: Record<string, string> = {
+        script: "toonflowPlugin:script",
+        assets: "toonflowPlugin:assets",
+        scriptPlan: "toonflowPlugin:scriptPlan",
+        storyboardTable: "toonflowPlugin:storyboardTable",
+        storyboard: "toonflowPlugin:storyboard",
+      };
+
+      let col = 0;
+      flowData.value = Object.keys(data)
+        .map((key) => {
+          const pluginId = compMap[key];
+          if (!pluginId) return null;
+          const node: Node = {
+            id: key,
+            type: "pluginNode",
+            position: { x: col * 600, y: 0 },
+            data: {
+              pluginId,
+              data: { [key]: data[key as any] },
+            },
+          };
+          col++;
+          return node;
+        })
+        .filter(Boolean) as Node[];
+    } else {
+      flowData.value = data;
+    }
+      console.log("%c Line:135 🍌 flowData.value", "background:#93c0a4", flowData.value);
   },
-]);
+  { immediate: true },
+);
 </script>
 
 <style scoped>

@@ -80,7 +80,6 @@ export async function loadPluginNode(pluginUrls: string[]) {
   const manifests = await Promise.all(
     pluginUrls.map((url) => axios.get<ManifestType>(`${url}/manifest.json`).then(({ data }) => ({ url, ...data }))),
   );
-  console.log("%c Line:99 🍭 manifests", "background:#93c0a4", manifests);
 
   pluginList.value = manifests.map(({ url, id, version, ToonflowVersion, displayName, author, description, nodes }) => ({
     id,

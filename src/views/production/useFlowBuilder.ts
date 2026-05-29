@@ -74,7 +74,7 @@ export function useFlowBuilder(spacing = 600) {
 
     // 新格式：已经是 Node[]
     if (Array.isArray(value)) {
-      return value;
+      return nodes.value = value;
     }
 
     // 旧格式：FlowData 对象

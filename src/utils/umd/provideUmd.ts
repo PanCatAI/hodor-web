@@ -1,3 +1,5 @@
+import { type MaybeRefOrGetter } from "vue";
+
 import openAssetManager from "@/utils/ui/openAssetManager";
 import openStoryboardImageCheck from "@/utils/ui/openStoryboardImageCheck";
 import openEditor from "@/utils/ui/openEditor";
@@ -11,7 +13,7 @@ const { project } = storeToRefs(projectStore());
 
 interface ProvideOptions {
   flowId: string;
-  episodesId?: number;
+  episodesId?: MaybeRefOrGetter<string | number | undefined>;
 }
 
 const filePost = async (type: string, path: string, data?: string) => {
@@ -36,8 +38,8 @@ export default (provideOptions: ProvideOptions) => {
       delete: (path: string) => filePost("delete", path),
     },
     sql: createKnexProxy(),
-    project: project.value,
-    episodesId: provideOptions.episodesId,
+    episodesId: computed(() => toValue(provideOptions.episodesId)),
+    projectId: computed(() => toValue(project.value?.id)),
     ui,
   });
 };
