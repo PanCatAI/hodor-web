@@ -44,7 +44,6 @@
 
 <script setup lang="ts">
 import axios from "@/utils/axios";
-import { type HANDLE_TYPE, type NodeListEntry } from "@/utils/loadPluginNode";
 import { provideToonflowHost } from "@/utils/toonflowHost";
 import projectStore from "@/stores/project";
 import productionAgentStore from "@/stores/productionAgent";

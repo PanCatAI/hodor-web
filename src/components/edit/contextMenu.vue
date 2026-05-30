@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { pluginList, type NodeListEntry } from "@/utils/loadPluginNode";
+import { manifestList, type ManifestNode } from "@/utils/umd/index";
 
 const props = withDefaults(
   defineProps<{
@@ -46,7 +46,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   close: [];
-  select: [node: NodeListEntry];
+  select: [node: ManifestNode];
 }>();
 
 const posStyle = computed(() => ({
@@ -55,11 +55,14 @@ const posStyle = computed(() => ({
 }));
 
 const filteredPlugins = computed(() =>
-  pluginList.value
-    .map((plugin) => ({
-      ...plugin,
-      editNodes: props.sourceType == "all" ? plugin.nodes : plugin.nodes.filter((n) => n.sources.includes(props.sourceType as "edit" | "show")),
-    }))
+  manifestList.value
+    .map((plugin) => {
+      const nodes = Object.entries(plugin.nodes).map(([nodeId, node]) => ({ nodeId, ...node }));
+      return {
+        ...plugin,
+        editNodes: props.sourceType === "all" ? nodes : nodes.filter((n) => n.sources.includes(props.sourceType as "edit" | "show")),
+      };
+    })
     .filter((p) => p.editNodes.length > 0),
 );
 
@@ -67,7 +70,7 @@ function close() {
   emit("close");
 }
 
-function handleSelect(node: NodeListEntry) {
+function handleSelect(node: ManifestNode) {
   emit("select", node);
   close();
 }

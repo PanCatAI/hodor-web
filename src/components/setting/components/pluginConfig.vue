@@ -188,7 +188,7 @@ import { Background } from "@vue-flow/background";
 import { Controls } from "@vue-flow/controls";
 import { MiniMap } from "@vue-flow/minimap";
 import edge from "@/components/edit/edge.vue";
-import { loadApiPluginNode } from "@/utils/loadPluginNode";
+import { loadApiUmd } from "@/utils/umd/index";
 
 interface PluginNode {
   path: string;
@@ -317,7 +317,7 @@ async function handleConfirmPlugin() {
 
     pluginDialogVisible.value = false;
     getPluginList();
-    loadApiPluginNode();
+    loadApiUmd();
   } catch (err: any) {
     window.$message.error(err?.message ?? $t("settings.plugin.addFailed"));
   } finally {

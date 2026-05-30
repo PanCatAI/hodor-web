@@ -84,7 +84,7 @@ const ai = {
     const matched = modelProviderRules.find((rule) => rule.pattern.test(source));
     return matched ? (providersLogo[matched.provider] ?? null) : null;
   },
-  generateFlowImage: async (params: GenerateFlowImageParams): Promise<{ url: string }> => {
+  generateImage: async (params: GenerateFlowImageParams): Promise<{ url: string }> => {
     const response = await axios.post("/production/editImage/generateFlowImage", {
       references: params.references ?? [],
       model: params.model,
