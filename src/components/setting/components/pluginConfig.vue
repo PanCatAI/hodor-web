@@ -190,7 +190,6 @@
 <script setup lang="ts">
 import { LoadingPlugin, type TableProps, type UploadFile } from "tdesign-vue-next";
 import axios from "@/utils/axios";
-import { provideToonflowHost } from "@/utils/toonflowHost";
 import { VueFlow, useVueFlow, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { Controls } from "@vue-flow/controls";
@@ -204,7 +203,6 @@ interface PluginNode {
   sources: string[];
   description: string;
 }
-provideToonflowHost({ flowId: "checkFlow" });
 
 interface PluginConfigList {
   manifest_version: number;

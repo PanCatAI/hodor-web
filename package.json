@@ -19,7 +19,7 @@
     "@dagrejs/dagre": "^3.0.0",
     "@devui-design/icons": "^1.4.0",
     "@icon-park/vue-next": "^1.4.2",
-    "@tdesign-vue-next/chat": "^0.5.1",
+    "@tdesign-vue-next/chat": "^0.5.2",
     "@vue-flow/background": "^1.3.2",
     "@vue-flow/controls": "^1.1.3",
     "@vue-flow/core": "^1.48.2",

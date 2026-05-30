@@ -1283,7 +1283,7 @@
       "save": "选取",
       "cancel": "取消",
       "chatBox": {
-        "inputPlaceholder": "输入消息...",
+        "inputPlaceholder": "请输入内容",
         "generateDerivedAssets": "生成衍生资产",
         "welcomeMessage": "你好！我是你的 AI 助手，有什么可以帮你的吗？",
         "adjustModel": "调整模型",
