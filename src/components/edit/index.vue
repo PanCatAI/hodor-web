@@ -5,8 +5,7 @@
     </div>
     <VueFlow
       id="editFlow"
-      v-model:nodes="nodes"
-      v-model:edges="edges"
+      v-model="flowData"
       :only-render-visible-elements="false"
       :nodes-draggable="true"
       :nodes-connectable="true"
@@ -43,7 +42,6 @@
 </template>
 
 <script setup lang="ts">
-import axios from "@/utils/axios";
 import { provideToonflowHost } from "@/utils/toonflowHost";
 import projectStore from "@/stores/project";
 import productionAgentStore from "@/stores/productionAgent";
@@ -58,20 +56,23 @@ import pluginNode from "./pluginNode.vue";
 import contextMenu from "./contextMenu.vue";
 import edge from "./edge.vue";
 
+import type { DataType, DataTypeMap } from "@/utils/umd/nodeType";
+
 const show = defineModel<boolean>({ default: false });
 
-interface HandleData {
-  type: HANDLE_TYPE;
-  value: unknown;
+interface HandleData<T extends DataType = DataType> {
+  type: T;
+  value?: DataTypeMap[T] | null;
 }
 
 const props = withDefaults(
   defineProps<{
-    flowId?: string | number;
-    selectorMode?: HANDLE_TYPE[];
-    flowData?: Node[];
+    dataId: string | number;
+    dataType?: "infiniteCanvas" | "editFlow";
+    selectorMode?: DataType[];
   }>(),
   {
+    dataType: "editFlow",
     selectorMode: () => [],
   },
 );
@@ -80,19 +81,6 @@ const emit = defineEmits<{
   (event: "close"): void;
   (event: "select", value: HandleData | null): void;
 }>();
-
-const nodes = ref<Node[]>([]);
-const edges = ref<Edge[]>([]);
-
-watch(
-  () => props.flowId,
-  async (id) => {
-    const { data: flowItem } = await axios.post("/plugin/flow/item", { id });
-    nodes.value = flowItem?.flowData?.nodes ?? [];
-    edges.value = flowItem?.flowData?.edges ?? [];
-  },
-  { immediate: true },
-);
 
 const { project } = storeToRefs(projectStore());
 const { episodesId } = storeToRefs(productionAgentStore());
@@ -123,13 +111,13 @@ function onPaneContextMenu(event: MouseEvent) {
   ctxMenu.visible = true;
 }
 
-function onAddNode(nodeEntry: NodeListEntry) {
+function onAddNode(pluginId: string) {
   addNodes({
-    id: `${nodeEntry.nodeId}_${Date.now()}`,
+    id: `${Date.now()}`,
     type: "pluginNode",
     position: { x: ctxMenu.flowX, y: ctxMenu.flowY },
     data: {
-      pluginId: nodeEntry.nodeId,
+      pluginId: pluginId,
       data: {},
     },
   });

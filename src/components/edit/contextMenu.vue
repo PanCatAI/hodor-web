@@ -10,7 +10,7 @@
               <i-right theme="outline" size="12" />
             </div>
             <ul class="contextMenuSub">
-              <li v-for="node in plugin.editNodes" :key="node.nodeId" class="contextMenuSubItem" @click="handleSelect(node)">
+              <li v-for="node in plugin.editNodes" :key="node.nodeId" class="contextMenuSubItem" @click="handleSelect(plugin, node.nodeId)">
                 <div class="nodeIcon">
                   <img v-if="node.icon" :src="node.icon" />
                   <i-compass v-else theme="outline" size="14" fill="var(--td-brand-color)" />
@@ -46,7 +46,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   close: [];
-  select: [node: ManifestNode];
+  select: [pluginNodeId: `${string}:${string}`];
 }>();
 
 const posStyle = computed(() => ({
@@ -70,8 +70,8 @@ function close() {
   emit("close");
 }
 
-function handleSelect(node: ManifestNode) {
-  emit("select", node);
+function handleSelect(plugin: (typeof manifestList.value)[number], key: string) {
+  emit("select", `${plugin.id}:${key}`);
   close();
 }
 
