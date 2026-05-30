@@ -15,7 +15,10 @@ export default function createKnexProxy(): Knex {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: token ?? "" },
             body: JSON.stringify({ table, chain: steps }),
-          }).then((r) => r.json());
+          }).then(async (r) => {
+            const text = await r.text();
+            return text ? JSON.parse(text) : null;
+          });
           return p[prop].bind(p);
         }
         return (...args: any[]) => chain(table, [...steps, { method: prop, args }]);
@@ -34,7 +37,10 @@ export default function createKnexProxy(): Knex {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: token ?? "" },
             body: JSON.stringify({ raw: { sql, bindings } }),
-          }).then((r) => r.json());
+          }).then(async (r) => {
+            const text = await r.text();
+            return text ? JSON.parse(text) : null;
+          });
           return { then: p.then.bind(p), catch: p.catch.bind(p) };
         };
       }

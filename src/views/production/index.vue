@@ -1,5 +1,5 @@
 <template>
-  <div class="flowWrap">
+  <div class="flowWrap" v-loading="flowLoading">
     <VueFlow
       id="showFlow"
       v-model="flowData"
@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import _ from "lodash";
-import { watchThrottled } from "@vueuse/core";
+import { watchDebounced } from "@vueuse/core";
 import axios from "@/utils/axios";
 import { VueFlow, Panel, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
@@ -77,6 +77,8 @@ onMounted(async () => {
 
 const episodesOptions = ref<{ label: string; value: number }[]>([]);
 
+const flowLoading = ref(false);
+
 async function getScriptData() {
   //获取剧本
   const { data: scriptRes } = await axios.post("/script/getScrptApi", {
@@ -92,60 +94,68 @@ async function getScriptData() {
   }
 }
 
-const flowLoading = ref(false);
-
 watch(
   episodesId,
   async (newVal) => {
-    flowLoading.value;
-    const { data } = await axios.post("/production/getFlowData", {
-      projectId: project.value?.id,
-      episodesId: newVal,
-    });
-    //兼容
-    if (_.isObject(data) && !Array.isArray(data)) {
-      // 旧格式：FlowData 对象
-      const compMap: Record<string, string> = {
-        script: "toonflowPlugin:script",
-        assets: "toonflowPlugin:assets",
-        scriptPlan: "toonflowPlugin:scriptPlan",
-        storyboardTable: "toonflowPlugin:storyboardTable",
-        storyboard: "toonflowPlugin:storyboard",
-      };
+    flowLoading.value = true;
+    try {
+      const { data } = await axios.post("/production/getFlowData", {
+        projectId: project.value?.id,
+        episodesId: newVal,
+      });
+      //兼容
+      if (_.isObject(data) && !Array.isArray(data)) {
+        // 旧格式：FlowData 对象
+        const compMap: Record<string, string> = {
+          script: "toonflowPlugin:script",
+          assets: "toonflowPlugin:assets",
+          scriptPlan: "toonflowPlugin:scriptPlan",
+          storyboardTable: "toonflowPlugin:storyboardTable",
+          storyboard: "toonflowPlugin:storyboard",
+        };
 
-      let col = 0;
-      flowData.value = Object.keys(data)
-        .map((key) => {
-          const pluginId = compMap[key];
-          if (!pluginId) return null;
-          const node: Node = {
-            id: key,
-            type: "pluginNode",
-            position: { x: col * 600, y: 0 },
-            data: {
-              pluginId,
-              data: { [key]: (data as any)[key as any] },
-            },
-          };
-          col++;
-          return node;
-        })
-        .filter(Boolean) as Node[];
-    } else {
-      flowData.value = data;
+        let col = 0;
+        flowData.value = Object.keys(data)
+          .map((key) => {
+            const pluginId = compMap[key];
+            if (!pluginId) return null;
+            const node: Node = {
+              id: key,
+              type: "pluginNode",
+              position: { x: col * 600, y: 0 },
+              data: {
+                pluginId,
+                data: { [key]: (data as any)[key as any] },
+              },
+            };
+            col++;
+            return node;
+          })
+          .filter(Boolean) as Node[];
+      } else {
+        flowData.value = data;
+      }
+    } finally {
+      // 等响应式更新完成再放开保存,避免加载触发自动保存
+      await nextTick();
+      flowLoading.value = false;
     }
   },
   { immediate: true },
 );
 
-
-watchThrottled(
+watchDebounced(
   flowData,
-  async (newVal) => {
+  async () => {
+    if (flowLoading.value) return;
     if (!episodesId.value) return;
-    console.log("%c Line:144 🥛 newVal", "background:#f5ce50", newVal);
+    await axios.post("/production/saveFlowData", {
+      projectId: project.value?.id,
+      episodesId: episodesId.value,
+      data: flowData.value,
+    });
   },
-  { deep: true, throttle: 500 },
+  { deep: true, debounce: 800, maxWait: 5000 },
 );
 </script>
 

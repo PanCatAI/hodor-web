@@ -38,7 +38,6 @@
       <div class="errorContent">
         <div class="errorTitle">插件加载异常</div>
         <div class="errorPluginId">{{ node.data.pluginId }}</div>
-        {{ manifestList }}
       </div>
     </div>
   </div>
