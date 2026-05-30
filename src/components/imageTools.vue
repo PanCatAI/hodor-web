@@ -29,24 +29,26 @@
 </template>
 
 <script setup lang="ts">
-const props = withDefaults(defineProps<{
-  src: string;
-  placement?: string;
-  position?: "none" | "br" | "bl" | "tr" | "tl";
-  margin?: string;
-  size?: number;
-}>(), {
-  placement: "bottom",
-  position: "none",
-  margin: "4px",
-  size: 100,
-});
+const props = withDefaults(
+  defineProps<{
+    src: string;
+    placement?: string;
+    position?: "none" | "br" | "bl" | "tr" | "tl";
+    margin?: string;
+    size?: number;
+  }>(),
+  {
+    placement: "bottom",
+    position: "none",
+    margin: "4px",
+    size: 100,
+  },
+);
 
 const placement = computed<any>(() => props.placement);
 
 const bigSrc = computed(() => {
-  const sep = props.src.includes("?") ? "&" : "?";
-  return `${props.src}${sep}size=${props.size}`;
+  return `${props.src.split("?")[0]}`;
 });
 
 const positionStyle = computed<any>(() => {
