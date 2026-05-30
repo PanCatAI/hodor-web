@@ -1852,6 +1852,10 @@
   "settings.plugin.updatePluginHint": "将为插件「{name}」重新导入更新包：",
   "settings.plugin.updateSuccess": "插件更新成功",
   "settings.plugin.updateFailed": "插件更新失败",
+  "settings.plugin.linkPlaceholder": "请输入插件包的下载链接地址",
+  "settings.plugin.linkHint": "支持 zip / tgz / tar.gz 格式的插件包直链下载地址",
   "workbench.infinite.dialog.projectIntro": "项目简介",
-  "workbench.infinite.dialog.projectIntroPh": "请输入项目简介"
+  "workbench.infinite.dialog.projectIntroPh": "请输入项目简介",
+  "settings.pluginConfig.msg.highRiskConfirm": "高风险操作确认",
+  "settings.pluginConfig.msg.linkAddVendorRiskBody": "添加新插件，请确认您信任该插件的来源！"
 }
