@@ -52,8 +52,9 @@ import pluginNode from "@/components/edit/pluginNode.vue";
 import edge from "@/components/edit/edge.vue";
 import provideUmd from "@/utils/umd/provideUmd";
 import contextMenu from "@/components/edit/contextMenu.vue";
-import projectStore from "@/stores/flowProject";
-const { flowProject } = storeToRefs(projectStore());
+import flowProjectStore from "@/stores/flowProject";
+const { flowProject } = storeToRefs(flowProjectStore());
+import { type NodeListEntry } from "@/utils/loadPluginNode";
 
 // 向 UMD 节点注入宿主能力（show 模式：无选择器）
 
@@ -62,21 +63,21 @@ provideUmd({ flowId: "infinitCanvasFlow" });
 const nodes = ref<Node[]>([]);
 const edges = ref<Edge[]>([]);
 onMounted(async () => {
-  await getScriptData();
+  // await getScriptData();
 });
 
 const episodesOptions = ref<{ label: string; value: number }[]>([]);
 
 async function getScriptData() {
   //获取剧本
-  const { data: scriptRes } = await axios.post("/script/getScrptApi", {
-    projectId: flowProject.value?.id,
-    name: "",
-  });
-  episodesOptions.value = scriptRes.map((ep: any) => ({
-    label: ep.name,
-    value: ep.id,
-  }));
+  // const { data: scriptRes } = await axios.post("/script/getScrptApi", {
+  //   projectId: flowProject.value?.id,
+  //   name: "",
+  // });
+  // episodesOptions.value = scriptRes.map((ep: any) => ({
+  //   label: ep.name,
+  //   value: ep.id,
+  // }));
 }
 const { addNodes, onConnect, addEdges, screenToFlowCoordinate, toObject, fromObject } = useVueFlow("infinitCanvasFlow");
 const ctxMenu = reactive({ visible: false, x: 0, y: 0, flowX: 0, flowY: 0 });
@@ -91,7 +92,6 @@ function onPaneContextMenu(event: MouseEvent) {
   ctxMenu.visible = true;
 }
 function onAddNode(nodeEntry: NodeListEntry) {
-  console.log("%c Line:95 🍧 nodeEntry", "background:#f5ce50", nodeEntry);
   addNodes({
     id: `${nodeEntry.nodeId}_${Date.now()}`,
     type: "pluginNode",

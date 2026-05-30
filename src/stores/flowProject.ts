@@ -1,11 +1,3 @@
-interface FlowProject {
-  id: string;
-  name: string;
-  intro: string;
-  workFlow: string | null;
-  createTime: number;
-}
-
 export default defineStore(
   "flowProject",
   () => {

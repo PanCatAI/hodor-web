@@ -248,3 +248,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+interface FlowProject {
+  id: string;
+  name: string;
+  intro: string;
+  workFlow: string | null;
+  createTime: number;
+}

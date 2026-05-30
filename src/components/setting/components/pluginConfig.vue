@@ -81,13 +81,13 @@
           {{ $t("settings.plugin.updatePluginHint", { name: currentPlugin?.displayName ?? "" }) }}
         </p>
 
-        <t-radio-group v-if="pluginDialogMode === 'add'" v-model="addMode" variant="default-filled" style="margin-bottom: 20px">
+        <t-radio-group v-model="addMode" variant="default-filled" style="margin-bottom: 20px">
           <t-radio-button value="upload">{{ $t("settings.plugin.uploadPlugin") }}</t-radio-button>
-          <!-- <t-radio-button value="linkAdd">{{ $t("settings.plugin.linkAdd") }}</t-radio-button> -->
+          <t-radio-button value="linkAdd">{{ $t("settings.plugin.linkAdd") }}</t-radio-button>
         </t-radio-group>
 
         <!-- 上传区域 -->
-        <div class="uploadMode" v-if="pluginDialogMode === 'update' || addMode === 'upload'">
+        <div class="uploadMode" v-if="addMode === 'upload'">
           <div class="uploadArea" @click="triggerUpload" @dragover.prevent @drop.prevent="handleDrop">
             <t-upload
               ref="uploadRef"
@@ -111,9 +111,17 @@
           </div>
         </div>
 
+        <!-- 链接添加区域 -->
+        <div class="linkMode" v-if="addMode === 'linkAdd'">
+          <t-input v-model="pluginLink" :placeholder="$t('settings.plugin.linkPlaceholder')" clearable size="large">
+            <template #prefix-icon><t-icon name="link" /></template>
+          </t-input>
+          <p class="linkHint">{{ $t("settings.plugin.linkHint") }}</p>
+        </div>
+
         <div class="dialogFooter">
           <t-button theme="default" @click="pluginDialogVisible = false">{{ $t("common.cancel") }}</t-button>
-          <t-button theme="primary" :loading="pluginDialogLoading" :disabled="!pluginFileList.length" @click="handleConfirmPlugin">
+          <t-button theme="primary" :loading="pluginDialogLoading" :disabled="!canConfirm" @click="handleConfirmPlugin">
             {{ $t("common.confirm") }}
           </t-button>
         </div>
@@ -180,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import type { TableProps, UploadFile } from "tdesign-vue-next";
+import { LoadingPlugin, type TableProps, type UploadFile } from "tdesign-vue-next";
 import axios from "@/utils/axios";
 import { provideToonflowHost } from "@/utils/toonflowHost";
 import { VueFlow, useVueFlow, type Node, type Edge } from "@vue-flow/core";
@@ -226,6 +234,14 @@ const pluginFileList = ref<UploadFile[]>([]);
 const pluginLink = ref("");
 const uploadRef = ref();
 
+// 是否可以确认：上传模式需要文件，链接模式需要填写 URL
+const canConfirm = computed(() => {
+  if (addMode.value === "linkAdd") {
+    return pluginLink.value.trim().length > 0;
+  }
+  return pluginFileList.value.length > 0;
+});
+
 function openAddPluginDialog() {
   pluginDialogMode.value = "add";
   addMode.value = "upload";
@@ -237,7 +253,9 @@ function openAddPluginDialog() {
 function handleUpdateCurrentPlugin() {
   if (!currentPlugin.value) return;
   pluginDialogMode.value = "update";
+  addMode.value = "upload";
   pluginFileList.value = [];
+  pluginLink.value = "";
   pluginDialogVisible.value = true;
 }
 
@@ -291,38 +309,73 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 async function handleConfirmPlugin() {
-  pluginDialogLoading.value = true;
-  try {
-    const rawFile = pluginFileList.value[0]?.raw;
-    if (!rawFile) {
-      window.$message.error($t("settings.plugin.addFailed"));
-      return;
-    }
-    const base64Data = await fileToBase64(rawFile);
-
-    if (pluginDialogMode.value === "update") {
-      // 更新模式
-      const res = await axios.post("/setting/pluginConfig/updatePlugin", {
-        id: currentPlugin.value!.id,
-        base64Data,
+  const firstConfirm = DialogPlugin.confirm({
+    theme: "danger",
+    header: $t("settings.pluginConfig.msg.highRiskConfirm"),
+    body: $t("settings.pluginConfig.msg.linkAddVendorRiskBody"),
+    confirmBtn: { content: $t("settings.vendor.msg.iKnowRisk"), theme: "danger" },
+    cancelBtn: $t("settings.vendor.msg.cancel"),
+    onConfirm: async () => {
+      firstConfirm.destroy();
+      pluginDialogLoading.value = true;
+      const instance = LoadingPlugin({
+        fullscreen: true,
+        attach: "body",
+        preventScrollThrough: false,
       });
-      window.$message.success((res as any)?.message ?? $t("settings.plugin.updateSuccess"));
-    } else {
-      // 新增模式
-      const res = await axios.post("/setting/pluginConfig/addPlugin", {
-        base64Data,
-      });
-      window.$message.success((res as any)?.message ?? $t("settings.plugin.addSuccess"));
-    }
+      const timer = setTimeout(() => {
+        instance.hide();
+        clearTimeout(timer);
+      }, 1000);
+      try {
+        if (addMode.value === "linkAdd") {
+          // 链接模式（新增/更新通用）
+          const link = pluginLink.value.trim();
+          if (!link) {
+            window.$message.error($t("settings.plugin.addFailed"));
+            return;
+          }
+          const url = pluginDialogMode.value === "update" ? "/setting/pluginConfig/updatePlugin" : "/setting/pluginConfig/addPlugin";
+          const payload: Record<string, any> = { link };
+          if (pluginDialogMode.value === "update") {
+            payload.id = currentPlugin.value!.id;
+          }
+          const res = await axios.post(url, payload);
+          window.$message.success(
+            (res as any)?.message ?? (pluginDialogMode.value === "update" ? $t("settings.plugin.updateSuccess") : $t("settings.plugin.addSuccess")),
+          );
+        } else {
+          // 上传模式（新增/更新通用）
+          const rawFile = pluginFileList.value[0]?.raw;
+          if (!rawFile) {
+            window.$message.error($t("settings.plugin.addFailed"));
+            return;
+          }
+          const base64Data = await fileToBase64(rawFile);
+          const url = pluginDialogMode.value === "update" ? "/setting/pluginConfig/updatePlugin" : "/setting/pluginConfig/addPlugin";
+          const payload: Record<string, any> = { base64Data };
+          if (pluginDialogMode.value === "update") {
+            payload.id = currentPlugin.value!.id;
+          }
+          const res = await axios.post(url, payload);
+          window.$message.success(
+            (res as any)?.message ?? (pluginDialogMode.value === "update" ? $t("settings.plugin.updateSuccess") : $t("settings.plugin.addSuccess")),
+          );
+        }
 
-    pluginDialogVisible.value = false;
-    getPluginList();
-    loadApiPluginNode();
-  } catch (err: any) {
-    window.$message.error(err?.message ?? $t("settings.plugin.addFailed"));
-  } finally {
-    pluginDialogLoading.value = false;
-  }
+        pluginDialogVisible.value = false;
+        getPluginList();
+        loadApiPluginNode();
+      } catch (err: any) {
+        window.$message.error(err?.message ?? $t("settings.plugin.addFailed"));
+      } finally {
+        clearTimeout(timer);
+        pluginDialogLoading.value = false;
+        instance.hide();
+      }
+    },
+    onClose: () => firstConfirm.hide(),
+  });
 }
 
 // ==================== 删除插件 ====================
@@ -599,8 +652,14 @@ function onContentDialogClosed() {
     }
   }
 
-  .link-mode {
+  .linkMode {
     margin-bottom: 16px;
+
+    .linkHint {
+      font-size: 12px;
+      color: var(--td-text-color-placeholder);
+      margin: 8px 0 0;
+    }
   }
 
   .dialogFooter {
