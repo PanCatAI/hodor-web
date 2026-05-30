@@ -90,5 +90,11 @@ export default defineConfig({
   },
   server: {
     port: 50188,
+    proxy: {
+      "/oss": {
+        target: "http://localhost:10588",
+        changeOrigin: true,
+      }
+    }
   },
 });

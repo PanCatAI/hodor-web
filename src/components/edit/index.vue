@@ -5,7 +5,8 @@
     </div>
     <VueFlow
       id="editFlow"
-      v-model="flowData"
+      v-model:nodes="nodes"
+      v-model:edges="edges"
       :only-render-visible-elements="false"
       :nodes-draggable="true"
       :nodes-connectable="true"
@@ -42,8 +43,6 @@
 </template>
 
 <script setup lang="ts">
-import { provideToonflowHost } from "@/utils/toonflowHost";
-import projectStore from "@/stores/project";
 import productionAgentStore from "@/stores/productionAgent";
 import { VueFlow, useVueFlow, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
@@ -56,7 +55,9 @@ import pluginNode from "./pluginNode.vue";
 import contextMenu from "./contextMenu.vue";
 import edge from "./edge.vue";
 
+import provideUmd from "@/utils/umd/provideUmd";
 import type { DataType, DataTypeMap } from "@/utils/umd/nodeType";
+import axios from "@/utils/axios.js";
 
 const show = defineModel<boolean>({ default: false });
 
@@ -82,13 +83,11 @@ const emit = defineEmits<{
   (event: "select", value: HandleData | null): void;
 }>();
 
-const { project } = storeToRefs(projectStore());
 const { episodesId } = storeToRefs(productionAgentStore());
 
-provideToonflowHost({
+provideUmd({
   flowId: "editFlow",
   episodesId: () => episodesId.value,
-  projectId: () => project.value?.id,
   selectorTypes: props.selectorMode,
   onSelect: (data) => emit("select", data as HandleData),
 });
@@ -127,6 +126,21 @@ function closeDialog() {
   show.value = false;
   emit("close");
 }
+
+const nodes = ref<Node[]>([]);
+const edges = ref<Edge[]>([]);
+
+watch(
+  () => props.dataId,
+  async (newVal) => {
+    const { data } = await axios.post("/production/editImage/getImageFlow", { id: newVal });
+    nodes.value = data.nodes || [];
+    edges.value = data.edges || [];
+  },
+  {
+    immediate: true,
+  },
+);
 </script>
 
 <style lang="scss" scoped>

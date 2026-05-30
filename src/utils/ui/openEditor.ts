@@ -15,6 +15,7 @@ export interface OpenEditorConfig {
 }
 
 export default function openEditor(config: OpenEditorConfig): Promise<void | HandleData | null> {
+  console.log("%c Line:18 🌮 config", "background:#ffdd4d", config);
   const { dataId, dataType, selectorMode = [] } = config;
   const isSelector = selectorMode.length > 0;
 
