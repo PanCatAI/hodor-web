@@ -10,7 +10,7 @@
               <i-right theme="outline" size="12" />
             </div>
             <ul class="contextMenuSub">
-              <li v-for="node in plugin.editNodes" :key="node.nodeId" class="contextMenuSubItem" @click="handleSelect(node)">
+              <li v-for="node in plugin.editNodes" :key="node.nodeId" class="contextMenuSubItem" @click="handleSelect(plugin, node.nodeId)">
                 <div class="nodeIcon">
                   <img v-if="node.icon" :src="node.icon" />
                   <i-compass v-else theme="outline" size="14" fill="var(--td-brand-color)" />
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { pluginList, type NodeListEntry } from "@/utils/loadPluginNode";
+import { manifestList, type ManifestNode } from "@/utils/umd/index";
 
 const props = withDefaults(
   defineProps<{
@@ -46,7 +46,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   close: [];
-  select: [node: NodeListEntry];
+  select: [pluginNodeId: `${string}:${string}`];
 }>();
 
 const posStyle = computed(() => ({
@@ -55,11 +55,14 @@ const posStyle = computed(() => ({
 }));
 
 const filteredPlugins = computed(() =>
-  pluginList.value
-    .map((plugin) => ({
-      ...plugin,
-      editNodes: props.sourceType == "all" ? plugin.nodes : plugin.nodes.filter((n) => n.sources.includes(props.sourceType as "edit" | "show")),
-    }))
+  manifestList.value
+    .map((plugin) => {
+      const nodes = Object.entries(plugin.nodes).map(([nodeId, node]) => ({ nodeId, ...node }));
+      return {
+        ...plugin,
+        editNodes: props.sourceType === "all" ? nodes : nodes.filter((n) => n.sources.includes(props.sourceType as "edit" | "show")),
+      };
+    })
     .filter((p) => p.editNodes.length > 0),
 );
 
@@ -67,8 +70,8 @@ function close() {
   emit("close");
 }
 
-function handleSelect(node: NodeListEntry) {
-  emit("select", node);
+function handleSelect(plugin: (typeof manifestList.value)[number], key: string) {
+  emit("select", `${plugin.id}:${key}`);
   close();
 }
 

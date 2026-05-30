@@ -37,7 +37,8 @@
       <i-caution theme="outline" size="16" fill="var(--td-error-color)" />
       <div class="errorContent">
         <div class="errorTitle">插件加载异常</div>
-        <div class="errorPluginId">pluginId: {{ node.data.pluginId }}</div>
+        <div class="errorPluginId">{{ node.data.pluginId }}</div>
+        {{ manifestList }}
       </div>
     </div>
   </div>
@@ -45,14 +46,21 @@
 
 <script setup lang="ts">
 import { useNode, useVueFlow } from "@vue-flow/core";
-import { pluginList, loadNodeComp } from "@/utils/loadPluginNode";
+import { manifestList, loadUmdNode } from "@/utils/umd/index";
 
 const { node } = useNode();
 const { removeNodes, addNodes, findNode } = useVueFlow();
 
 provide("NODE_ID", node.id);
 
-const nodeEntry = computed(() => pluginList.value.flatMap((p) => p.nodes).find((n) => n.nodeId === node.data.pluginId) ?? null);
+const nodeEntry = computed(() => {
+  const [pid, nkey] = (node.data.pluginId as string).split(":");
+  const plugin = manifestList.value.find((p) => p.id === pid);
+  if (!plugin) return null;
+  const n = plugin.nodes[nkey];
+  if (!n) return null;
+  return { ...n, icon: n.icon ? `${plugin.url}/${n.icon}` : undefined };
+});
 const comp = shallowRef<any>(null);
 const loading = ref(true);
 const compRef = ref<any>(null);
@@ -67,7 +75,7 @@ onUnmounted(() => {
   node.data.handle = undefined;
 });
 
-loadNodeComp(node.data.pluginId)
+loadUmdNode(node.data.pluginId as `${string}:${string}`)
   .then((c) => {
     comp.value = c;
   })
@@ -79,7 +87,7 @@ loadNodeComp(node.data.pluginId)
 function handleRefresh() {
   comp.value = null;
   loading.value = true;
-  loadNodeComp(node.data.pluginId, true)
+  loadUmdNode(node.data.pluginId as `${string}:${string}`, true)
     .then((c) => {
       comp.value = c;
     })
