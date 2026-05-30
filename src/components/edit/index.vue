@@ -4,7 +4,7 @@
       <i-close size="18" />
     </div>
     <VueFlow
-      id="editFlow"
+      :id="props.dataType"
       v-model:nodes="nodes"
       v-model:edges="edges"
       :only-render-visible-elements="false"
@@ -83,16 +83,14 @@ const emit = defineEmits<{
   (event: "select", value: HandleData | null): void;
 }>();
 
-const { episodesId } = storeToRefs(productionAgentStore());
-
 provideUmd({
-  flowId: "editFlow",
-  episodesId: () => episodesId.value,
+  flowId: props.dataType,
+  ...(props.dataType == "editFlow" ? { episodesId: () => productionAgentStore().episodesId } : {}),
   selectorTypes: props.selectorMode,
   onSelect: (data) => emit("select", data as HandleData),
 });
 
-const { addNodes, onConnect, addEdges, screenToFlowCoordinate } = useVueFlow("editFlow");
+const { addNodes, onConnect, addEdges, screenToFlowCoordinate } = useVueFlow(props.dataType);
 
 onConnect((params) => {
   addEdges([{ ...params, type: "edge" }]);
@@ -133,9 +131,17 @@ const edges = ref<Edge[]>([]);
 watch(
   () => props.dataId,
   async (newVal) => {
-    const { data } = await axios.post("/production/editImage/getImageFlow", { id: newVal });
-    nodes.value = data.nodes || [];
-    edges.value = data.edges || [];
+    if (props.dataType == "editFlow") {
+      const { data } = await axios.post("/production/editImage/getImageFlow", { id: newVal });
+      nodes.value = data.nodes || [];
+      edges.value = data.edges || [];
+    } else if (props.dataType == "infiniteCanvas") {
+      const { data } = await axios.post("/infiniteCanvas/getWorkFlow", {
+        id: newVal,
+      });
+      nodes.value = data.nodes || [];
+      edges.value = data.edges || [];
+    }
   },
   {
     immediate: true,
