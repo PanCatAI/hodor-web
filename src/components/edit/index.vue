@@ -68,8 +68,9 @@ interface HandleData {
 
 const props = withDefaults(
   defineProps<{
-    flowId: string | number;
+    flowId?: string | number;
     selectorMode?: HANDLE_TYPE[];
+    flowData?: Node[];
   }>(),
   {
     selectorMode: () => [],

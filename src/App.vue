@@ -44,7 +44,7 @@ onMounted(async () => {
   (window as any).handleLinkClick = handleLinkClick;
   await getPort();
   // loadApiPluginNode();
-  loadPluginNode(["http://192.168.2.49:5180"]);
+  // loadPluginNode(["http://192.168.2.49:5180"]);
   registerUmd(["http://192.168.2.49:5180"]);
 });
 

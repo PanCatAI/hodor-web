@@ -43,6 +43,7 @@
 
 <script setup lang="ts">
 import _ from "lodash";
+import { watchThrottled } from "@vueuse/core";
 import axios from "@/utils/axios";
 import { VueFlow, Panel, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
@@ -99,7 +100,7 @@ watch(
     flowLoading.value;
     const { data } = await axios.post("/production/getFlowData", {
       projectId: project.value?.id,
-      episodesId: episodesId.value,
+      episodesId: newVal,
     });
     //兼容
     if (_.isObject(data) && !Array.isArray(data)) {
@@ -123,7 +124,7 @@ watch(
             position: { x: col * 600, y: 0 },
             data: {
               pluginId,
-              data: { [key]: data[key as any] },
+              data: { [key]: (data as any)[key as any] },
             },
           };
           col++;
@@ -133,9 +134,18 @@ watch(
     } else {
       flowData.value = data;
     }
-      console.log("%c Line:135 🍌 flowData.value", "background:#93c0a4", flowData.value);
   },
   { immediate: true },
+);
+
+
+watchThrottled(
+  flowData,
+  async (newVal) => {
+    if (!episodesId.value) return;
+    console.log("%c Line:144 🥛 newVal", "background:#f5ce50", newVal);
+  },
+  { deep: true, throttle: 500 },
 );
 </script>
 

@@ -41,7 +41,6 @@
 
 <script setup lang="ts">
 import axios from "@/utils/axios";
-import { type HANDLE_TYPE, type NodeListEntry } from "@/utils/loadPluginNode";
 import { VueFlow, useVueFlow, type Node, type Edge } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { MiniMap } from "@vue-flow/minimap";
