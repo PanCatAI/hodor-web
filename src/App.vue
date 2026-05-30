@@ -43,7 +43,7 @@ onMounted(async () => {
   (window as any).handleLinkClick = handleLinkClick;
   await getPort();
   // loadApiPluginNode();
-  registerUmd(["http://192.168.2.64:5180"]);
+  registerUmd(["http://192.168.2.49:5180"]);
 });
 
 async function handleLinkClick(event: MouseEvent) {
