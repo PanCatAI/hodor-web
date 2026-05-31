@@ -1,6 +1,8 @@
+import _ from "lodash";
+import { remoteTools, type ToolCoonfig } from "@/utils/umd/index";
 import settingStore from "@/stores/setting";
 import { io, Socket } from "socket.io-client";
-import type { ChatMessagesData, AIMessage, UserMessage, AIMessageContent, ChatMessageStatus } from "@tdesign-vue-next/chat";
+import type { ChatMessagesData, ChatMessageStatus } from "@tdesign-vue-next/chat";
 
 function useSocket(url = "http://localhost:10588", authOptions?: Record<string, any>) {
   let socket: Socket | null = null;
@@ -45,9 +47,37 @@ export default () => {
 
   const { connected, socket } = useSocket(`${settingStore().baseUrl}/socket/productionAgent`);
   socket.connect();
-  socket.send("syncMessages", messages.value);
 
-  // 后端推送消息变更时，同步到本地（避免循环触发）
+  //同步远端工具
+  watch(
+    remoteTools,
+    (newVal) => {
+      const remoteToolsList = Object.entries(newVal as ToolCoonfig).flatMap(([groupKey, groupValue]) =>
+        Object.entries(groupValue ?? {}).map(([toolKey, toolValue]) => ({
+          path: `${groupKey}.${toolKey}`,
+          description: toolValue.description,
+          jsonSchema: toolValue?.inputSchema.toJSONSchema() ?? null,
+        })),
+      );
+      if (remoteToolsList.length > 0) socket.send("remoteTools", remoteToolsList);
+    },
+    { deep: true, immediate: true },
+  );
+
+  socket.on("runRemoteTool", ({ name, args }, callback) => {
+    try {
+      const tool = _.get(remoteTools.value, name) as unknown as ToolCoonfig | undefined;
+      const input = JSON.parse(args);
+      tool?.inputSchema.parse(input);
+      const result = tool?.execute(input);
+      callback({ state: "success", result });
+    } catch (error) {
+      callback({ state: "error", error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  //同步历史消息
+  socket.send("syncMessages", messages.value);
   socket.on("syncMessages", (serverMessages: ChatMessagesData[]) => {
     isSyncingFromServer = true;
     messages.value = serverMessages;

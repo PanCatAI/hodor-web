@@ -69,6 +69,9 @@ import provideUmd from "@/utils/umd/provideUmd";
 
 import productionAgentStore from "@/stores/productionAgent";
 import projectStore from "@/stores/project";
+
+import { remoteTools } from "@/utils/umd/index";
+
 const { project } = storeToRefs(projectStore());
 const { flowData, episodesId } = storeToRefs(productionAgentStore());
 
