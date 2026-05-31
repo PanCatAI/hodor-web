@@ -178,7 +178,7 @@ watchDebounced(
   { deep: true, debounce: 800, maxWait: 5000 },
 );
 
-const showChat = ref(false);
+const showChat = ref(true);
 const title = computed(() => {
   const episode = episodesOptions.value.find((option) => option.value === episodesId.value);
   return episode ? episode.label : "";

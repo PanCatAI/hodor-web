@@ -65,7 +65,7 @@
               </template>
             </t-popup>
             <t-popup trigger="click" placement="top" v-if="showThink">
-              <t-button size="small" variant="outline" :theme="['default', 'success', 'warning', 'danger'][thinkLevel] || 'default'">
+              <!-- <t-button size="small" variant="outline" :theme="['default', 'success', 'warning', 'danger'][thinkLevel] || 'default'">
                 <template #icon>
                   <i-tips size="16" />
                 </template>
@@ -73,17 +73,12 @@
               </t-button>
               <template #content>
                 <div class="settingMenu">
-                    <!-- @click="productionAgentStore().updateThinkConfig(opt.value)" -->
-                  <div
-                    v-for="opt in thinkLevelOptions"
-                    :key="opt.value"
-                    class="settingMenuItem"
-                    :class="{ active: thinkLevel === opt.value }"
-                    >
+                  <!== @click="productionAgentStore().updateThinkConfig(opt.value)" ==>
+                  <div v-for="opt in thinkLevelOptions" :key="opt.value" class="settingMenuItem" :class="{ active: thinkLevel === opt.value }">
                     <span>{{ opt.label }}</span>
                   </div>
                 </div>
-              </template>
+              </template> -->
             </t-popup>
           </div>
         </template>
@@ -93,16 +88,19 @@
 </template>
 
 <script setup lang="ts">
+import useSocketChat from "@/utils/useSocketChat";
+
 import { useMousePressed, useMouse } from "@vueuse/core";
 import _ from "lodash";
 import axios from "@/utils/axios";
-import productionAgentStore from "@/stores/productionAgent";
 import projectStore from "@/stores/project";
 const { project } = storeToRefs(projectStore());
 // const { connected, messages, status, episodesId, loadingHistory, thinkLevel } = storeToRefs(productionAgentStore());
-const connected = ref(false);
+const { messages, sendMessage } = useSocketChat();
+
+const connected = ref(true);
 const status = ref("");
-const messages = ref([]);
+const loadingHistory = ref(false);
 
 const thinkLevelOptions = [
   { label: $t("workbench.scriptAgent.thinkLevel.off"), value: 0 },
@@ -118,11 +116,12 @@ const emit = defineEmits(["close"]);
 const inputValue = ref("");
 
 function handleSend(text: string) {
-//   productionAgentStore().chat(text);
+  sendMessage(text);
+  //   productionAgentStore().chat(text);
   inputValue.value = "";
 }
 function handleStop() {
-//   productionAgentStore().stopGenerate();
+  //   productionAgentStore().stopGenerate();
 }
 function handleReconnect() {
   const dialog = DialogPlugin.confirm({
@@ -132,7 +131,7 @@ function handleReconnect() {
     cancelBtn: $t("workbench.scriptAgent.msg.cancel"),
     theme: "warning",
     onConfirm: async () => {
-    //   productionAgentStore().reconnect();
+      //   productionAgentStore().reconnect();
       dialog.destroy();
     },
   });
@@ -161,7 +160,7 @@ function handleClearMemory(type: "message" | "summary" | "all") {
       await axios.post(`/agents/clearMemory`, { projectId: project.value?.id, agentType: "productionAgent", episodesId: episodesId.value, type });
       window.$message.success($t("workbench.production.chatBox.memoryCleared", { type: memoryTypeLabel[type] }));
       dialog.destroy();
-    //   productionAgentStore().getHistory();
+      //   productionAgentStore().getHistory();
     },
   });
 }
