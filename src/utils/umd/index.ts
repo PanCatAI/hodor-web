@@ -1,3 +1,4 @@
+import { z } from "zod";
 import axios from "axios";
 
 export type ManifestNode = { path: string; name: string; sources: ("show" | "edit")[]; description?: string; icon?: string };
@@ -50,3 +51,11 @@ function loadUmd(url: string, globalName: string): Promise<any> {
     document.head.appendChild(script);
   });
 }
+
+export type ToolCoonfig<TAttrs extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.ZodRawShape>> = {
+  description: string;
+  inputSchema: TAttrs;
+  execute: (inputSchema: z.infer<TAttrs>) => void;
+};
+
+export const remoteTools = ref<Record<`${string}:${string}`, Record<string, ToolCoonfig>>>({});

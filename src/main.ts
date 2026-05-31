@@ -1,7 +1,7 @@
 import * as Vue from "vue";
-import * as VueFlow from '@vue-flow/core'
+import * as VueFlow from "@vue-flow/core";
 (window as any).Vue = Vue;
-(window as any).VueFlow = VueFlow
+(window as any).VueFlow = VueFlow;
 
 import { createApp } from "vue";
 import { createPinia } from "pinia";
@@ -26,6 +26,11 @@ import "splitpanes/dist/splitpanes.css";
 import "./assets/main.scss";
 
 import { imageOptimizer } from "@/utils/imageOptimizer";
+
+import { z } from "zod";
+import { zhCN } from "zod/locales";
+
+z.config(zhCN());
 
 const app = createApp(App);
 app.use(imageOptimizer);

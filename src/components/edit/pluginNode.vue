@@ -45,12 +45,20 @@
 
 <script setup lang="ts">
 import { useNode, useVueFlow } from "@vue-flow/core";
-import { manifestList, loadUmdNode } from "@/utils/umd/index";
+import { manifestList, loadUmdNode, remoteTools } from "@/utils/umd/index";
 
 const { node } = useNode();
 const { removeNodes, addNodes, findNode } = useVueFlow();
 
 provide("NODE_ID", node.id);
+
+if (!remoteTools.value[node.data.pluginId]) remoteTools.value[node.data.pluginId] = {};
+provide("REMOTE_TOOLS", remoteTools.value[node.data.pluginId]);
+
+onUnmounted(() => {
+  const pluginId = node.data.pluginId as `${string}:${string}`;
+  delete remoteTools.value[pluginId];
+});
 
 const nodeEntry = computed(() => {
   const [pid, nkey] = (node.data.pluginId as string).split(":");
