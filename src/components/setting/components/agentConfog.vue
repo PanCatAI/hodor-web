@@ -1,6 +1,6 @@
 <template>
   <div class="aiConfog" v-loading="loading">
-    <div class="banner">
+    <!-- <div class="banner">
       <div class="content f ac jb">
         <div class="textContent ac">
           <i-good-two class="icon" theme="filled" size="24" fill="currentColor" />
@@ -18,7 +18,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <div class="modeRadioGroup">
       <t-radio-group v-model="agentUseModeVal" variant="default-filled" @change="(val: string) => updateUseMode(val)">

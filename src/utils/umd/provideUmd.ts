@@ -17,6 +17,7 @@ const { project } = storeToRefs(projectStore());
 interface ProvideOptions<T extends DataType = DataType> {
   flowId: string;
   episodesId?: MaybeRefOrGetter<string | number | undefined>;
+  projectId?: MaybeRefOrGetter<string | number | undefined>;
   selectorTypes?: T[];
   onSelect?: (data: DataTypeMap[T]) => void;
 }
@@ -54,7 +55,19 @@ interface GenerateFlowImageParams {
   references?: string[];
   projectId: number;
 }
-
+interface GenerateFlowVideoParams {
+  projectId: number;
+  scriptId: number;
+  references: string[];
+  prompt: string;
+  model: string;
+  mode: string;
+  resolution: string;
+  duration: number;
+  audio: boolean;
+  ratio: string;
+  filePath: string;
+}
 const ai = {
   getModelList: async (type: "text" | "image" | "all" | "video"): Promise<ModelGroup[]> => {
     const response = await axios.post("/modelSelect/getModelList", { type });
@@ -95,6 +108,30 @@ const ai = {
     });
     return response.data;
   },
+  generateVideo: async (params: GenerateFlowVideoParams) => {
+    const response = await axios.post("/production/editImage/generateFlowVideo", {
+      references: params.references ?? [],
+      model: params.model,
+      prompt: params.prompt,
+      projectId: params.projectId,
+      audio: params.audio,
+      duration: params.duration,
+      mode: params.mode,
+      filePath: params.filePath,
+      resolution: params.resolution,
+      ratio: params.ratio,
+      scriptId: -1,
+    });
+    return response.data;
+  },
+  uploadFile: async (params: { base64: string; oldUrl?: string; projectId: number }) => {
+    const response = await axios.post("/infiniteCanvas/uploadFile", {
+      base64: params.base64,
+      ...(params.oldUrl ? { oldUrl: params.oldUrl } : {}),
+      projectId: params.projectId,
+    });
+    return response.data;
+  },
 };
 
 export default (provideOptions: ProvideOptions) => {
@@ -111,7 +148,7 @@ export default (provideOptions: ProvideOptions) => {
     },
     sql: createKnexProxy(),
     episodesId: computed(() => toValue(provideOptions.episodesId)),
-    projectId: computed(() => toValue(project.value?.id)),
+    projectId: computed(() => toValue(provideOptions?.projectId ?? project.value?.id)),
     ui,
     language,
     themeMode,

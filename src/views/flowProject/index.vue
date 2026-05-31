@@ -43,6 +43,7 @@
     <t-empty v-else></t-empty>
   </div>
   <projectDialog v-model="dialogShow" :projectData="editProjectData" @submit="getallFlowProject" />
+  <editFlow v-model="show" v-if="show" dataType="infiniteCanvas" :dataId="flowProject!?.id" />
 </template>
 
 <script setup lang="ts">
@@ -51,6 +52,8 @@ import dayjs from "dayjs";
 import axios from "@/utils/axios";
 import flowProjectStore from "@/stores/flowProject";
 import projectStore from "@/stores/project";
+import editFlow from "@/components/edit/index.vue";
+const show = ref(false);
 const { allFlowProject, flowProject } = storeToRefs(flowProjectStore());
 const { project } = storeToRefs(projectStore());
 
@@ -80,7 +83,7 @@ async function openProject(projectId: string | undefined) {
   if (!item) return window.$message.error($t("workbench.project.msg.notFound"));
 
   flowProject.value = item;
-  router.push(`/infiniteCanvas`);
+  show.value = true;
 }
 
 function openEdit(item: { id: string; name: string; intro: string }) {

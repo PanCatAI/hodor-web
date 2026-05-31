@@ -9,7 +9,6 @@ import editFlow from "@/components/edit/index.vue";
 import flowProjectStore from "@/stores/flowProject";
 const { flowProject } = storeToRefs(flowProjectStore());
 const show = ref(true);
-onMounted(() => {});
 </script>
 
 <style scoped lang="scss">

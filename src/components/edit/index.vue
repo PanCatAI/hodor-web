@@ -54,7 +54,7 @@ import "@vue-flow/controls/dist/style.css";
 import pluginNode from "./pluginNode.vue";
 import contextMenu from "./contextMenu.vue";
 import edge from "./edge.vue";
-
+import { watchDebounced } from "@vueuse/core";
 import provideUmd from "@/utils/umd/provideUmd";
 import type { DataType, DataTypeMap } from "@/utils/umd/nodeType";
 import axios from "@/utils/axios.js";
@@ -86,11 +86,12 @@ const emit = defineEmits<{
 provideUmd({
   flowId: props.dataType,
   ...(props.dataType == "editFlow" ? { episodesId: () => productionAgentStore().episodesId } : {}),
+  ...(props.dataType == "infiniteCanvas" ? { projectId: () => props.dataId } : {}),
   selectorTypes: props.selectorMode,
   onSelect: (data) => emit("select", data as HandleData),
 });
 
-const { addNodes, onConnect, addEdges, screenToFlowCoordinate } = useVueFlow(props.dataType);
+const { addNodes, onConnect, addEdges, screenToFlowCoordinate, toObject, fromObject } = useVueFlow(props.dataType);
 
 onConnect((params) => {
   addEdges([{ ...params, type: "edge" }]);
@@ -139,13 +140,26 @@ watch(
       const { data } = await axios.post("/infiniteCanvas/getWorkFlow", {
         id: newVal,
       });
-      nodes.value = data.nodes || [];
-      edges.value = data.edges || [];
+      fromObject(data);
     }
   },
   {
     immediate: true,
   },
+);
+watchDebounced(
+  [nodes, edges],
+  async () => {
+    if (!props.dataId) return;
+    if (props.dataType == "infiniteCanvas") {
+      const data = toObject();
+      await axios.post("/infiniteCanvas/updateWorkFlow", {
+        id: props.dataId,
+        data,
+      });
+    }
+  },
+  { deep: true, debounce: 800, maxWait: 5000 },
 );
 </script>
 
