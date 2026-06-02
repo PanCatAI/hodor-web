@@ -1,6 +1,6 @@
 <template>
   <div class="script">
-    <div class="actionBar">
+    <div class="actionBar w">
       <div class="actionBar-left f ac">
         <t-input :placeholder="$t('workbench.script.searchPlaceholder')" v-model="searchQuery" class="searchInput" clearable style="width: 300px" />
         <t-button theme="primary" @click="onChange">
@@ -16,7 +16,7 @@
           {{ $t("workbench.script.batchAddScript") }}
         </t-button>
       </div>
-      <div class="actionBar-right f ac" v-if="scripts.length">
+      <div class="actionBar-right f ac w" v-if="scripts.length">
         <t-button :theme="isAllSelected ? 'default' : 'primary'" variant="outline" @click="toggleSelectAll(!isAllSelected)">
           {{ isAllSelected ? $t("workbench.script.cancelSelectAll") : $t("workbench.script.selectAll") }}
         </t-button>
@@ -333,6 +333,7 @@ onUnmounted(() => {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 24px;
+    gap: 16px;
     .actionBar-left {
       gap: 10px;
     }
