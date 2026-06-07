@@ -478,6 +478,7 @@ const editForm = reactive({
 });
 
 async function openDrawer(item: DataItem) {
+  if (item.state == "生成中") return;
   selectedHistoryId.value = null;
   // 先用当前数据打开抽屉
   editForm.assetsId = item.id;
