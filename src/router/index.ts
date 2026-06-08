@@ -11,6 +11,10 @@ const router = createRouter({
       component: () => import("@/pages/error/404.vue"),
     },
     {
+      path: "/loading",
+      component: () => import("@/pages/loading/index.vue"),
+    },
+    {
       path: "/",
       redirect: "/workbench",
     },
@@ -76,14 +80,15 @@ const router = createRouter({
   ],
 });
 router.beforeEach((to, from, next) => {
-  if (to.path === "/login") {
-    next();
-  } else {
-    if (localStorage.getItem("token")) {
-      next();
-    } else {
-      next("/login");
-    }
+  if (to.path === "/loading") {
+    return next();
   }
+  if (to.path === "/login") {
+    return next();
+  }
+  if (localStorage.getItem("token")) {
+    return next();
+  }
+  return next("/login");
 });
 export default router;
