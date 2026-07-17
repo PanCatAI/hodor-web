@@ -1642,11 +1642,11 @@
     }
   },
   "login": {
-    "slogan": "智能短剧创作平台",
-    "tips": "默认账号：admin / admin123",
+    "slogan": "Hodor 全自动内容产线",
+    "tips": "使用 Pancat Asset Studio 账号登录",
     "settings": "服务器设置",
     "requestAddress": "请求地址",
-    "username": "用户名",
+    "username": "Pancat 账号",
     "password": "密码",
     "login": "登录",
     "usernameRequired": "请输入用户名",

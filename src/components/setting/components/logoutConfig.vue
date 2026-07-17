@@ -42,6 +42,7 @@ async function handleLogout() {
   try {
     // 清除本地存储的token
     localStorage.removeItem("token");
+    localStorage.removeItem("pancatAccount");
     // 清除其他可能的用户数据
     localStorage.removeItem("user");
 

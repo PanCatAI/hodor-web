@@ -12,7 +12,7 @@
       <div class="logoBox fc">
         <div class="logoImg"></div>
         <div class="fc c">
-          <span class="logoText">ToonFlow</span>
+          <span class="logoText">Hodor</span>
           <span class="slogan">{{ $t("login.slogan") }}</span>
         </div>
       </div>
@@ -98,6 +98,12 @@ const handleLogin = () => {
     .then(({ data }) => {
       localStorage.setItem("token", data.token);
       localStorage.setItem("userId", data.id);
+      localStorage.setItem("pancatAccount", JSON.stringify({
+        username: data.name,
+        partnerId: data.partnerId,
+        partnerName: data.partnerName,
+        role: data.role,
+      }));
       Router.push("/project");
       window.$message.success($t("login.loginSuccess"));
       state.value.loginLoading = false;

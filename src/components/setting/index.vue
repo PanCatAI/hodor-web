@@ -18,7 +18,6 @@
           <languageConfig v-if="activeMenu === 'language'" />
           <vendorConfig v-if="activeMenu === 'vendorConfig'" />
           <requestConfig v-if="activeMenu === 'requestConfig'" />
-          <loginConfig v-if="activeMenu === 'loginConfig'" />
           <agentConfog v-if="activeMenu === 'agentConfog'" />
           <promptManage v-if="activeMenu === 'promptManage'" />
           <otherConfig v-if="activeMenu === 'otherConfig'" />
@@ -43,7 +42,6 @@ const { showSetting, activeMenu, needUpdate } = storeToRefs(settingStore());
 import uiConfig from "./components/uiConfig.vue";
 import languageConfig from "./components/languageConfig.vue";
 import requestConfig from "./components/requestConfig.vue";
-import loginConfig from "./components/loginConfig.vue";
 import agentConfog from "./components/agentConfog.vue";
 import dbConfig from "./components/dbConfig.vue";
 import otherConfig from "./components/otherConfig.vue";
@@ -66,7 +64,6 @@ const menuItems = [
   { key: "promptManage", label: "settings.menu.promptManage", icon: "i-tips" },
   { key: "skillManagement", label: "settings.menu.skillsSkillsManagement", icon: "i-ring" },
   { key: "memoryConfig", label: "settings.menu.memoryConfig", icon: "i-memory-card-one" },
-  { key: "loginConfig", label: "settings.menu.loginConfig", icon: "i-lock" },
   { key: "dbConfig", label: "settings.menu.dbConfig", icon: "i-data" },
   { key: "fileManagement", label: "settings.menu.fileManagement", icon: "i-hard-disk" },
   { key: "otherConfig", label: "settings.menu.otherConfig", icon: "i-application-menu" },

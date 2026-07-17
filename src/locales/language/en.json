@@ -1539,7 +1539,7 @@
   },
   "login": {
     "slogan": "Intelligent Short Drama Creation Platform",
-    "tips": "Default Account: admin / admin123",
+    "tips": "Sign in with your Pancat Asset Studio account",
     "settings": "Server Settings",
     "requestAddress": "Request URL",
     "username": "Username",
