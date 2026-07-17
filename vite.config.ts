@@ -90,5 +90,10 @@ export default defineConfig({
   },
   server: {
     port: 50188,
+    proxy: {
+      "/skills": "http://127.0.0.1:10588",
+      "/oss": "http://127.0.0.1:10588",
+      "/assets": "http://127.0.0.1:10588",
+    },
   },
 });
