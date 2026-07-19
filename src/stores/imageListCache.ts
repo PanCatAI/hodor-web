@@ -121,7 +121,7 @@ export default defineStore(
     function resolveUrlSync(id: number | null | undefined, sources: string | undefined, fallbackPath?: string): string {
       if (id != null) {
         const key = makeUrlKey(id, sources);
-        if (urlMap.value[key]) return urlMap.value[key];
+        if (Object.prototype.hasOwnProperty.call(urlMap.value, key)) return urlMap.value[key];
       }
       // 降级返回原始路径
       return fallbackPath || "";
