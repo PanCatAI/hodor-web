@@ -112,7 +112,7 @@ export default defineStore(
       const result: Record<string, string> = {};
       items.forEach((item) => {
         const key = makeUrlKey(item.id, item.sources);
-        result[key] = urlMap.value[key] || item.id?.toString() || "";
+        result[key] = urlMap.value[key] || "";
       });
       return result;
     }
