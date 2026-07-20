@@ -1,6 +1,8 @@
 import { fileURLToPath, URL } from "node:url";
 
 import react from "@vitejs/plugin-react";
+import autoprefixer from "autoprefixer";
+import tailwindcss from "tailwindcss";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -23,7 +25,9 @@ export default defineConfig({
     },
   },
   css: {
-    postcss: "./postcss.react.config.cjs",
+    postcss: {
+      plugins: [tailwindcss({ config: "./tailwind.react.config.ts" }), autoprefixer()],
+    },
   },
   server: {
     port: 50288,
