@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { HodorApiClient } from "@react/lib/api/client";
-import { createProductionApi, normalizeProductionStatus } from "./production-api";
+import { createProductionApi, normalizeProductionStatus, normalizeProductionVideoMode } from "./production-api";
 
 function createClient() {
   return {
@@ -10,6 +10,58 @@ function createClient() {
 }
 
 describe("production API adapter", () => {
+  it("normalizes the real video model list and capability detail contracts", async () => {
+    const client = createClient();
+    vi.mocked(client.request)
+      .mockResolvedValueOnce([
+        { id: 4, name: "Pancat", label: "Pancat Video", value: "pancat-video", type: "video" },
+        { id: 5, name: "Cinema", label: "", value: "cinema-video", type: "video" },
+      ])
+      .mockResolvedValueOnce({
+        name: "Pancat",
+        modelName: "pancat-video",
+        type: "video",
+        mode: ["singleImage", ["imageReference", "imageReference", "audioReference"], '["videoReference","textReference"]'],
+        audio: "optional",
+        durationResolutionMap: [
+          { duration: [5, "8", 0], resolution: ["720p", "1080p"] },
+          { duration: [10], resolution: ["4K"] },
+        ],
+      });
+    const api = createProductionApi(client);
+
+    await expect(api.listVideoModels?.()).resolves.toEqual([
+      { id: "4:pancat-video", label: "Pancat Video", vendorName: "Pancat" },
+      { id: "5:cinema-video", label: "cinema-video", vendorName: "Cinema" },
+    ]);
+    await expect(api.getVideoModelDetail?.("4:pancat-video")).resolves.toEqual({
+      name: "Pancat",
+      modelName: "pancat-video",
+      type: "video",
+      mode: ["singleImage", ["imageReference", "imageReference", "audioReference"], ["videoReference", "textReference"]],
+      audio: "optional",
+      durationResolutionMap: [
+        { duration: [5, 8], resolution: ["720p", "1080p"] },
+        { duration: [10], resolution: ["4K"] },
+      ],
+    });
+    expect(client.request).toHaveBeenNthCalledWith(1, "/modelSelect/getModelList", {
+      method: "POST",
+      body: JSON.stringify({ type: "video" }),
+    });
+    expect(client.request).toHaveBeenNthCalledWith(2, "/modelSelect/getModelDetail", {
+      method: "POST",
+      body: JSON.stringify({ modelId: "4:pancat-video" }),
+    });
+  });
+
+  it("normalizes scalar, array and JSON-encoded reference modes", () => {
+    expect(normalizeProductionVideoMode("singleImage")).toBe("singleImage");
+    expect(normalizeProductionVideoMode(["imageReference", "audioReference"])).toEqual(["imageReference", "audioReference"]);
+    expect(normalizeProductionVideoMode('["videoReference","textReference"]')).toEqual(["videoReference", "textReference"]);
+    expect(normalizeProductionVideoMode(["unknownReference"])).toBeNull();
+  });
+
   it("maps the script list request to the existing Hodor contract", async () => {
     const client = createClient();
     vi.mocked(client.request).mockResolvedValue([{ id: 12, name: "第一幕", content: "雨夜", extractState: "已完成", errorReason: "" }]);
@@ -45,11 +97,13 @@ describe("production API adapter", () => {
       storyboardTable: "| 镜头 |",
       storyboard: [],
       workbench: { videoList: [{ id: 88 }], cover: "https://example.test/cover.jpg" },
+      assetFactoryContract: { revision: 3, source: "story-mesh" },
     });
     const api = createProductionApi(client);
 
     const flow = await api.getFlowData(7, 12);
     expect(flow.workbench).toEqual({ videoList: [{ id: 88 }], cover: "https://example.test/cover.jpg" });
+    expect(flow.assetFactoryContract).toEqual({ revision: 3, source: "story-mesh" });
 
     vi.mocked(client.request).mockResolvedValueOnce(undefined);
     await api.saveFlowData(7, 12, flow);

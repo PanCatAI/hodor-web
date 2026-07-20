@@ -6,6 +6,9 @@ import type {
   DerivedAsset,
   ImageFlowData,
   ProductionState,
+  ProductionVideoMode,
+  ProductionVideoModelDetail,
+  ProductionVideoModelOption,
   ScriptSummary,
   StoryboardItem,
   TrackMedia,
@@ -41,6 +44,8 @@ export interface AddStoryboardInput {
 }
 
 export interface ProductionApi {
+  listVideoModels?(): Promise<ProductionVideoModelOption[]>;
+  getVideoModelDetail?(modelId: string): Promise<ProductionVideoModelDetail>;
   listScripts(projectId: number): Promise<ScriptSummary[]>;
   getFlowData(projectId: number, scriptId: number): Promise<ProductionFlowData>;
   getGenerationData(projectId: number, scriptId: number): Promise<ProductionGenerationData>;
@@ -99,6 +104,50 @@ function asString(value: unknown): string {
 function asNumber(value: unknown, fallback = 0): number {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+const referenceModes = new Set(["videoReference", "imageReference", "audioReference", "textReference"]);
+
+export function normalizeProductionVideoMode(value: unknown): ProductionVideoMode | null {
+  if (Array.isArray(value)) {
+    const modes = value.filter(
+      (item): item is "videoReference" | "imageReference" | "audioReference" | "textReference" =>
+        typeof item === "string" && referenceModes.has(item),
+    );
+    return modes.length ? modes : null;
+  }
+  if (typeof value !== "string" || !value.trim()) return null;
+  const normalized = value.trim();
+  try {
+    const parsed = JSON.parse(normalized);
+    if (Array.isArray(parsed)) return normalizeProductionVideoMode(parsed);
+  } catch {
+    // Scalar provider modes are intentionally preserved as-is.
+  }
+  return normalized;
+}
+
+function mapVideoModelDetail(value: unknown): ProductionVideoModelDetail {
+  const record = asRecord(value);
+  const audio = record.audio === "optional" ? "optional" : record.audio === true || record.audio === "true";
+  return {
+    name: asString(record.name),
+    modelName: asString(record.modelName),
+    type: "video",
+    mode: asArray(record.mode).flatMap((item) => {
+      const mode = normalizeProductionVideoMode(item);
+      return mode ? [mode] : [];
+    }),
+    audio,
+    durationResolutionMap: asArray(record.durationResolutionMap).flatMap((item) => {
+      const map = asRecord(item);
+      const duration = asArray(map.duration)
+        .map((entry) => asNumber(entry))
+        .filter((entry) => entry > 0);
+      const resolution = asArray(map.resolution).map(asString).filter(Boolean);
+      return duration.length || resolution.length ? [{ duration, resolution }] : [];
+    }),
+  };
 }
 
 export function normalizeProductionStatus(value: unknown): ProductionState {
@@ -314,6 +363,27 @@ function selectPromptMedia(track: VideoTrack, mode: string): Array<{ id: number;
 
 export function createProductionApi(client: HodorApiClient): ProductionApi {
   return {
+    async listVideoModels() {
+      const models = asArray(await post<unknown>(client, "/modelSelect/getModelList", { type: "video" }));
+      return models.flatMap((value) => {
+        const model = asRecord(value);
+        const id = asString(model.id) || String(asNumber(model.id));
+        const modelName = asString(model.value);
+        if (!id || !modelName) return [];
+        return [
+          {
+            id: `${id}:${modelName}`,
+            label: asString(model.label).trim() || modelName,
+            vendorName: asString(model.name).trim() || id,
+          },
+        ];
+      });
+    },
+
+    async getVideoModelDetail(modelId) {
+      return mapVideoModelDetail(await post<unknown>(client, "/modelSelect/getModelDetail", { modelId }));
+    },
+
     async listScripts(projectId) {
       const data = await post<unknown>(client, "/script/getScrptApi", { projectId, name: "" });
       return asArray(data).map(mapScript);
@@ -322,6 +392,7 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
     async getFlowData(projectId, scriptId) {
       const data = asRecord(await post<unknown>(client, "/production/getFlowData", { projectId, episodesId: scriptId }));
       return {
+        ...data,
         script: asString(data.script),
         scriptPlan: asString(data.scriptPlan),
         assets: asArray(data.assets).map((value) => {

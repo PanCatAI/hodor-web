@@ -1,4 +1,5 @@
 export type ProductionState = "idle" | "running" | "completed" | "failed";
+export type ProductionVideoRatio = "16:9" | "1:1" | "9:16";
 
 export interface ProductionProject {
   id: number;
@@ -6,8 +7,32 @@ export interface ProductionProject {
   imageModel?: string;
   videoModel: string;
   videoMode: string;
+  videoRatio?: ProductionVideoRatio;
   videoResolution?: string;
   videoAudio?: boolean;
+}
+
+export type ProductionVideoReferenceMode = "videoReference" | "imageReference" | "audioReference" | "textReference";
+export type ProductionVideoMode = string | ProductionVideoReferenceMode[];
+
+export interface ProductionVideoModelOption {
+  id: string;
+  label: string;
+  vendorName: string;
+}
+
+export interface ProductionDurationResolution {
+  duration: number[];
+  resolution: string[];
+}
+
+export interface ProductionVideoModelDetail {
+  name: string;
+  modelName: string;
+  type: "video";
+  mode: ProductionVideoMode[];
+  audio: boolean | "optional";
+  durationResolutionMap: ProductionDurationResolution[];
 }
 
 export interface ScriptSummary {
@@ -85,6 +110,7 @@ export interface VideoTrack {
 }
 
 export interface ProductionFlowData {
+  [key: string]: unknown;
   script: string;
   scriptPlan: string;
   assets: ProductionAsset[];

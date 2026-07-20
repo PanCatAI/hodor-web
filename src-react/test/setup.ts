@@ -33,6 +33,15 @@ Object.defineProperty(globalThis, "localStorage", {
   value: createMemoryStorage(),
 });
 
+class DOMMatrixReadOnlyMock {
+  readonly m22 = 1;
+}
+
+Object.defineProperty(globalThis, "DOMMatrixReadOnly", {
+  configurable: true,
+  value: DOMMatrixReadOnlyMock,
+});
+
 afterEach(() => {
   cleanup();
   localStorage.clear();

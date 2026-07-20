@@ -48,3 +48,8 @@ body,
 [data-interacting="true"] .production-node-hover-tools {
   display: none;
 }
+
+[data-testid="production-infinite-canvas"] .react-flow__handle {
+  width: 12px;
+  height: 12px;
+}

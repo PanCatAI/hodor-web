@@ -25,6 +25,7 @@ interface CreateAgentChatClientOptions {
   apiClient: HodorApiClient;
   socketFactory?: AgentSocketFactory;
   handlers?: AgentServerHandlers;
+  initialMessages?: AgentMessage[];
 }
 
 interface MessageEvent extends Omit<AgentMessage, "content"> {
@@ -145,11 +146,14 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
   let hasConnected = false;
   const rawContent = new Map<string, string>();
   const persistedWorkTags = new Map<string, string>();
+  const initialMessages = (options.initialMessages ?? []).map(cloneMessage);
+  const initialMessageIds = new Set(initialMessages.map((message) => message.id));
   let snapshot: AgentChatSnapshot = {
     connection: "disconnected",
     activity: "idle",
+    thinkLevel: 0,
     currentMessageId: null,
-    messages: [],
+    messages: initialMessages,
     error: null,
     loadingHistory: false,
     clearingMemory: null,
@@ -214,9 +218,9 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
         const value = match[2].trim();
         if (persist && persistedWorkTags.get(stateKey) !== value) {
           persistedWorkTags.set(stateKey, value);
-          void Promise.resolve(
-            options.handlers?.onWorkDataTag?.({ tag, value, attrs: parseAttributes(match[1] ?? ""), status: "complete" }),
-          ).catch((error) => update({ error: toErrorMessage(error) }));
+          void Promise.resolve(options.handlers?.onWorkDataTag?.({ tag, value, attrs: parseAttributes(match[1] ?? ""), status: "complete" })).catch(
+            (error) => update({ error: toErrorMessage(error) }),
+          );
         }
       }
       visible = visible.replace(completePattern, "");
@@ -235,11 +239,22 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
     });
   }
 
+  function isEmptyMessage(message: AgentMessage) {
+    return message.content.every((content) => {
+      if (typeof content.data === "string") return content.data.trim().length === 0;
+      if (content.data === null || content.data === undefined) return true;
+      if (Array.isArray(content.data)) return content.data.length === 0;
+      if (typeof content.data === "object") return Object.keys(content.data as Record<string, unknown>).length === 0;
+      return false;
+    });
+  }
+
   function setupHandlers(activeSocket: AgentSocket) {
     activeSocket.on("connect", () => {
       const reconnecting = hasConnected;
       hasConnected = true;
       update({ connection: "connected", error: null });
+      activeSocket.emit("updateThinkConfig", { think: snapshot.thinkLevel > 0, thinlLevel: snapshot.thinkLevel });
       void Promise.resolve(options.handlers?.restoreWorkData?.()).catch((error) => update({ error: toErrorMessage(error) }));
       if (reconnecting) void client.loadHistory();
     });
@@ -250,6 +265,7 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
     activeSocket.on("message", (event: MessageEvent) => {
       const message = cloneMessage(event);
       message.content.forEach((content) => stripAndPersistWorkTags(message.id, content));
+      if (message.status === "complete" && isEmptyMessage(message)) return;
       const messages = snapshot.messages.some((item) => item.id === message.id)
         ? snapshot.messages.map((item) => (item.id === message.id ? message : item))
         : [...snapshot.messages, message];
@@ -260,11 +276,14 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
     });
 
     activeSocket.on("message:update", (event: MessageUpdateEvent) => {
-      replaceMessage(event.id, (message) => ({
+      const updatedMessage = replaceMessage(event.id, (message) => ({
         ...message,
         status: event.status ?? message.status,
         ext: event.ext ? { ...message.ext, ...event.ext } : message.ext,
       }));
+      if (event.status === "complete" && updatedMessage && isEmptyMessage(updatedMessage)) {
+        update({ messages: snapshot.messages.filter((message) => message.id !== event.id) });
+      }
       if (event.status === "streaming") update({ activity: "streaming" });
       if (snapshot.currentMessageId === event.id && (event.status === "complete" || event.status === "error" || event.status === "stop")) {
         update({ activity: "idle", currentMessageId: null });
@@ -274,14 +293,18 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
     activeSocket.on("content:add", (event: ContentAddEvent) => {
       replaceMessage(event.messageId, (message) => ({
         ...message,
-        content: [
-          ...message.content,
-          (() => {
-            const content = { ...event.content, status: event.content.status ?? "pending" };
-            stripAndPersistWorkTags(event.messageId, content);
-            return content;
-          })(),
-        ],
+        content: (() => {
+          const content = {
+            ...event.content,
+            status: event.content.status ?? "pending",
+            ...(event.content.type === "thinking" ? { ext: { collapsed: true, ...event.content.ext } } : {}),
+          };
+          stripAndPersistWorkTags(event.messageId, content);
+          if (content.type !== "thinking") return [...message.content, content];
+          const firstNonThinkingIndex = message.content.findIndex((item) => item.type !== "thinking");
+          if (firstNonThinkingIndex === -1) return [...message.content, content];
+          return [...message.content.slice(0, firstNonThinkingIndex), content, ...message.content.slice(firstNonThinkingIndex)];
+        })(),
       }));
       if (event.content.status === "streaming") update({ activity: "streaming" });
     });
@@ -407,10 +430,11 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
         const historyIds = new Set(history.map((message) => message.id));
         const retainedMessages = snapshot.messages.filter(
           (message) =>
+            !initialMessageIds.has(message.id) &&
             !historyIds.has(message.id) &&
             (!messageIdsAtStart.has(message.id) || message.status === "pending" || message.status === "streaming"),
         );
-        update({ messages: [...history, ...retainedMessages] });
+        update({ messages: [...initialMessages.filter((message) => !historyIds.has(message.id)), ...history, ...retainedMessages] });
         recoverSnapshotActivity();
       } catch (error) {
         update({ error: toErrorMessage(error) });
@@ -455,6 +479,7 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
       }
     },
     updateThinkLevel(level) {
+      update({ thinkLevel: level });
       socket?.emit("updateThinkConfig", { think: level > 0, thinlLevel: level });
     },
     updateContext(nextContext) {

@@ -62,16 +62,17 @@ describe("production flow storyboard node", () => {
     render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={flowData()} onChange={onChange} />);
 
     fireEvent.click(screen.getByRole("button", { name: "全选" }));
-    expect(screen.getByText("已选 2")).toBeInTheDocument();
+    expect(screen.getByText("已选 2 项")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "批量生成分镜图" }));
 
     await waitFor(() => expect(api.generateStoryboards).toHaveBeenCalledWith({ projectId: 7, scriptId: 12, storyboardIds: [31, 32] }));
     await waitFor(() =>
       expect(onChange).toHaveBeenCalledWith(
         expect.objectContaining({ storyboard: expect.arrayContaining([expect.objectContaining({ id: 31, state: "completed" })]) }),
+        expect.any(Number),
       ),
     );
-    expect(screen.getByText("已选 0")).toBeInTheDocument();
+    expect(screen.getByText("已选 0 项")).toBeInTheDocument();
   });
 
   it("inserts after a frame, persists the reordered flow and deletes selected frames through mounted endpoints", async () => {
@@ -113,6 +114,7 @@ describe("production flow storyboard node", () => {
     await waitFor(() =>
       expect(onChange).toHaveBeenCalledWith(
         expect.objectContaining({ storyboard: expect.not.arrayContaining([expect.objectContaining({ id: 31 })]) }),
+        expect.any(Number),
       ),
     );
   });
@@ -121,7 +123,9 @@ describe("production flow storyboard node", () => {
     const api = createApi();
     render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={flowData()} />);
 
-    expect(screen.getByRole("link", { name: "下载分镜 31" })).toHaveAttribute("href", "https://example.test/31.jpg");
+    expect(screen.getByRole("button", { name: "复制分镜 31" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "预览分镜 31" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "下载分镜 31" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "预览全部分镜" }));
 
     await waitFor(() => expect(api.previewStoryboards).toHaveBeenCalledWith([31, 32]));

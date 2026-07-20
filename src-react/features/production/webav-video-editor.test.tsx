@@ -7,6 +7,7 @@ import {
   formatWebAvError,
   radiansToDegrees,
   readWebAvOutput,
+  resolveWebAvCanvasSize,
   sampleWaveform,
   WebAvVideoEditor,
   type WebAvEditorClip,
@@ -14,6 +15,7 @@ import {
 
 const webAvMocks = vi.hoisted(() => ({
   addedSprites: [] as any[],
+  canvasOptions: [] as Array<{ bgColor: string; width: number; height: number }>,
   canvasDestroy: vi.fn(),
   clipDestroy: vi.fn(),
   combinatorDestroy: vi.fn(),
@@ -23,6 +25,9 @@ const webAvMocks = vi.hoisted(() => ({
 
 vi.mock("@webav/av-canvas", () => ({
   AVCanvas: class MockAVCanvas {
+    constructor(_host: HTMLElement, options: { bgColor: string; width: number; height: number }) {
+      webAvMocks.canvasOptions.push(options);
+    }
     addSprite = async (sprite: unknown) => {
       webAvMocks.addedSprites.push(sprite);
     };
@@ -141,6 +146,13 @@ function editorClips(): WebAvEditorClip[] {
 }
 
 describe("WebAV video editor contracts", () => {
+  it("maps the upstream project ratios to their production canvas dimensions", () => {
+    expect(resolveWebAvCanvasSize("16:9")).toEqual({ width: 1920, height: 1080 });
+    expect(resolveWebAvCanvasSize("1:1")).toEqual({ width: 1080, height: 1080 });
+    expect(resolveWebAvCanvasSize("9:16")).toEqual({ width: 1080, height: 1920 });
+    expect(resolveWebAvCanvasSize(undefined)).toEqual({ width: 1920, height: 1080 });
+  });
+
   it("calculates sequential visual clips from real trims while overlays keep their requested start", () => {
     const timeline = calculateTimeline(editorClips(), {
       "image-1": 2,
@@ -319,6 +331,7 @@ describe("WebAV video editor contracts", () => {
     const originalVideoFrame = globalThis.VideoFrame;
     Object.defineProperty(globalThis, "VideoFrame", { configurable: true, value: class VideoFrame {} });
     webAvMocks.addedSprites.length = 0;
+    webAvMocks.canvasOptions.length = 0;
     webAvMocks.canvasDestroy.mockClear();
     webAvMocks.clipDestroy.mockClear();
     webAvMocks.combinatorDestroy.mockClear();
@@ -352,14 +365,18 @@ describe("WebAV video editor contracts", () => {
     const { unmount } = render(
       <WebAvVideoEditor
         clips={[{ id: 1, src: "https://example.test/video.mp4", state: "completed", errorReason: "", duration: 5 }]}
+        videoRatio="9:16"
         initialOverlays={overlays}
         onTimelineChange={onTimelineChange}
       />,
     );
 
     const exportButton = await screen.findByRole("button", { name: "导出合成视频" });
+    expect(screen.getByLabelText("WebAV 合成画布")).toHaveStyle({ aspectRatio: "1080 / 1920" });
     await waitFor(() => expect(webAvMocks.addedSprites.map((sprite) => sprite.kind)).toEqual(expect.arrayContaining(["video", "audio", "image"])));
+    expect(webAvMocks.canvasOptions).toContainEqual({ bgColor: "#000000", width: 1080, height: 1920 });
     expect(webAvMocks.addedSprites).toHaveLength(4);
+    expect(webAvMocks.addedSprites.find((sprite) => sprite.kind === "video").rect).toMatchObject({ x: 0, y: 656.25, w: 1080, h: 607.5 });
     expect(webAvMocks.addedSprites.find((sprite) => sprite.kind === "audio")).toMatchObject({
       time: { offset: 1e6, duration: 30e6, playbackRate: 1 },
     });

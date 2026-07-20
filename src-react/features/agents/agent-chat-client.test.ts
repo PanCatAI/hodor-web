@@ -73,6 +73,20 @@ describe("agent chat client", () => {
     );
     expect(socket.connect).toHaveBeenCalledOnce();
     expect(client.getSnapshot().connection).toBe("connected");
+    expect(socket.emitted).toContainEqual({ event: "updateThinkConfig", data: { think: false, thinlLevel: 0 } });
+  });
+
+  it("keeps the selected think level in client state and reapplies it after reconnect", () => {
+    const { client, socket } = setup();
+    client.connect();
+
+    client.updateThinkLevel(2);
+    expect(client.getSnapshot().thinkLevel).toBe(2);
+    expect(socket.emitted.at(-1)).toEqual({ event: "updateThinkConfig", data: { think: true, thinlLevel: 2 } });
+
+    client.reconnect();
+    expect(client.getSnapshot().thinkLevel).toBe(2);
+    expect(socket.emitted.at(-1)).toEqual({ event: "updateThinkConfig", data: { think: true, thinlLevel: 2 } });
   });
 
   it("merges streamed message content and returns to idle when complete", () => {
@@ -115,6 +129,35 @@ describe("agent chat client", () => {
     socket.trigger("message:update", { id: "assistant-1", status: "complete" });
     expect(client.getSnapshot().activity).toBe("idle");
     expect(client.getSnapshot().currentMessageId).toBeNull();
+  });
+
+  it("keeps thinking segments before visible answers and removes completed empty messages", () => {
+    const { client, socket } = setup();
+    client.connect();
+    socket.trigger("message", {
+      id: "assistant-structure",
+      role: "assistant",
+      status: "pending",
+      datetime: "2026-07-20T10:00:00.000Z",
+      content: [{ id: "answer", type: "markdown", data: "制作计划", status: "streaming" }],
+    });
+    socket.trigger("content:add", {
+      messageId: "assistant-structure",
+      content: { id: "thinking", type: "thinking", data: { title: "思考过程", text: "分析" }, status: "complete" },
+    });
+
+    expect(client.getSnapshot().messages[0].content.map((content) => content.id)).toEqual(["thinking", "answer"]);
+    expect(client.getSnapshot().messages[0].content[0].ext).toEqual({ collapsed: true });
+
+    socket.trigger("message", {
+      id: "assistant-empty",
+      role: "assistant",
+      status: "pending",
+      datetime: "2026-07-20T10:00:01.000Z",
+      content: [{ id: "empty", type: "markdown", data: "", status: "pending" }],
+    });
+    socket.trigger("message:update", { id: "assistant-empty", status: "complete" });
+    expect(client.getSnapshot().messages.some((message) => message.id === "assistant-empty")).toBe(false);
   });
 
   it("sends commands, reconnects, and clears memory through the compatible API", async () => {
@@ -308,9 +351,7 @@ describe("agent chat client", () => {
       status: "complete",
     });
 
-    await vi.waitFor(() =>
-      expect(onWorkDataTag).toHaveBeenCalledWith({ tag: "storySkeleton", value: "雨夜相遇", attrs: {}, status: "complete" }),
-    );
+    await vi.waitFor(() => expect(onWorkDataTag).toHaveBeenCalledWith({ tag: "storySkeleton", value: "雨夜相遇", attrs: {}, status: "complete" }));
     expect(client.getSnapshot().messages[0].content[0].data).toBe("完成分析");
   });
 

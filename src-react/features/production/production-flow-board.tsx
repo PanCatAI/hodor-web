@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Background, BackgroundVariant, BaseEdge, Controls, getBezierPath, MiniMap, ReactFlow, useNodesState } from "@xyflow/react";
-import type { EdgeProps, Node, NodeProps, ReactFlowInstance } from "@xyflow/react";
-import { Download, Focus, LoaderCircle, Map as MapIcon, Save, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
+import { Background, Controls, ReactFlow, useNodesState, useUpdateNodeInternals } from "@xyflow/react";
+import type { Node, NodeProps, ReactFlowInstance } from "@xyflow/react";
+import { Download, Workflow, X } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 
 import { ImageFlowEditor } from "./image-flow-editor";
@@ -9,14 +9,7 @@ import type { ProductionApi } from "./production-api";
 import type { DerivedAsset, ProductionFlowData, StoryboardItem } from "./types";
 import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
-import {
-  applyProductionLayout,
-  estimateProductionNodeSizes,
-  mergeProductionLayout,
-  productionAutoLayout,
-  productionEdges,
-  productionNodeOrder,
-} from "./production-flow-layout";
+import { applyProductionLayout, mergeProductionLayout, productionAutoLayout, productionEdges, productionNodeOrder } from "./production-flow-layout";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
 
 // React Flow relies on ResizeObserver. The desktop/browser runtime provides it;
@@ -44,11 +37,92 @@ export interface ProductionFlowBoardProps {
   imageModel?: string;
   pollIntervalMs?: number;
   externalRevision?: number;
-  onChange?: (data: ProductionFlowData) => void;
+  immersive?: boolean;
+  leadingControls?: ReactNode;
+  trailingControls?: ReactNode;
+  onChange?: (data: ProductionFlowData, baseRevision: number) => void;
   onOpenWorkbench?: () => void;
 }
 
 type ProductionNode = Node<ProductionNodeData, "production">;
+
+export type CanvasWheelEvent = "zoom" | "scroll";
+
+interface MeasuredLayoutNode {
+  id: string;
+  measured?: { width?: number; height?: number };
+}
+
+interface StableNodeMeasurementOptions<T extends MeasuredLayoutNode> {
+  nodeIds: string[];
+  forceMeasure: (nodeIds: string[]) => void;
+  getNodes: () => T[];
+  maxRetries?: number;
+  delayMs?: number;
+}
+
+export function readCanvasWheelEvent(storage: Pick<Storage, "getItem"> = globalThis.localStorage): CanvasWheelEvent {
+  const direct = storage.getItem("canvasWheelEvent");
+  if (direct === "zoom" || direct === "scroll") return direct;
+
+  try {
+    const legacy = JSON.parse(storage.getItem("setting") ?? "null") as { canvasWheelEvent?: unknown } | null;
+    if (legacy?.canvasWheelEvent === "zoom" || legacy?.canvasWheelEvent === "scroll") return legacy.canvasWheelEvent;
+  } catch {
+    // Keep the upstream default when the legacy Pinia value is malformed.
+  }
+  return "zoom";
+}
+
+export async function waitForStableNodeMeasurements<T extends MeasuredLayoutNode>({
+  nodeIds,
+  forceMeasure,
+  getNodes,
+  maxRetries = 30,
+  delayMs = 80,
+}: StableNodeMeasurementOptions<T>): Promise<T[]> {
+  forceMeasure(nodeIds);
+  await Promise.resolve();
+
+  let latest = getNodes();
+  let lastSnapshot = "";
+  let stableCount = 0;
+  for (let retries = maxRetries; retries > 0; retries -= 1) {
+    latest = getNodes();
+    const allMeasured = nodeIds.every((id) => {
+      const node = latest.find((candidate) => candidate.id === id);
+      return Boolean(node?.measured?.width && node.measured.width > 0);
+    });
+    if (allMeasured) {
+      const snapshot = nodeIds
+        .map((id) => {
+          const node = latest.find((candidate) => candidate.id === id);
+          return `${id}:${node?.measured?.width}x${node?.measured?.height}`;
+        })
+        .join(",");
+      if (snapshot === lastSnapshot) {
+        stableCount += 1;
+        if (stableCount >= 2) return latest;
+      } else {
+        lastSnapshot = snapshot;
+        stableCount = 0;
+      }
+    }
+    await new Promise((resolve) => globalThis.setTimeout(resolve, delayMs));
+  }
+  return latest;
+}
+
+function NodeInternalsBridge({ updateRef }: { updateRef: MutableRefObject<ReturnType<typeof useUpdateNodeInternals> | null> }) {
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    updateRef.current = updateNodeInternals;
+    return () => {
+      if (updateRef.current === updateNodeInternals) updateRef.current = null;
+    };
+  }, [updateNodeInternals, updateRef]);
+  return null;
+}
 
 function updateDerived(data: ProductionFlowData, updates: DerivedAsset[]) {
   const map = new Map(updates.map((item) => [item.id, item]));
@@ -89,15 +163,6 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "操作失败";
 }
 
-function ProductionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style }: EdgeProps) {
-  const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, curvature: 0.32 });
-  return (
-    <g data-testid={`flow-edge-${id}`} data-edge-id={id}>
-      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={18} />
-    </g>
-  );
-}
-
 function createNodes(flow: ProductionFlowData, handlers: ProductionNodeHandlers): ProductionNode[] {
   const layout = mergeProductionLayout(flow.layout);
   return productionNodeOrder.map((id) => ({
@@ -106,9 +171,9 @@ function createNodes(flow: ProductionFlowData, handlers: ProductionNodeHandlers)
     position: layout[id],
     dragHandle: ".production-node-drag-handle",
     selectable: true,
-    focusable: true,
-    initialWidth: id === "storyboard" ? 780 : id === "assets" ? 680 : id === "storyboardTable" ? 620 : id === "workbench" ? 420 : 560,
-    initialHeight: id === "assets" ? 620 : id === "storyboard" ? 540 : id === "workbench" ? 330 : id === "storyboardTable" ? 410 : 360,
+    focusable: false,
+    initialWidth: 150,
+    initialHeight: 50,
     data: { ...handlers, id, position: layout[id], flow },
   }));
 }
@@ -121,11 +186,12 @@ export function ProductionFlowBoard({
   imageModel = "pancat:pancat-image",
   pollIntervalMs = 3_000,
   externalRevision = 0,
+  leadingControls,
+  trailingControls,
   onChange,
   onOpenWorkbench,
 }: ProductionFlowBoardProps) {
   const [data, setData] = useState(initialData);
-  const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [editingAsset, setEditingAsset] = useState<DerivedAsset | null>(null);
   const [editingStoryboard, setEditingStoryboard] = useState<StoryboardItem | null>(null);
@@ -135,15 +201,28 @@ export function ProductionFlowBoard({
   const [storyboardPreview, setStoryboardPreview] = useState("");
   const [spacePressed, setSpacePressed] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
+  const [canvasWheelEvent, setCanvasWheelEvent] = useState<CanvasWheelEvent>(() => readCanvasWheelEvent());
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<ProductionNode> | null>(null);
   const identityRef = useRef(`${projectId}:${scriptId}`);
   const revisionRef = useRef(externalRevision);
   const interactionTimerRef = useRef(0);
+  const initializationRunRef = useRef(0);
+  const layoutRunRef = useRef(0);
+  const layoutCompletedRef = useRef("");
   const mountedRef = useRef(false);
+  const spacePanRef = useRef<{ startX: number; startY: number; viewportX: number; viewportY: number; zoom: number } | null>(null);
+  const updateNodeInternalsRef = useRef<ReturnType<typeof useUpdateNodeInternals> | null>(null);
 
-  const changeText = useCallback((field: "script" | "scriptPlan" | "storyboardTable", value: string) => {
-    setData((current) => ({ ...current, [field]: value }));
-  }, []);
+  const changeText = useCallback(
+    (field: "script" | "scriptPlan" | "storyboardTable", value: string) => {
+      setData((current) => {
+        const next = { ...current, [field]: value };
+        void api.saveFlowData(projectId, scriptId, next).catch((error) => setNotice(errorMessage(error)));
+        return next;
+      });
+    },
+    [api, projectId, scriptId],
+  );
 
   const generate = useCallback(
     async (assetId: number) => {
@@ -166,6 +245,7 @@ export function ProductionFlowBoard({
 
   const remove = useCallback(
     async (assetId: number) => {
+      if (!window.confirm("确定删除该衍生资产吗？")) return;
       try {
         await api.deleteDerivedAsset(projectId, assetId);
         setData((current) => ({
@@ -324,7 +404,15 @@ export function ProductionFlowBoard({
   const [nodes, setNodes, onNodesChange] = useNodesState<ProductionNode>(createNodes(initialData, handlers));
   const edges = useMemo(() => productionEdges(), []);
   const nodeTypes = useMemo(() => ({ production: ProductionFlowNode as (props: NodeProps) => React.ReactNode }), []);
-  const edgeTypes = useMemo(() => ({ production: ProductionEdge }), []);
+
+  useEffect(() => {
+    function syncCanvasWheelEvent(event: StorageEvent) {
+      if (event.key && event.key !== "canvasWheelEvent" && event.key !== "setting") return;
+      setCanvasWheelEvent(readCanvasWheelEvent());
+    }
+    window.addEventListener("storage", syncCanvasWheelEvent);
+    return () => window.removeEventListener("storage", syncCanvasWheelEvent);
+  }, []);
 
   useEffect(() => {
     const identity = `${projectId}:${scriptId}`;
@@ -332,6 +420,9 @@ export function ProductionFlowBoard({
     const revisionChanged = revisionRef.current !== externalRevision;
     if (!identityChanged && !revisionChanged) return;
     identityRef.current = identity;
+    initializationRunRef.current += 1;
+    layoutRunRef.current += 1;
+    layoutCompletedRef.current = "";
     revisionRef.current = externalRevision;
     mountedRef.current = false;
     setData(initialData);
@@ -341,6 +432,10 @@ export function ProductionFlowBoard({
     }
     setNodes(createNodes(initialData, handlers));
   }, [externalRevision, handlers, initialData, projectId, scriptId, setNodes]);
+
+  useEffect(() => {
+    if (flowInstance) void initializeLayout(flowInstance);
+  }, [externalRevision, projectId, scriptId]);
 
   useEffect(
     () => () => {
@@ -363,7 +458,7 @@ export function ProductionFlowBoard({
       mountedRef.current = true;
       return;
     }
-    onChange?.(data);
+    onChange?.(data, revisionRef.current);
   }, [data, onChange]);
 
   useEffect(() => {
@@ -420,19 +515,6 @@ export function ProductionFlowBoard({
     return () => window.clearInterval(timer);
   }, [api, pollIntervalMs, runningStoryboardIds.join(",")]);
 
-  async function save() {
-    setSaving(true);
-    setNotice("");
-    try {
-      await api.saveFlowData(projectId, scriptId, data);
-      setNotice("产线图已保存");
-    } catch (error) {
-      setNotice(errorMessage(error));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function updateNodePosition(node: ProductionNode) {
     const id = node.id as ProductionFlowNodeId;
     const position = { x: Math.round(node.position.x), y: Math.round(node.position.y) };
@@ -447,22 +529,90 @@ export function ProductionFlowBoard({
 
   function endInteraction() {
     window.clearTimeout(interactionTimerRef.current);
-    interactionTimerRef.current = window.setTimeout(() => setIsInteracting(false), 120);
+    interactionTimerRef.current = window.setTimeout(() => setIsInteracting(false), 150);
   }
 
-  function autoLayout() {
-    const measured = Object.fromEntries(nodes.map((node) => [node.id, node.measured ?? {}]));
-    const nodeSizes = estimateProductionNodeSizes({
-      assetCount: data.assets.length,
-      storyboardCount: data.storyboard.length,
-      measured,
+  function moveSpacePan(event: MouseEvent) {
+    const origin = spacePanRef.current;
+    if (!origin || !flowInstance) return;
+    void flowInstance.setViewport({
+      x: origin.viewportX + event.clientX - origin.startX,
+      y: origin.viewportY + event.clientY - origin.startY,
+      zoom: origin.zoom,
     });
+  }
+
+  function endSpacePan() {
+    spacePanRef.current = null;
+    document.removeEventListener("mousemove", moveSpacePan);
+    document.removeEventListener("mouseup", endSpacePan);
+    endInteraction();
+  }
+
+  function beginSpacePan(event: React.MouseEvent<HTMLDivElement>) {
+    if (!spacePressed || event.button !== 0 || !flowInstance) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const viewport = flowInstance.getViewport();
+    spacePanRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      viewportX: viewport.x,
+      viewportY: viewport.y,
+      zoom: viewport.zoom,
+    };
+    beginInteraction();
+    document.addEventListener("mousemove", moveSpacePan);
+    document.addEventListener("mouseup", endSpacePan, { once: true });
+  }
+
+  function applyAutoLayout(instance = flowInstance, measuredNodes = instance?.getNodes() ?? nodes) {
+    const nodeSizes = Object.fromEntries(
+      measuredNodes.map((node) => [
+        node.id,
+        {
+          width: node.measured?.width || 150,
+          height: node.measured?.height || 50,
+        },
+      ]),
+    );
     const layout = productionAutoLayout({ nodeSizes });
     setNodes((current) =>
       applyProductionLayout(current, layout).map((node) => ({ ...node, data: { ...node.data, position: layout[node.id as ProductionFlowNodeId] } })),
     );
     setData((current) => ({ ...current, layout }));
-    window.requestAnimationFrame(() => void flowInstance?.fitView({ padding: 0.12, duration: 420, maxZoom: 0.9 }));
+    window.requestAnimationFrame(() => void instance?.fitView({ duration: 300 }));
+  }
+
+  async function runAutoLayout(instance = flowInstance) {
+    if (!instance) return false;
+    const run = ++layoutRunRef.current;
+    const nodeIds = instance.getNodes().map((node) => node.id);
+    const measuredNodes = await waitForStableNodeMeasurements({
+      nodeIds,
+      forceMeasure: (ids) => updateNodeInternalsRef.current?.(ids),
+      getNodes: () => instance.getNodes(),
+    });
+    if (run !== layoutRunRef.current) return false;
+    applyAutoLayout(instance, measuredNodes);
+    return true;
+  }
+
+  async function initializeLayout(instance: ReactFlowInstance<ProductionNode>) {
+    const run = ++initializationRunRef.current;
+    for (let retries = 60; retries > 0; retries -= 1) {
+      if (run !== initializationRunRef.current) return;
+      const currentNodes = instance.getNodes();
+      if (currentNodes.length > 0 && currentNodes.every((node) => node.measured?.width && node.measured.width > 0)) break;
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    }
+    if (run === initializationRunRef.current) await layoutWhenNodesAreStable(instance);
+  }
+
+  async function layoutWhenNodesAreStable(instance = flowInstance) {
+    const layoutKey = `${projectId}:${scriptId}:${externalRevision}`;
+    if (layoutCompletedRef.current === layoutKey) return;
+    if (await runAutoLayout(instance)) layoutCompletedRef.current = layoutKey;
   }
 
   async function adoptAsset(url: string, flowId: number) {
@@ -492,38 +642,23 @@ export function ProductionFlowBoard({
   }
 
   return (
-    <section className="space-y-3" aria-label="生产流图">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-medium">产线无限画布</h2>
-          <p className="mt-1 text-xs text-slate-500">滚轮缩放，拖动空白处平移；按住空格可从节点上拖动画布。</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void flowInstance?.fitView({ padding: 0.12, duration: 320, maxZoom: 0.9 })}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs hover:border-slate-500">
-            <Focus className="size-3.5" />
-            适应画布
-          </button>
-          <button
-            type="button"
-            onClick={autoLayout}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs hover:border-slate-500">
-            <MapIcon className="size-3.5" />
-            自动布局
-          </button>
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs hover:bg-blue-500 disabled:opacity-50">
-            {saving ? <LoaderCircle className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}保存产线图
-          </button>
-        </div>
+    <section className="relative h-full min-h-0" aria-label="生产流图">
+      <div className="absolute left-0 top-[10px] z-30 flex items-center gap-2">
+        {leadingControls}
+        <button
+          type="button"
+          title="自动布局"
+          aria-label="自动布局"
+          onClick={() => void runAutoLayout()}
+          className="grid size-10 place-items-center rounded-lg border border-slate-700 bg-slate-950/95 text-slate-300 shadow-lg hover:bg-slate-900">
+          <Workflow className="size-4" />
+        </button>
+        {trailingControls}
       </div>
       {notice ? (
-        <div role="status" className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-300">
+        <div
+          role="status"
+          className="absolute left-1/2 top-32 z-30 -translate-x-1/2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-300 shadow-xl">
           {notice}
         </div>
       ) : null}
@@ -531,7 +666,8 @@ export function ProductionFlowBoard({
         data-testid="production-infinite-canvas"
         data-interacting={isInteracting ? "true" : "false"}
         aria-label="可拖动生产流程"
-        className={`relative h-[72vh] min-h-[680px] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 ${spacePressed ? "cursor-grabbing" : "cursor-default"}`}>
+        onMouseDown={beginSpacePan}
+        className={`relative h-full min-h-0 overflow-hidden bg-slate-950 ${spacePressed ? "cursor-grab" : "cursor-default"}`}>
         <ReactFlow<ProductionNode>
           nodes={nodes}
           edges={edges}
@@ -543,38 +679,40 @@ export function ProductionFlowBoard({
           }}
           onMoveStart={beginInteraction}
           onMoveEnd={endInteraction}
-          onInit={setFlowInstance}
+          onInit={(instance) => {
+            setFlowInstance(instance);
+            void initializeLayout(instance);
+          }}
           nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
           nodesDraggable={!spacePressed}
-          nodesConnectable={false}
+          nodesConnectable={!spacePressed}
           elementsSelectable={!spacePressed}
-          panOnDrag={[0, 1, 2]}
-          panActivationKeyCode="Space"
-          panOnScroll={false}
-          zoomOnScroll
+          panOnDrag
+          panActivationKeyCode={null}
+          zoomActivationKeyCode={null}
+          panOnScroll={canvasWheelEvent === "scroll"}
+          zoomOnScroll={canvasWheelEvent === "zoom"}
           zoomOnPinch
           zoomOnDoubleClick={false}
           minZoom={0.1}
           maxZoom={10}
           fitView
-          fitViewOptions={{ padding: 0.12, maxZoom: 0.9 }}
-          onlyRenderVisibleElements
+          onlyRenderVisibleElements={false}
+          nodesFocusable={false}
+          edgesFocusable={false}
+          edgesReconnectable={false}
+          elevateEdgesOnSelect={false}
+          selectNodesOnDrag={false}
+          autoPanOnNodeDrag={false}
+          autoPanOnConnect={false}
+          deleteKeyCode={null}
+          selectionKeyCode={null}
+          multiSelectionKeyCode={null}
           proOptions={{ hideAttribution: true }}
           colorMode="dark">
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="#334155" />
-          <MiniMap
-            pannable
-            zoomable
-            nodeColor={(node) => (node.id === "assets" ? "#f59e0b" : node.id === "workbench" ? "#22c55e" : "#3b82f6")}
-            maskColor="rgba(2, 6, 23, .76)"
-            className="!border !border-slate-700 !bg-slate-950"
-          />
-          <Controls showInteractive={false} className="!overflow-hidden !rounded-lg !border !border-slate-700 !bg-slate-950" />
-          <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/85 px-3 py-1.5 text-[10px] text-slate-400 backdrop-blur">
-            <Sparkles className="size-3 text-blue-400" />
-            主链与资产分支使用固定合同连线
-          </div>
+          <NodeInternalsBridge updateRef={updateNodeInternalsRef} />
+          <Background />
+          <Controls />
         </ReactFlow>
       </div>
       {editingAsset ? (

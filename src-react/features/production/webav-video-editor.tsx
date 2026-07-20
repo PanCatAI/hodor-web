@@ -45,6 +45,7 @@ export interface WebAvEditorClip {
 
 export interface WebAvVideoEditorProps {
   clips: VideoItem[];
+  videoRatio?: string;
   initialOverlays?: WebAvEditorClip[];
   mediaLibrary?: WebAvEditorClip[];
   onClipsChange?: (clips: VideoItem[]) => void;
@@ -78,9 +79,18 @@ type WebAvCanvasRuntime = {
   previewFrame(time: number): Promise<void>;
 };
 
-const CANVAS_WIDTH = 1280;
-const CANVAS_HEIGHT = 720;
 const STILL_DURATION = 3;
+
+export interface WebAvCanvasSize {
+  width: number;
+  height: number;
+}
+
+export function resolveWebAvCanvasSize(videoRatio: string | null | undefined): WebAvCanvasSize {
+  if (videoRatio === "1:1") return { width: 1080, height: 1080 };
+  if (videoRatio === "9:16") return { width: 1080, height: 1920 };
+  return { width: 1920, height: 1080 };
+}
 
 export function supportsWebAvRuntime(target: typeof globalThis = globalThis): boolean {
   return typeof target.VideoFrame !== "undefined";
@@ -249,7 +259,7 @@ function filterCss(filter: WebAvFilter): string {
   }[filter];
 }
 
-function installFilter(mediaClip: { tickInterceptor?: unknown }, filter: WebAvFilter) {
+function installFilter(mediaClip: { tickInterceptor?: unknown }, filter: WebAvFilter, canvasWidth: number, canvasHeight: number) {
   if (filter === "none" || typeof OffscreenCanvas === "undefined") return;
   const css = filterCss(filter);
   mediaClip.tickInterceptor = async (_time: number, result: { video?: CanvasImageSource & { close?: () => void }; [key: string]: unknown }) => {
@@ -261,8 +271,8 @@ function installFilter(mediaClip: { tickInterceptor?: unknown }, filter: WebAvFi
       height?: number;
       close?: () => void;
     };
-    const width = frame.displayWidth ?? frame.width ?? CANVAS_WIDTH;
-    const height = frame.displayHeight ?? frame.height ?? CANVAS_HEIGHT;
+    const width = frame.displayWidth ?? frame.width ?? canvasWidth;
+    const height = frame.displayHeight ?? frame.height ?? canvasHeight;
     const canvas = new OffscreenCanvas(width, height);
     const context = canvas.getContext("2d");
     if (!context) return result;
@@ -286,12 +296,18 @@ function installAudioFades(mediaClip: { tickInterceptor?: unknown }, fadeIn: num
   };
 }
 
-function fitSprite(sprite: { rect: { x: number; y: number; w: number; h: number } }, width: number, height: number) {
-  const scale = Math.min(CANVAS_WIDTH / Math.max(1, width), CANVAS_HEIGHT / Math.max(1, height));
+function fitSprite(
+  sprite: { rect: { x: number; y: number; w: number; h: number } },
+  width: number,
+  height: number,
+  canvasWidth: number,
+  canvasHeight: number,
+) {
+  const scale = Math.min(canvasWidth / Math.max(1, width), canvasHeight / Math.max(1, height));
   sprite.rect.w = width * scale;
   sprite.rect.h = height * scale;
-  sprite.rect.x = (CANVAS_WIDTH - sprite.rect.w) / 2;
-  sprite.rect.y = (CANVAS_HEIGHT - sprite.rect.h) / 2;
+  sprite.rect.x = (canvasWidth - sprite.rect.w) / 2;
+  sprite.rect.y = (canvasHeight - sprite.rect.h) / 2;
 }
 
 async function trimMediaClip<
@@ -327,6 +343,7 @@ function applyTransition(
     ) => void;
   },
   clip: WebAvEditorClip,
+  canvasWidth: number,
 ) {
   const duration = Math.min(editableDuration(clip), Math.max(0, clip.transitionDuration)) * 1e6;
   if (!sprite.setAnimation || clip.transition === "none" || duration <= 0) return;
@@ -334,7 +351,7 @@ function applyTransition(
   if (clip.transition === "fade" || clip.transition === "dissolve") {
     sprite.setAnimation({ "0%": { ...target, opacity: 0 }, "100%": target }, { duration, iterCount: 1 });
   } else if (clip.transition === "slide") {
-    sprite.setAnimation({ "0%": { ...target, x: CANVAS_WIDTH }, "100%": target }, { duration, iterCount: 1 });
+    sprite.setAnimation({ "0%": { ...target, x: canvasWidth }, "100%": target }, { duration, iterCount: 1 });
   } else if (clip.transition === "zoom") {
     sprite.setAnimation(
       {
@@ -435,7 +452,15 @@ function applyEffect(
   sprite.setAnimation(frames, { duration: effectDuration, delay, iterCount: 1 });
 }
 
-export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [], onClipsChange, onTimelineChange }: WebAvVideoEditorProps) {
+export function WebAvVideoEditor({
+  clips,
+  videoRatio = "16:9",
+  initialOverlays = [],
+  mediaLibrary = [],
+  onClipsChange,
+  onTimelineChange,
+}: WebAvVideoEditorProps) {
+  const { width: canvasWidth, height: canvasHeight } = resolveWebAvCanvasSize(videoRatio);
   const usableVideos = useMemo(() => clips.filter((clip) => clip.state === "completed" && clip.src), [clips]);
   const [timelineClips, setTimelineClips] = useState<WebAvEditorClip[]>(() => [
     ...usableVideos.map(videoToEditorClip),
@@ -529,7 +554,7 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
     void Promise.all([import("@webav/av-canvas"), import("@webav/av-cliper")])
       .then(async ([{ AVCanvas }, { AudioClip, ImgClip, MP4Clip, VisibleSprite, renderTxt2ImgBitmap }]) => {
         if (!active || !canvasHost.current) return;
-        runtime = new AVCanvas(canvasHost.current, { bgColor: "#000000", width: CANVAS_WIDTH, height: CANVAS_HEIGHT }) as WebAvCanvasRuntime;
+        runtime = new AVCanvas(canvasHost.current, { bgColor: "#000000", width: canvasWidth, height: canvasHeight }) as WebAvCanvasRuntime;
         const discovered: Record<string, number> = {};
         const discoveredWaveforms: Record<string, number[]> = {};
         const calculated = calculateTimeline(timelineClips);
@@ -579,7 +604,7 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
             mediaClip.destroy?.();
             return;
           }
-          installFilter(mediaClip, item.filter);
+          installFilter(mediaClip, item.filter, canvasWidth, canvasHeight);
           if (item.type === "audio") installAudioFades(mediaClip, item.fadeIn ?? 0, item.fadeOut ?? 0, calculated.byId[item.id].duration);
           const sprite = new VisibleSprite(mediaClip);
           const timing = calculated.byId[item.id];
@@ -590,8 +615,8 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
           sprite.zIndex = item.zIndex ?? (item.type === "text" ? 30 : item.type === "image" ? 20 : item.type === "video" ? 10 : 0);
           sprite.interactable = item.type === "audio" ? "disabled" : "interactive";
           if (item.type !== "audio") {
-            fitSprite(sprite, width, height);
-            if (item.type === "text") sprite.rect.y = CANVAS_HEIGHT - sprite.rect.h - 56;
+            fitSprite(sprite, width, height, canvasWidth, canvasHeight);
+            if (item.type === "text") sprite.rect.y = canvasHeight - sprite.rect.h - 56;
             if (item.rect) {
               sprite.rect.x = item.rect.x;
               sprite.rect.y = item.rect.y;
@@ -601,7 +626,7 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
               if (rectHeight) sprite.rect.h = rectHeight;
               sprite.rect.angle = degreesToRadians(item.rect.angle ?? 0);
             }
-            applyTransition(sprite, item);
+            applyTransition(sprite, item, canvasWidth);
             if (item.transition === "none") applyEffect(sprite, item.effect ?? "none", timing.duration);
           }
           await runtime.addSprite(sprite);
@@ -680,7 +705,7 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
       runtimeRef.current = null;
       runtime?.destroy();
     };
-  }, [timelineSignature]);
+  }, [canvasHeight, canvasWidth, timelineSignature]);
 
   const videoTracks = timelineClips.filter((clip) => clip.type === "video" && clip.src);
   const currentVideo = videoTracks[Math.min(currentVideoIndex, Math.max(0, videoTracks.length - 1))];
@@ -1054,7 +1079,8 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
       <div
         ref={canvasHost}
         aria-label="WebAV 合成画布"
-        className={runtimeState === "webav" || runtimeState === "loading" ? "aspect-video overflow-hidden rounded-lg bg-black" : "hidden"}
+        style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}
+        className={runtimeState === "webav" || runtimeState === "loading" ? "overflow-hidden rounded-lg bg-black" : "hidden"}
       />
       {runtimeState === "native" ? (
         currentVideo ? (
@@ -1064,10 +1090,15 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
             src={currentVideo.src}
             controls
             preload="metadata"
-            className="aspect-video w-full rounded-lg bg-black"
+            style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}
+            className="w-full rounded-lg bg-black object-contain"
           />
         ) : (
-          <div className="grid aspect-video place-items-center rounded-lg bg-black text-sm text-slate-600">导入素材或添加文字后开始编排</div>
+          <div
+            style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}
+            className="grid place-items-center rounded-lg bg-black text-sm text-slate-600">
+            导入素材或添加文字后开始编排
+          </div>
         )
       ) : null}
 
@@ -1280,8 +1311,8 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
               <NumberField
                 label="画布 X"
                 value={selected.rect?.x ?? 0}
-                min={-CANVAS_WIDTH}
-                max={CANVAS_WIDTH}
+                min={-canvasWidth}
+                max={canvasWidth}
                 step={1}
                 onChange={(value) => updateSelected({ rect: { ...selected.rect, x: value, y: selected.rect?.y ?? 0 } })}
               />
@@ -1290,8 +1321,8 @@ export function WebAvVideoEditor({ clips, initialOverlays = [], mediaLibrary = [
               <NumberField
                 label="画布 Y"
                 value={selected.rect?.y ?? 0}
-                min={-CANVAS_HEIGHT}
-                max={CANVAS_HEIGHT}
+                min={-canvasHeight}
+                max={canvasHeight}
                 step={1}
                 onChange={(value) => updateSelected({ rect: { ...selected.rect, x: selected.rect?.x ?? 0, y: value } })}
               />

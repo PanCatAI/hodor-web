@@ -7,6 +7,7 @@ import { LoginPage } from "@react/features/auth/login-page";
 import { CastingPage, createCastingApi } from "@react/features/casting";
 import { createHodorDirectorDeskAdapter, DirectorDeskPage, type DirectorDeskEditorModule } from "@react/features/director-desk";
 import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type ProductionProject, type StoryboardItem } from "@react/features/production";
+import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
@@ -261,10 +262,15 @@ interface RawProductionProject {
   videoResolution?: string;
   audio?: boolean;
   videoAudio?: boolean;
+  videoRatio?: string;
   imageModel?: string;
 }
 
-function normalizeProductionProject(value: RawProductionProject | RawProductionProject[], projectId: number): ProductionProject {
+function normalizeVideoRatio(value: string | undefined): ProductionVideoRatio {
+  return value === "1:1" || value === "9:16" ? value : "16:9";
+}
+
+export function normalizeProductionProject(value: RawProductionProject | RawProductionProject[], projectId: number): ProductionProject {
   const project = Array.isArray(value) ? (value.find((item) => Number(item.id) === projectId) ?? {}) : value;
   return {
     id: positiveInteger(project.id) ?? projectId,
@@ -272,6 +278,7 @@ function normalizeProductionProject(value: RawProductionProject | RawProductionP
     imageModel: project.imageModel?.trim() || "pancat:pancat-image",
     videoModel: project.videoModel?.trim() || "pancat:pancat-video",
     videoMode: project.mode?.trim() || project.videoMode?.trim() || "singleImage",
+    videoRatio: normalizeVideoRatio(project.videoRatio?.trim()),
     videoResolution: project.videoResolution?.trim() || project.resolution?.trim() || "1080p",
     videoAudio: project.videoAudio ?? project.audio ?? false,
   };
@@ -309,6 +316,7 @@ function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
     <ProductionWorkbench
       api={api}
       project={project}
+      initialView="flow"
       onOpenAgent={(episodeId) =>
         void router.navigate({
           to: "/projects/$projectId/production",
@@ -316,7 +324,7 @@ function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
           search: { view: "agent", episodeId },
         })
       }
-      renderProductionAgent={(episodeId, onFlowDataChange) => (
+      renderProductionAgent={(episodeId, onFlowDataChange, onBusyChange) => (
         <ProductionAgentPanel
           projectId={projectId}
           episodeId={episodeId}
@@ -324,6 +332,7 @@ function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
           apiBaseUrl={apiBaseUrl}
           getToken={getToken}
           onFlowDataChange={onFlowDataChange}
+          onBusyChange={onBusyChange}
         />
       )}
     />

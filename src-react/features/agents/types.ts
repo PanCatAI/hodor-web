@@ -25,6 +25,7 @@ export interface AgentMessage {
 export interface AgentChatSnapshot {
   connection: AgentConnectionState;
   activity: AgentActivityState;
+  thinkLevel: 0 | 1 | 2 | 3;
   currentMessageId: string | null;
   messages: AgentMessage[];
   error: string | null;

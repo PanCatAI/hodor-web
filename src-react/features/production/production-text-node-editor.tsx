@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
-import { Expand, Pencil, X } from "lucide-react";
+import { MdEditor, MdPreview } from "md-editor-rt";
+import type { Themes, ToolbarNames } from "md-editor-rt";
+import "md-editor-rt/lib/style.css";
 
 export interface ProductionTextNodeEditorProps {
   label: string;
@@ -10,71 +12,56 @@ export interface ProductionTextNodeEditorProps {
   onSave: (value: string) => void;
 }
 
-function ReadableText({ value, placeholder }: { value: string; placeholder: string }) {
-  if (!value.trim()) {
-    return <p className="text-sm leading-7 text-slate-600">{placeholder}</p>;
-  }
+const toolbars: ToolbarNames[] = [
+  "bold",
+  "underline",
+  "italic",
+  "strikeThrough",
+  "-",
+  "title",
+  "sub",
+  "sup",
+  "quote",
+  "unorderedList",
+  "orderedList",
+  "task",
+  "-",
+  "codeRow",
+  "code",
+  "table",
+  "-",
+  "revoke",
+  "next",
+  "=",
+  "preview",
+];
 
-  return (
-    <div className="space-y-2 text-sm leading-7 text-slate-300">
-      {value.split("\n").map((line, index) => {
-        const heading = /^(#{1,3})\s+(.+)$/.exec(line);
-        const bullet = /^[-*+]\s+(.+)$/.exec(line);
-        const numbered = /^(\d+[.)])\s+(.+)$/.exec(line);
-
-        if (!line.trim()) return <div key={index} className="h-2" aria-hidden="true" />;
-        if (heading) {
-          const size = heading[1].length === 1 ? "text-base" : "text-sm";
-          return (
-            <h4 key={index} className={`${size} font-semibold text-slate-100`}>
-              {heading[2]}
-            </h4>
-          );
-        }
-        if (bullet) {
-          return (
-            <p key={index} className="flex gap-2">
-              <span className="text-blue-400">•</span>
-              <span>{bullet[1]}</span>
-            </p>
-          );
-        }
-        if (numbered) {
-          return (
-            <p key={index} className="flex gap-2">
-              <span className="font-mono text-blue-400">{numbered[1]}</span>
-              <span>{numbered[2]}</span>
-            </p>
-          );
-        }
-        if (line.startsWith("|")) {
-          return (
-            <code key={index} className="block whitespace-pre-wrap break-words font-mono text-xs leading-6 text-cyan-200/80">
-              {line}
-            </code>
-          );
-        }
-        if (line.startsWith(">")) {
-          return (
-            <blockquote key={index} className="border-l-2 border-blue-500/50 pl-3 text-slate-400">
-              {line.replace(/^>\s?/, "")}
-            </blockquote>
-          );
-        }
-        return (
-          <p key={index} className="whitespace-pre-wrap break-words">
-            {line}
-          </p>
-        );
-      })}
-    </div>
-  );
+function currentTheme(): Themes {
+  return document.documentElement.getAttribute("theme-mode") === "light" ? "light" : "dark";
 }
 
-export function ProductionTextNodeEditor({ label, value, placeholder, tall = false, onSave }: ProductionTextNodeEditorProps) {
+function useEditorTheme(): Themes {
+  const [theme, setTheme] = useState<Themes>(() => currentTheme());
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => setTheme(currentTheme()));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["theme-mode"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
+}
+
+function containsMedia(transfer: DataTransfer | null): boolean {
+  return Array.from(transfer?.items ?? []).some((item) => item.type.startsWith("image/") || item.type.startsWith("video/"));
+}
+
+export function ProductionTextNodeEditor({ label, value, placeholder, onSave }: ProductionTextNodeEditorProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const theme = useEditorTheme();
+  const reactId = useId();
+  const editorId = `production-text-${reactId.replace(/:/g, "")}`;
 
   useEffect(() => {
     if (!open) setDraft(value);
@@ -84,21 +71,20 @@ export function ProductionTextNodeEditor({ label, value, placeholder, tall = fal
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-        event.preventDefault();
-        onSave(draft);
+      if (event.key === "Escape") {
+        setDraft(value);
         setOpen(false);
       }
     };
     document.addEventListener("keydown", handleKeyDown);
-    requestAnimationFrame(() => textareaRef.current?.focus());
+
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [draft, onSave, open]);
+  }, [open, value]);
 
   const beginEdit = () => {
     setDraft(value);
@@ -118,92 +104,73 @@ export function ProductionTextNodeEditor({ label, value, placeholder, tall = fal
   const dialog =
     open && typeof document !== "undefined"
       ? createPortal(
-          <div
-            className="fixed inset-0 z-[80] flex flex-col bg-[#07090e]/98 text-slate-100"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`编辑${label}`}
-            onPointerDown={(event) => event.stopPropagation()}>
-            <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800 px-6">
-              <div>
-                <h2 className="text-base font-semibold">{label}</h2>
-                <p className="mt-0.5 text-xs text-slate-500">在大画布中编辑，保存后同步回产线合同</p>
-              </div>
+          <div className="fixed inset-0 z-[80] grid place-items-center bg-black/60" onPointerDown={(event) => event.stopPropagation()}>
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-label={`编辑${label}`}
+              className="relative w-[90vw] rounded-lg border border-slate-700 bg-[#242626] p-5 text-slate-100 shadow-xl">
+              <h2 className="mb-4 text-base font-semibold">编辑{label}</h2>
               <button
                 type="button"
-                aria-label={`关闭${label}编辑器`}
+                aria-label="关闭"
                 onClick={cancel}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white">
-                <X className="size-5" />
+                className="absolute right-4 top-3 grid size-8 place-items-center rounded text-xl text-slate-400 hover:bg-white/5 hover:text-slate-100">
+                ×
               </button>
-            </header>
-
-            <main className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
-              <section className="flex min-h-0 flex-col border-b border-slate-800 md:border-b-0 md:border-r" aria-label={`${label}编辑区`}>
-                <div className="flex h-11 shrink-0 items-center justify-between border-b border-slate-800 px-5 text-xs text-slate-500">
-                  <span>正文</span>
-                  <span>{draft.length} 字</span>
-                </div>
-                <textarea
-                  ref={textareaRef}
-                  aria-label={`${label}内容`}
+              <div
+                role="group"
+                aria-label={`${label}内容`}
+                className="nodrag nowheel overflow-hidden"
+                onPointerDown={(event) => event.stopPropagation()}
+                onPasteCapture={(event) => {
+                  if (containsMedia(event.clipboardData)) event.preventDefault();
+                }}
+                onDropCapture={(event) => event.preventDefault()}>
+                <MdEditor
+                  editorId={`${editorId}-editor`}
                   value={draft}
+                  onChange={setDraft}
+                  theme={theme}
+                  language="zh-CN"
+                  toolbars={toolbars}
+                  footers={[]}
                   placeholder={placeholder}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  className="nodrag nowheel min-h-0 flex-1 resize-none bg-transparent p-6 font-mono text-sm leading-7 text-slate-200 outline-none placeholder:text-slate-700"
+                  style={{ height: "72vh" }}
+                  onUploadImg={() => {}}
                 />
-              </section>
-              <section className="min-h-0 overflow-auto bg-slate-950/50 p-6 nowheel" aria-label={`${label}预览`}>
-                <div className="mx-auto max-w-3xl">
-                  <p className="mb-5 text-[11px] font-medium uppercase tracking-[.18em] text-slate-600">阅读预览</p>
-                  <ReadableText value={draft} placeholder={placeholder} />
-                </div>
-              </section>
-            </main>
-
-            <footer className="flex h-16 shrink-0 items-center justify-between border-t border-slate-800 px-6">
-              <p className="text-xs text-slate-600">⌘/Ctrl + Enter 保存 · Esc 取消</p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={cancel}
-                  className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" onClick={cancel} className="rounded border border-slate-600 px-4 py-2 text-sm hover:bg-white/5">
                   取消
                 </button>
-                <button type="button" onClick={save} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">
+                <button type="button" onClick={save} className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-500">
                   保存
                 </button>
               </div>
-            </footer>
+            </section>
           </div>,
           document.body,
         )
       : null;
 
   return (
-    <div className="nodrag nowheel">
-      <div className="mb-3 flex items-center justify-between text-[11px] text-slate-500">
-        <span>{value.trim() ? `${value.length} 字` : "等待智能体写入"}</span>
-        <button
-          type="button"
-          aria-label={`编辑${label}`}
-          onClick={beginEdit}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-blue-300 hover:bg-blue-500/10 hover:text-blue-200">
-          <Pencil className="size-3" />
+    <div>
+      <header className="production-node-drag-handle relative flex cursor-grab select-none items-center justify-between gap-6 active:cursor-grabbing">
+        <div className="w-fit rounded-bl-none rounded-br-lg rounded-tl-lg rounded-tr-none bg-black px-2.5 py-[5px] text-base text-white">{label}</div>
+        <button type="button" aria-label={`编辑${label}`} onClick={beginEdit} className="nodrag px-2 py-1 text-sm text-blue-400 hover:text-blue-300">
           编辑
         </button>
-      </div>
+      </header>
       <div
         aria-label={`${label}预览`}
-        onDoubleClick={beginEdit}
         onPointerDown={(event) => event.stopPropagation()}
-        className={`group relative w-full select-text overflow-auto rounded-xl border border-slate-800 bg-slate-900/65 p-4 text-left outline-none transition hover:border-blue-500/40 ${tall ? "h-72" : "h-64"}`}>
-        <ReadableText value={value} placeholder={placeholder} />
-        <span className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1 rounded-md bg-slate-950/85 px-2 py-1 text-[10px] text-slate-500 opacity-0 shadow-lg transition group-hover:opacity-100">
-          <Expand className="size-3" />
-          双击展开编辑
-        </span>
+        className="nodrag nowheel mt-2 select-text overflow-visible [&_.md-editor]:!border-0 [&_.md-editor]:!bg-transparent [&_.md-editor-preview-wrapper]:!p-0">
+        {value ? (
+          <MdPreview editorId={`${editorId}-preview`} value={value} theme={theme} language="zh-CN" />
+        ) : (
+          <p className="text-sm text-slate-500">{placeholder}</p>
+        )}
       </div>
       {dialog}
     </div>

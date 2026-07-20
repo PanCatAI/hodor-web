@@ -11,14 +11,8 @@ export interface ProductionNodeSize {
   height: number;
 }
 
-export interface ProductionContentCounts {
-  assetCount: number;
-  storyboardCount: number;
-  measured?: Partial<Record<ProductionFlowNodeId, Partial<ProductionNodeSize>>>;
-}
-
 export interface ProductionLayoutOptions {
-  nodeSizes?: Partial<Record<ProductionFlowNodeId, ProductionNodeSize>>;
+  nodeSizes?: Partial<Record<ProductionFlowNodeId, Partial<ProductionNodeSize>>>;
   gap?: number;
 }
 
@@ -62,66 +56,37 @@ export const productionConnections = [
   },
 ] as const;
 
-const estimatedProductionNodeSizes: Record<ProductionFlowNodeId, ProductionNodeSize> = {
-  script: { width: 560, height: 420 },
-  scriptPlan: { width: 560, height: 420 },
-  assets: { width: 680, height: 400 },
-  storyboardTable: { width: 620, height: 460 },
-  storyboard: { width: 780, height: 380 },
-  workbench: { width: 420, height: 350 },
+const fallbackNodeSize: ProductionNodeSize = { width: 150, height: 50 };
+const productionLayoutGap = 80;
+
+const initialProductionLayout: Record<ProductionFlowNodeId, FlowNodePosition> = {
+  script: { x: 0, y: 0 },
+  scriptPlan: { x: 900, y: 0 },
+  assets: { x: 1_200, y: 4_000 },
+  storyboardTable: { x: 1_800, y: 0 },
+  storyboard: { x: 2_500, y: 0 },
+  workbench: { x: 3_000, y: 0 },
 };
 
-function finitePositive(value: unknown, fallback: number) {
+function finitePositive(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-/**
- * Estimate the rendered node bounds before React Flow has measured them. The
- * assets and storyboard nodes scroll internally, so their canvas footprint is
- * capped even for very large projects.
- */
-export function estimateProductionNodeSizes({
-  assetCount,
-  storyboardCount,
-  measured,
-}: ProductionContentCounts): Record<ProductionFlowNodeId, ProductionNodeSize> {
-  const safeAssetCount = Math.max(0, Math.floor(finitePositive(assetCount, 0)));
-  const safeStoryboardCount = Math.max(0, Math.floor(finitePositive(storyboardCount, 0)));
-  const estimated = {
-    ...estimatedProductionNodeSizes,
-    assets: {
-      width: estimatedProductionNodeSizes.assets.width,
-      height: Math.min(730, Math.max(300, 120 + Math.max(1, safeAssetCount) * 280)),
-    },
-    storyboard: {
-      width: estimatedProductionNodeSizes.storyboard.width,
-      height: Math.min(670, Math.max(310, 100 + Math.ceil(Math.max(1, safeStoryboardCount) / 3) * 250)),
-    },
-  } satisfies Record<ProductionFlowNodeId, ProductionNodeSize>;
-
+function measuredNodeSizes(
+  nodeSizes?: Partial<Record<ProductionFlowNodeId, Partial<ProductionNodeSize>>>,
+): Record<ProductionFlowNodeId, ProductionNodeSize> {
   return Object.fromEntries(
     productionNodeOrder.map((id) => {
-      const actual = measured?.[id];
+      const measured = nodeSizes?.[id];
       return [
         id,
         {
-          width: finitePositive(actual?.width, estimated[id].width),
-          height: finitePositive(actual?.height, estimated[id].height),
+          width: finitePositive(measured?.width, fallbackNodeSize.width),
+          height: finitePositive(measured?.height, fallbackNodeSize.height),
         },
       ];
     }),
   ) as Record<ProductionFlowNodeId, ProductionNodeSize>;
-}
-
-function legacyProductionLayout(): Record<ProductionFlowNodeId, FlowNodePosition> {
-  return {
-    script: { x: 0, y: 0 },
-    scriptPlan: { x: 720, y: 0 },
-    storyboardTable: { x: 1_440, y: 0 },
-    storyboard: { x: 2_160, y: 0 },
-    workbench: { x: 3_040, y: 0 },
-    assets: { x: 0, y: 520 },
-  };
 }
 
 function overlaps(firstPosition: FlowNodePosition, firstSize: ProductionNodeSize, secondPosition: FlowNodePosition, secondSize: ProductionNodeSize) {
@@ -134,27 +99,14 @@ function overlaps(firstPosition: FlowNodePosition, firstSize: ProductionNodeSize
 }
 
 /**
- * Place the fixed main chain from left to right and keep the assets branch
- * below the script. Supplying dimensions produces an edge-aware layout; the
- * zero-argument form retains saved-layout compatibility with earlier builds.
+ * Match the upstream Vue canvas auto-layout contract: use React Flow's measured
+ * dimensions, place the main chain left-to-right with an 80px default gap, and
+ * keep assets below the script. Missing measurements alone use Vue Flow's
+ * 150x50 fallback.
  */
 export function productionAutoLayout(options?: ProductionLayoutOptions): Record<ProductionFlowNodeId, FlowNodePosition> {
-  if (!options?.nodeSizes) return legacyProductionLayout();
-
-  const gap = Math.max(24, finitePositive(options.gap, 80));
-  const sizes = Object.fromEntries(
-    productionNodeOrder.map((id) => {
-      const supplied = options.nodeSizes?.[id];
-      const fallback = estimatedProductionNodeSizes[id];
-      return [
-        id,
-        {
-          width: finitePositive(supplied?.width, fallback.width),
-          height: finitePositive(supplied?.height, fallback.height),
-        },
-      ];
-    }),
-  ) as Record<ProductionFlowNodeId, ProductionNodeSize>;
+  const sizes = measuredNodeSizes(options?.nodeSizes);
+  const gap = finitePositive(options?.gap, productionLayoutGap);
   const mainChain: ProductionFlowNodeId[] = ["script", "scriptPlan", "storyboardTable", "storyboard", "workbench"];
   const layout = {} as Record<ProductionFlowNodeId, FlowNodePosition>;
 
@@ -164,10 +116,13 @@ export function productionAutoLayout(options?: ProductionLayoutOptions): Record<
     cursorX += sizes[id].width + gap;
   }
 
-  layout.assets = { x: layout.script.x, y: layout.script.y + sizes.script.height + gap };
+  layout.assets = {
+    x: layout.script.x,
+    y: layout.script.y + sizes.script.height + gap,
+  };
 
-  // A measured node may be taller or wider than its estimate. If the branch
-  // then intersects the main chain, shift that node and all following ranks.
+  // Keep the upstream behavior: on the first collision, move that main-chain
+  // node and every following node together so their internal gaps stay intact.
   for (let index = 1; index < mainChain.length; index += 1) {
     const id = mainChain[index];
     if (!overlaps(layout.assets, sizes.assets, layout[id], sizes[id])) continue;
@@ -183,11 +138,15 @@ export function productionAutoLayout(options?: ProductionLayoutOptions): Record<
 }
 
 export function mergeProductionLayout(layout?: Record<string, FlowNodePosition>): Record<ProductionFlowNodeId, FlowNodePosition> {
-  const defaults = productionAutoLayout();
   return Object.fromEntries(
     productionNodeOrder.map((id) => {
       const position = layout?.[id];
-      return [id, position && Number.isFinite(position.x) && Number.isFinite(position.y) ? { x: position.x, y: position.y } : defaults[id]];
+      return [
+        id,
+        position && Number.isFinite(position.x) && Number.isFinite(position.y)
+          ? { x: position.x, y: position.y }
+          : { ...initialProductionLayout[id] },
+      ];
     }),
   ) as Record<ProductionFlowNodeId, FlowNodePosition>;
 }
@@ -195,11 +154,8 @@ export function mergeProductionLayout(layout?: Record<string, FlowNodePosition>)
 export function productionEdges(): Edge[] {
   return productionConnections.map((connection) => ({
     ...connection,
-    type: "production",
-    selectable: false,
-    focusable: false,
     animated: false,
-    style: { stroke: "#475569", strokeWidth: 2.5 },
+    style: { stroke: "#00000", strokeWidth: 4 },
   }));
 }
 

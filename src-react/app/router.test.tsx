@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HodorApp } from "./hodor-app";
+import { normalizeProductionProject } from "./router";
 
 function openRoute(path: string) {
   window.history.replaceState(null, "", `/index.react.html#${path}`);
@@ -19,6 +20,12 @@ describe("Hodor React router", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("keeps the project video ratio in the production contract", () => {
+    expect(normalizeProductionProject([{ id: 9, videoRatio: "9:16" }], 9)).toMatchObject({ id: 9, videoRatio: "9:16" });
+    expect(normalizeProductionProject([{ id: 9 }], 9)).toMatchObject({ id: 9, videoRatio: "16:9" });
+    expect(normalizeProductionProject([{ id: 9, videoRatio: "4:3" }], 9)).toMatchObject({ id: 9, videoRatio: "16:9" });
   });
 
   it("redirects protected routes to the Pancat login page", async () => {

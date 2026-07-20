@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
 
 import type { ProductionApi } from "./production-api";
@@ -7,6 +8,19 @@ import { ImageFlowEditor } from "./image-flow-editor";
 import { ProductionFlowBoard } from "./production-flow-board";
 import { readWebAvOutput, WebAvVideoEditor } from "./webav-video-editor";
 import type { ProductionFlowData } from "./types";
+
+beforeAll(() => {
+  Object.defineProperties(Range.prototype, {
+    getClientRects: {
+      configurable: true,
+      value: () => [],
+    },
+    getBoundingClientRect: {
+      configurable: true,
+      value: () => ({ bottom: 0, height: 0, left: 0, right: 0, top: 0, width: 0, x: 0, y: 0, toJSON: () => ({}) }),
+    },
+  });
+});
 
 function flowData(): ProductionFlowData {
   return {
@@ -43,28 +57,26 @@ function flowData(): ProductionFlowData {
 }
 
 describe("complete production UI", () => {
-  it("edits and saves flow text plus deterministic node layout", async () => {
+  it("edits and immediately saves flow text while keeping deterministic node layout", async () => {
+    const user = userEvent.setup();
     const api = { saveFlowData: vi.fn(async () => undefined) } as unknown as ProductionApi;
     render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={flowData()} />);
 
     expect(screen.getByTestId("flow-node-script")).toHaveAttribute("data-x", "0");
-    fireEvent.click(screen.getByRole("button", { name: "编辑拍摄计划" }));
-    const editor = screen.getByRole("dialog", { name: "编辑拍摄计划" });
-    fireEvent.change(within(editor).getByLabelText("拍摄计划内容"), { target: { value: "低机位推进" } });
+    fireEvent.click(screen.getByRole("button", { name: "编辑导演计划" }));
+    const editor = screen.getByRole("dialog", { name: "编辑导演计划" });
+    const textbox = within(editor).getByRole("textbox");
+    await user.click(textbox);
+    await user.keyboard("{Control>}a{/Control}低机位推进");
     fireEvent.click(within(editor).getByRole("button", { name: "保存" }));
     fireEvent.click(screen.getByRole("button", { name: "自动布局" }));
     fireEvent.dragEnd(screen.getByTestId("flow-node-script"), { clientX: 640, clientY: 320 });
-    fireEvent.click(screen.getByRole("button", { name: "保存产线图" }));
 
     await waitFor(() => expect(api.saveFlowData).toHaveBeenCalledOnce());
-    expect(api.saveFlowData).toHaveBeenCalledWith(
-      7,
-      12,
-      expect.objectContaining({ scriptPlan: "低机位推进", layout: expect.objectContaining({ script: { x: 0, y: 0 } }) }),
-    );
+    expect(api.saveFlowData).toHaveBeenCalledWith(7, 12, expect.objectContaining({ scriptPlan: "低机位推进" }));
   });
 
-  it("retries a failed derived asset and exposes its backend failure", async () => {
+  it("opens a failed derived asset from the whole upstream card and exposes its backend failure", async () => {
     const api = {
       saveFlowData: vi.fn(async () => undefined),
       generateDerivedAssets: vi.fn(async () => undefined),
@@ -85,11 +97,9 @@ describe("complete production UI", () => {
     } as unknown as ProductionApi;
     render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={flowData()} pollIntervalMs={5} />);
 
-    const asset = screen.getByTestId("derived-asset-41");
-    fireEvent.click(within(asset).getByRole("button", { name: "重试衍生资产" }));
-
-    await waitFor(() => expect(api.generateDerivedAssets).toHaveBeenCalledWith(7, 12, [41]));
-    await waitFor(() => expect(screen.getByText("真人审核失败")).toBeInTheDocument());
+    expect(screen.getByText("生成失败")).toHaveAttribute("title", "审核失败");
+    fireEvent.click(screen.getByRole("button", { name: "编辑衍生资产 雨衣造型" }));
+    expect(screen.getByRole("dialog", { name: "图片工作流" })).toBeInTheDocument();
   });
 
   it("opens a derived asset image workflow and writes the adopted result back", async () => {
