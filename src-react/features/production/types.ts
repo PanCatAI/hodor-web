@@ -90,6 +90,7 @@ export interface ProductionFlowData {
   assets: ProductionAsset[];
   storyboardTable: string;
   storyboard: StoryboardItem[];
+  workbench?: Record<string, unknown>;
   layout?: Record<string, FlowNodePosition>;
 }
 

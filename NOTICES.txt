@@ -94,6 +94,12 @@ Repository: https://github.com/WebAV-Tech/WebAV
 
 -----------------------------
 
+Name: @xyflow/react
+License: MIT
+Repository: https://github.com/xyflow/xyflow
+
+-----------------------------
+
 Name: autoprefixer
 License: MIT
 Repository: https://github.com/postcss/autoprefixer

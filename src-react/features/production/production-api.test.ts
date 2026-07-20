@@ -36,6 +36,29 @@ describe("production API adapter", () => {
     });
   });
 
+  it("preserves the workbench payload when loading and saving the flow contract", async () => {
+    const client = createClient();
+    vi.mocked(client.request).mockResolvedValueOnce({
+      script: "雨夜",
+      scriptPlan: "先远后近",
+      assets: [],
+      storyboardTable: "| 镜头 |",
+      storyboard: [],
+      workbench: { videoList: [{ id: 88 }], cover: "https://example.test/cover.jpg" },
+    });
+    const api = createProductionApi(client);
+
+    const flow = await api.getFlowData(7, 12);
+    expect(flow.workbench).toEqual({ videoList: [{ id: 88 }], cover: "https://example.test/cover.jpg" });
+
+    vi.mocked(client.request).mockResolvedValueOnce(undefined);
+    await api.saveFlowData(7, 12, flow);
+    expect(client.request).toHaveBeenLastCalledWith("/production/saveFlowData", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, episodesId: 12, data: flow }),
+    });
+  });
+
   it("maps storyboard references into the existing video generation payload", async () => {
     const client = createClient();
     vi.mocked(client.request).mockResolvedValue(88);

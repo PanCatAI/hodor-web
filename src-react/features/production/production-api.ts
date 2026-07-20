@@ -66,7 +66,14 @@ export interface ProductionApi {
   saveImageFlow(data: ImageFlowData): Promise<number>;
   updateImageFlow(flowId: number, data: ImageFlowData): Promise<void>;
   uploadFlowImage(projectId: number, scriptId: number, base64Data: string): Promise<string>;
-  generateFlowImage(input: { model: string; references: string[]; quality: string; ratio: string; prompt: string; projectId: number }): Promise<string>;
+  generateFlowImage(input: {
+    model: string;
+    references: string[];
+    quality: string;
+    ratio: string;
+    prompt: string;
+    projectId: number;
+  }): Promise<string>;
   updateStoryboardImage(id: number, url: string, flowId: number): Promise<void>;
   addStoryboard(projectId: number, scriptId: number, input: AddStoryboardInput): Promise<number>;
   updateAssetImage(id: number, url: string, flowId: number): Promise<void>;
@@ -237,7 +244,16 @@ function mapMediaLibrary(value: unknown): ProductionMediaItem[] {
     const type = mediaType(item, src);
     const sourceId = asNumber(item.id);
     if (!src || !type) return [];
-    return [{ id: `${type}-${sourceId}`, sourceId, type, name: asString(item.name) || `素材 ${sourceId}`, src, duration: asNumber(item.duration, type === "image" ? 5 : 0) }];
+    return [
+      {
+        id: `${type}-${sourceId}`,
+        sourceId,
+        type,
+        name: asString(item.name) || `素材 ${sourceId}`,
+        src,
+        duration: asNumber(item.duration, type === "image" ? 5 : 0),
+      },
+    ];
   });
   const generated = asArray(record.video).flatMap((track, trackIndex) => {
     const trackRecord = asRecord(track);
@@ -247,7 +263,17 @@ function mapMediaLibrary(value: unknown): ProductionMediaItem[] {
       const sourceId = asNumber(item.id);
       const src = asString(item.filePath) || asString(item.src);
       if (!sourceId || !src) return [];
-      return [{ id: `video-${sourceId}`, sourceId, type: "video" as const, name: `分镜视频 ${trackIndex + 1}-${videoIndex + 1}`, src, duration: asNumber(item.duration), selected: sourceId === selectedId }];
+      return [
+        {
+          id: `video-${sourceId}`,
+          sourceId,
+          type: "video" as const,
+          name: `分镜视频 ${trackIndex + 1}-${videoIndex + 1}`,
+          src,
+          duration: asNumber(item.duration),
+          selected: sourceId === selectedId,
+        },
+      ];
     });
   });
   return [...generated, ...uploaded];
@@ -304,6 +330,7 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
         }),
         storyboardTable: asString(data.storyboardTable),
         storyboard: asArray(data.storyboard).map(mapStoryboard),
+        ...(isRecord(data.workbench) ? { workbench: data.workbench } : {}),
         ...(isRecord(data.layout)
           ? {
               layout: Object.fromEntries(

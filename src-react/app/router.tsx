@@ -279,6 +279,7 @@ function normalizeProductionProject(value: RawProductionProject | RawProductionP
 
 function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
   const { apiClient } = projectProductionRoute.useRouteContext();
+  const router = useRouter();
   const api = useMemo(() => createProductionApi(apiClient), [apiClient]);
   const [project, setProject] = useState<ProductionProject | null>(null);
   const [error, setError] = useState("");
@@ -304,7 +305,19 @@ function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
 
   if (error) return <MissingContext>{error}</MissingContext>;
   if (!project) return <MissingContext>正在读取项目生产配置…</MissingContext>;
-  return <ProductionWorkbench api={api} project={project} />;
+  return (
+    <ProductionWorkbench
+      api={api}
+      project={project}
+      onOpenAgent={(episodeId) =>
+        void router.navigate({
+          to: "/projects/$projectId/production",
+          params: { projectId: String(projectId) },
+          search: { view: "agent", episodeId },
+        })
+      }
+    />
+  );
 }
 
 function ProductionRoutePage() {

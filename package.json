@@ -21,6 +21,7 @@
     "@tanstack/react-router": "^1.170.18",
     "@webav/av-canvas": "^1.2.8",
     "@webav/av-cliper": "^1.2.8",
+    "@xyflow/react": "^12.11.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
