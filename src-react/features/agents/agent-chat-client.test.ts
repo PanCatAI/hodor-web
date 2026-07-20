@@ -119,7 +119,7 @@ describe("agent chat client", () => {
 
   it("sends commands, reconnects, and clears memory through the compatible API", async () => {
     const { client, request, socket } = setup();
-    request.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+    const history = [
       {
         id: "history-1",
         role: "assistant",
@@ -127,7 +127,8 @@ describe("agent chat client", () => {
         datetime: "2026-07-20T09:00:00.000Z",
         content: [{ type: "markdown", data: "旧消息", status: "complete" }],
       },
-    ]);
+    ];
+    request.mockResolvedValueOnce(history).mockResolvedValueOnce(undefined).mockResolvedValueOnce(history);
     client.connect();
 
     expect(client.send("开始拆分剧本")).toBe(true);
@@ -139,11 +140,11 @@ describe("agent chat client", () => {
     expect(socket.connect).toHaveBeenCalledTimes(2);
 
     await client.clearMemory("message");
-    expect(request).toHaveBeenNthCalledWith(1, "/agents/clearMemory", {
+    expect(request).toHaveBeenNthCalledWith(2, "/agents/clearMemory", {
       method: "POST",
       body: JSON.stringify({ projectId: 7, agentType: "scriptAgent", type: "message" }),
     });
-    expect(request).toHaveBeenNthCalledWith(2, "/agents/getMemory", {
+    expect(request).toHaveBeenNthCalledWith(3, "/agents/getMemory", {
       method: "POST",
       body: JSON.stringify({ projectId: 7, agentType: "scriptAgent" }),
     });
@@ -232,6 +233,112 @@ describe("agent chat client", () => {
     socket.trigger("message:update", { id: "assistant-old", status: "complete" });
 
     expect(client.getSnapshot()).toMatchObject({ currentMessageId: "assistant-new", activity: "streaming" });
+  });
+
+  it("restores unfinished live work when history reloads after reconnect", async () => {
+    const { client, request, socket } = setup();
+    request.mockResolvedValue([]);
+    client.connect();
+    socket.trigger("message", {
+      id: "assistant-running",
+      role: "assistant",
+      status: "streaming",
+      datetime: "2026-07-20T10:00:00.000Z",
+      content: [{ id: "text-1", type: "markdown", data: "正在生成", status: "streaming" }],
+    });
+
+    socket.trigger("disconnect", "transport close");
+    socket.trigger("connect");
+    await vi.waitFor(() => expect(request).toHaveBeenCalledWith("/agents/getMemory", expect.anything()));
+
+    expect(client.getSnapshot()).toMatchObject({
+      activity: "streaming",
+      currentMessageId: "assistant-running",
+      messages: [expect.objectContaining({ id: "assistant-running", status: "streaming" })],
+    });
+  });
+
+  it("updates production context without discarding the connected socket", () => {
+    const socket = new FakeSocket();
+    const client = createAgentChatClient({
+      agentType: "productionAgent",
+      projectId: 7,
+      episodeId: 12,
+      apiBaseUrl: "/api",
+      getToken: () => "session-token",
+      apiClient: { request: vi.fn(async () => []) } as unknown as HodorApiClient,
+      socketFactory: (() => socket) as AgentSocketFactory,
+    });
+    client.connect();
+
+    client.updateContext({ projectId: 7, episodeId: 18 });
+
+    expect(socket.emitted).toContainEqual({
+      event: "updateContext",
+      data: { isolationKey: "7:productionAgent:18", projectId: 7, scriptId: 18 },
+    });
+    expect(socket.disconnect).not.toHaveBeenCalled();
+  });
+
+  it("extracts hidden work XML and persists complete tags", async () => {
+    const onWorkDataTag = vi.fn(async () => undefined);
+    const socket = new FakeSocket();
+    const client = createAgentChatClient({
+      agentType: "scriptAgent",
+      projectId: 7,
+      apiBaseUrl: "/api",
+      getToken: () => "session-token",
+      apiClient: { request: vi.fn(async () => []) } as unknown as HodorApiClient,
+      socketFactory: (() => socket) as AgentSocketFactory,
+      handlers: { onWorkDataTag },
+    });
+    client.connect();
+    socket.trigger("message", {
+      id: "assistant-xml",
+      role: "assistant",
+      status: "pending",
+      datetime: "2026-07-20T10:00:00.000Z",
+      content: [{ id: "text-1", type: "markdown", data: "", status: "pending" }],
+    });
+    socket.trigger("content:update", {
+      messageId: "assistant-xml",
+      contentId: "text-1",
+      data: "完成分析<storySkeleton>雨夜相遇</storySkeleton>",
+      strategy: "append",
+      status: "complete",
+    });
+
+    await vi.waitFor(() =>
+      expect(onWorkDataTag).toHaveBeenCalledWith({ tag: "storySkeleton", value: "雨夜相遇", attrs: {}, status: "complete" }),
+    );
+    expect(client.getSnapshot().messages[0].content[0].data).toBe("完成分析");
+  });
+
+  it("does not replay stale work XML while restoring message history", async () => {
+    const onWorkDataTag = vi.fn(async () => undefined);
+    const request = vi.fn(async () => [
+      {
+        id: "history-xml",
+        role: "assistant",
+        status: "complete",
+        datetime: "2026-07-20T09:00:00.000Z",
+        content: [{ id: "text-1", type: "markdown", data: "旧结果<storySkeleton>旧骨架</storySkeleton>", status: "complete" }],
+      },
+    ]);
+    const client = createAgentChatClient({
+      agentType: "scriptAgent",
+      projectId: 7,
+      apiBaseUrl: "/api",
+      getToken: () => "session-token",
+      apiClient: { request } as unknown as HodorApiClient,
+      socketFactory: (() => new FakeSocket()) as AgentSocketFactory,
+      handlers: { onWorkDataTag },
+    });
+
+    await client.loadHistory();
+
+    expect(onWorkDataTag).not.toHaveBeenCalled();
+    expect(client.getSnapshot().messages[0].content[0].data).toBe("旧结果");
   });
 });
 

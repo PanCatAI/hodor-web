@@ -1,28 +1,16 @@
-import {
-  createHashHistory,
-  createRootRouteWithContext,
-  createRoute,
-  createRouter,
-  redirect,
-  useParams,
-  useRouter,
-} from "@tanstack/react-router";
+import { createHashHistory, createRootRouteWithContext, createRoute, createRouter, redirect, useParams, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { ProductionAgentPage, ScriptAgentPage } from "@react/features/agents";
 import { AssetsCenter, createAssetApi } from "@react/features/assets";
 import { LoginPage } from "@react/features/auth/login-page";
 import { CastingPage, createCastingApi } from "@react/features/casting";
-import {
-  createHodorDirectorDeskAdapter,
-  DirectorDeskPage,
-  type DirectorDeskEditorModule,
-} from "@react/features/director-desk";
-import { createProductionApi, ProductionWorkbench, type ProductionProject } from "@react/features/production";
-import { ProjectsPage } from "@react/features/projects/projects-page";
-import { SettingsPage } from "@react/features/settings";
-import { createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
-import { createStoryboardApi, StoryboardPage } from "@react/features/storyboards";
+import { createHodorDirectorDeskAdapter, DirectorDeskPage, type DirectorDeskEditorModule } from "@react/features/director-desk";
+import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type ProductionProject, type StoryboardItem } from "@react/features/production";
+import { createProjectsApi, ProjectsPage } from "@react/features/projects";
+import { createSettingsApi, SettingsPage } from "@react/features/settings";
+import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
+import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
 import { TasksPage } from "@react/features/tasks";
 import { createApiClient, resolveApiBaseUrl, type HodorApiClient } from "@react/lib/api/client";
 import { clearSession, getSessionToken } from "@react/lib/auth/session";
@@ -44,8 +32,7 @@ function resolveBrowserApiBaseUrl(): string {
   });
 }
 
-function createDefaultContext(): RouterContext {
-  const apiBaseUrl = resolveBrowserApiBaseUrl();
+export function createRouterContext(apiBaseUrl: string): RouterContext {
   return {
     apiClient: createApiClient({
       baseUrl: apiBaseUrl,
@@ -58,6 +45,10 @@ function createDefaultContext(): RouterContext {
     apiBaseUrl,
     getToken: getSessionToken,
   };
+}
+
+function createDefaultContext(): RouterContext {
+  return createRouterContext(resolveBrowserApiBaseUrl());
 }
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
@@ -107,27 +98,8 @@ const protectedRoute = createRoute({
 
 function ProjectsRoutePage() {
   const { apiClient } = projectsRoute.useRouteContext();
-  return <ProjectsPage loadProjects={() => apiClient.request("/project/getProject", { method: "POST" })} />;
-}
-
-interface ProjectPlaceholderProps {
-  title: string;
-  description: string;
-}
-
-function ProjectPlaceholder({ title, description }: ProjectPlaceholderProps) {
-  const { projectId } = useParams({ strict: false }) as { projectId?: string };
-
-  return (
-    <section className="mx-auto max-w-7xl px-6 py-8 lg:px-10 lg:py-10">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-blue-400">项目 {projectId}</p>
-      <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-      <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">{description}</p>
-      <div className="mt-8 rounded-xl border border-dashed border-border bg-white/[0.02] px-6 py-14 text-center text-sm text-slate-500">
-        该页面已保留 projectId 路由合同，业务组件完成后会替换此处。
-      </div>
-    </section>
-  );
+  const api = useMemo(() => createProjectsApi(apiClient), [apiClient]);
+  return <ProjectsPage api={api} />;
 }
 
 function readProjectId(): number | null {
@@ -143,26 +115,28 @@ function WorkspaceBoundary({ children }: { children: React.ReactNode }) {
 function MissingContext({ children }: { children: React.ReactNode }) {
   return (
     <WorkspaceBoundary>
-      <div className="rounded-xl border border-dashed border-border bg-white/[0.02] px-6 py-20 text-center text-sm text-slate-400">
-        {children}
-      </div>
+      <div className="rounded-xl border border-dashed border-border bg-white/[0.02] px-6 py-20 text-center text-sm text-slate-400">{children}</div>
     </WorkspaceBoundary>
   );
 }
 
 function NovelRoutePage() {
   const projectId = readProjectId();
-  const { apiClient } = projectNovelRoute.useRouteContext();
-  const api = useMemo(() => createStoryApi(apiClient), [apiClient]);
+  const { apiClient, apiBaseUrl } = projectNovelRoute.useRouteContext();
+  const api = useMemo(() => createStoryApi(apiClient, { requestBlob: createAuthenticatedBlobRequest(apiBaseUrl) }), [apiBaseUrl, apiClient]);
   if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
-  return <WorkspaceBoundary><NovelPage api={api} projectId={projectId} /></WorkspaceBoundary>;
+  return (
+    <WorkspaceBoundary>
+      <NovelPage api={api} projectId={projectId} />
+    </WorkspaceBoundary>
+  );
 }
 
 function ScriptRoutePage() {
   const projectId = readProjectId();
   const router = useRouter();
-  const { apiClient } = projectScriptRoute.useRouteContext();
-  const api = useMemo(() => createStoryApi(apiClient), [apiClient]);
+  const { apiClient, apiBaseUrl } = projectScriptRoute.useRouteContext();
+  const api = useMemo(() => createStoryApi(apiClient, { requestBlob: createAuthenticatedBlobRequest(apiBaseUrl) }), [apiBaseUrl, apiClient]);
   if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
 
   function openStoryboard(script: Script) {
@@ -173,7 +147,11 @@ function ScriptRoutePage() {
     });
   }
 
-  return <WorkspaceBoundary><ScriptPage api={api} projectId={projectId} onOpenStoryboard={openStoryboard} /></WorkspaceBoundary>;
+  return (
+    <WorkspaceBoundary>
+      <ScriptPage api={api} projectId={projectId} onOpenStoryboard={openStoryboard} />
+    </WorkspaceBoundary>
+  );
 }
 
 function AssetsRoutePage() {
@@ -188,13 +166,33 @@ function StoryboardsRoutePage() {
   const projectId = readProjectId();
   const { scriptId } = projectStoryboardsRoute.useSearch();
   const router = useRouter();
-  const { apiClient } = projectStoryboardsRoute.useRouteContext();
-  const api = useMemo(() => createStoryboardApi(apiClient), [apiClient]);
+  const { apiClient, apiBaseUrl } = projectStoryboardsRoute.useRouteContext();
+  const api = useMemo(() => createStoryboardApi(apiClient, { requestBlob: createAuthenticatedBlobRequest(apiBaseUrl) }), [apiBaseUrl, apiClient]);
+  const productionApi = useMemo(() => createProductionApi(apiClient), [apiClient]);
+  const [editingStoryboard, setEditingStoryboard] = useState<Storyboard | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [imageModel, setImageModel] = useState("pancat:pancat-image");
+
+  useEffect(() => {
+    if (projectId == null) return;
+    let cancelled = false;
+    void apiClient
+      .request<RawProductionProject[]>("/project/getProject", { method: "POST" })
+      .then((projects) => {
+        const project = projects.find((item) => Number(item.id) === projectId);
+        if (!cancelled) setImageModel(project?.imageModel?.trim() || "pancat:pancat-image");
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [apiClient, projectId]);
   if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
   if (scriptId == null) return <MissingContext>请先选择剧本，再进入分镜工作台。</MissingContext>;
   return (
     <WorkspaceBoundary>
       <StoryboardPage
+        key={reloadVersion}
         api={api}
         projectId={projectId}
         scriptId={scriptId}
@@ -205,9 +203,36 @@ function StoryboardsRoutePage() {
             search: { storyboardId },
           });
         }}
+        onOpenImageEditor={setEditingStoryboard}
       />
+      {editingStoryboard ? (
+        <ImageFlowEditor
+          api={productionApi}
+          projectId={projectId}
+          scriptId={scriptId}
+          storyboard={storyboardForProduction(editingStoryboard)}
+          imageModel={imageModel}
+          onClose={() => setEditingStoryboard(null)}
+          onSaved={() => {
+            setEditingStoryboard(null);
+            setReloadVersion((value) => value + 1);
+          }}
+        />
+      ) : null}
     </WorkspaceBoundary>
   );
+}
+
+function storyboardForProduction(storyboard: Storyboard): StoryboardItem {
+  const state =
+    storyboard.state === "已完成" ? "completed" : storyboard.state === "生成中" ? "running" : storyboard.state === "生成失败" ? "failed" : "idle";
+  return {
+    ...storyboard,
+    index: storyboard.index ?? 0,
+    src: storyboard.src ?? "",
+    state,
+    errorReason: storyboard.reason ?? "",
+  };
 }
 
 function ScriptAgentRoutePage() {
@@ -240,12 +265,11 @@ interface RawProductionProject {
 }
 
 function normalizeProductionProject(value: RawProductionProject | RawProductionProject[], projectId: number): ProductionProject {
-  const project = Array.isArray(value)
-    ? (value.find((item) => Number(item.id) === projectId) ?? {})
-    : value;
+  const project = Array.isArray(value) ? (value.find((item) => Number(item.id) === projectId) ?? {}) : value;
   return {
     id: positiveInteger(project.id) ?? projectId,
     name: project.name?.trim() || `项目 ${projectId}`,
+    imageModel: project.imageModel?.trim() || "pancat:pancat-image",
     videoModel: project.videoModel?.trim() || "pancat:pancat-video",
     videoMode: project.mode?.trim() || project.videoMode?.trim() || "singleImage",
     videoResolution: project.videoResolution?.trim() || project.resolution?.trim() || "1080p",
@@ -292,13 +316,7 @@ function ProductionRoutePage() {
     if (episodeId == null) return <MissingContext>请先选择剧本集，再进入生产智能体。</MissingContext>;
     return (
       <WorkspaceBoundary>
-        <ProductionAgentPage
-          projectId={projectId}
-          episodeId={episodeId}
-          apiClient={apiClient}
-          apiBaseUrl={apiBaseUrl}
-          getToken={getToken}
-        />
+        <ProductionAgentPage projectId={projectId} episodeId={episodeId} apiClient={apiClient} apiBaseUrl={apiBaseUrl} getToken={getToken} />
       </WorkspaceBoundary>
     );
   }
@@ -324,7 +342,30 @@ const tasksRoute = createRoute({
 
 function SettingsRoutePage() {
   const router = useRouter();
-  return <SettingsPage onLoggedOut={() => void router.navigate({ to: "/login" }).then(() => router.invalidate())} />;
+  const { apiClient, apiBaseUrl, getToken } = settingsRoute.useRouteContext();
+  const api = useMemo(
+    () =>
+      createSettingsApi({
+        request: apiClient.request,
+        async requestBlob(path, init = {}) {
+          const headers = new Headers(init.headers);
+          const token = getToken();
+          if (token) headers.set("Authorization", token);
+          const response = await fetch(`${apiBaseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`, { ...init, headers });
+          if (!response.ok) throw new Error((await response.text()) || `数据库导出失败 (${response.status})`);
+          const disposition = response.headers.get("content-disposition") ?? "";
+          const encodedName = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i)?.[1];
+          return {
+            blob: await response.blob(),
+            filename: encodedName ? decodeURIComponent(encodedName.replace(/\"/g, "")) : `hodor-backup-${Date.now()}.json`,
+          };
+        },
+      }),
+    [apiBaseUrl, apiClient, getToken],
+  );
+  return (
+    <SettingsPage api={api} apiBaseUrl={apiBaseUrl} onLoggedOut={() => void router.navigate({ to: "/login" }).then(() => router.invalidate())} />
+  );
 }
 
 const settingsRoute = createRoute({
@@ -400,7 +441,11 @@ function CastingRoutePage() {
 
   if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
   if (error) return <MissingContext>{error}</MissingContext>;
-  return <WorkspaceBoundary><CastingPage projectId={projectId} imageModel={imageModel} api={api} /></WorkspaceBoundary>;
+  return (
+    <WorkspaceBoundary>
+      <CastingPage projectId={projectId} imageModel={imageModel} api={api} />
+    </WorkspaceBoundary>
+  );
 }
 
 const projectCastingRoute = createRoute({
@@ -409,8 +454,7 @@ const projectCastingRoute = createRoute({
   component: CastingRoutePage,
 });
 
-const loadDirectorDeskEditor = (): Promise<DirectorDeskEditorModule> =>
-  import("../../vendor/storyai-3d-director-desk/src/embed");
+const loadDirectorDeskEditor = (): Promise<DirectorDeskEditorModule> => import("../../vendor/storyai-3d-director-desk/src/embed");
 
 function DirectorDeskRoutePage() {
   const projectId = readProjectId();
@@ -421,12 +465,7 @@ function DirectorDeskRoutePage() {
   if (storyboardId == null) return <MissingContext>请从分镜页面选择镜头，再进入 3D 导演台。</MissingContext>;
   return (
     <WorkspaceBoundary>
-      <DirectorDeskPage
-        projectId={projectId}
-        storyboardId={storyboardId}
-        adapter={adapter}
-        loadEditor={loadDirectorDeskEditor}
-      />
+      <DirectorDeskPage projectId={projectId} storyboardId={storyboardId} adapter={adapter} loadEditor={loadDirectorDeskEditor} />
     </WorkspaceBoundary>
   );
 }

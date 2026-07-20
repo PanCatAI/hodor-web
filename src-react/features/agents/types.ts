@@ -57,6 +57,13 @@ export type AgentSocketFactory = (url: string, options: AgentSocketOptions) => A
 
 export type AgentServerHandler<TPayload = unknown, TResult = unknown> = (payload: TPayload) => TResult | Promise<TResult>;
 
+export interface AgentWorkDataTagEvent {
+  tag: string;
+  value: string;
+  attrs: Record<string, string>;
+  status: AgentMessageStatus;
+}
+
 export interface AgentServerHandlers {
   getPlanData?: AgentServerHandler;
   getFlowData?: AgentServerHandler;
@@ -65,6 +72,10 @@ export interface AgentServerHandlers {
   generateDeriveAsset?: AgentServerHandler;
   generateStoryboard?: AgentServerHandler;
   addStoryboard?: AgentServerHandler;
+  onWorkDataTag?: AgentServerHandler<AgentWorkDataTagEvent, void>;
+  restoreWorkData?: AgentServerHandler<void, unknown>;
+  stopRecovery?: () => void;
+  updateContext?: (context: { projectId: number; episodeId?: number }) => void;
 }
 
 export interface AgentChatClient {
@@ -78,4 +89,5 @@ export interface AgentChatClient {
   stop(): boolean;
   clearMemory(type: MemoryType): Promise<void>;
   updateThinkLevel(level: 0 | 1 | 2 | 3): void;
+  updateContext(context: { projectId: number; episodeId?: number }): void;
 }

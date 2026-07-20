@@ -8,10 +8,10 @@ export interface DirectorDeskScope {
 export type DirectorDeskProjectJson = Record<string, unknown>;
 
 export interface DirectorDeskAssetReceipt {
-  assetId?: string;
+  assetId?: string | number;
+  imageId?: string | number;
+  filePath?: string;
   requestId?: string;
-  generationJobId?: string;
-  [key: string]: unknown;
 }
 
 export interface DirectorDeskCapture {
@@ -26,10 +26,19 @@ export interface DirectorDeskCapture {
 }
 
 export interface DirectorDeskSaveReceipt {
-  revision?: string;
+  revision?: string | number;
   savedAt?: string;
   [key: string]: unknown;
 }
+
+export interface DirectorDeskLoadReceipt {
+  projectJson: DirectorDeskProjectJson;
+  captures?: DirectorDeskCapture[];
+  revision?: string | number;
+  updatedAt?: string;
+}
+
+export interface DirectorDeskRemoteConflict extends DirectorDeskLoadReceipt {}
 
 export interface DirectorDeskDraft {
   version: 1;
@@ -40,6 +49,9 @@ export interface DirectorDeskDraft {
   saveState: "local" | "saving" | "saved" | "error";
   error: string | null;
   saveReceipt?: DirectorDeskSaveReceipt;
+  loadState?: "idle" | "loading" | "loaded" | "offline" | "conflict";
+  loadError?: string;
+  remoteConflict?: DirectorDeskRemoteConflict;
 }
 
 export interface DirectorDeskSaveInput {
@@ -47,6 +59,7 @@ export interface DirectorDeskSaveInput {
   projectJson: DirectorDeskProjectJson;
   captures: DirectorDeskCapture[];
   updatedAt: string;
+  revision?: string | number;
 }
 
 export interface DirectorDeskCaptureUploadInput {
@@ -61,6 +74,7 @@ export interface DirectorDeskCaptureUploadReceipt extends DirectorDeskAssetRecei
 }
 
 export interface DirectorDeskAdapter {
+  loadProject(scope: DirectorDeskScope): Promise<DirectorDeskLoadReceipt | null>;
   saveProject(input: DirectorDeskSaveInput): Promise<DirectorDeskSaveReceipt>;
   uploadCapture(input: DirectorDeskCaptureUploadInput): Promise<DirectorDeskCaptureUploadReceipt>;
 }
@@ -89,6 +103,8 @@ export interface DirectorDeskSession {
   read(): DirectorDeskDraft;
   subscribe(listener: (draft: DirectorDeskDraft) => void): () => void;
   updateProject(projectJson: DirectorDeskProjectJson): DirectorDeskDraft;
+  loadProject(): Promise<DirectorDeskDraft>;
+  resolveConflict(strategy: "local" | "remote"): DirectorDeskDraft | Promise<DirectorDeskDraft>;
   saveProject(projectJson?: DirectorDeskProjectJson): Promise<DirectorDeskDraft>;
   uploadCapture(input: DirectorDeskCaptureInput): Promise<DirectorDeskCapture>;
   retryCapture(captureId: string): Promise<DirectorDeskCapture>;
@@ -178,7 +194,8 @@ export function createDirectorDeskSession({
   initialProjectJson = {},
 }: DirectorDeskSessionOptions): DirectorDeskSession {
   const store = createDirectorDeskDraftStore(storage, scope);
-  let draft = store.read() ?? defaultDraft(scope, initialProjectJson, now);
+  const storedDraft = store.read();
+  let draft = storedDraft ?? defaultDraft(scope, initialProjectJson, now);
   const listeners = new Set<(nextDraft: DirectorDeskDraft) => void>();
 
   function publish(nextDraft: DirectorDeskDraft) {
@@ -195,7 +212,72 @@ export function createDirectorDeskSession({
       updatedAt: now().toISOString(),
       saveState: "local",
       error: null,
+      loadError: undefined,
     });
+  }
+
+  function cleanRemoteCaptures(captures: DirectorDeskCapture[] = []) {
+    return captures
+      .filter((capture) => capture.status === "ready" && typeof capture.url === "string" && capture.url.length > 0)
+      .map(({ dataUrl: _dataUrl, error: _error, ...capture }) => capture);
+  }
+
+  function adoptRemote(remote: DirectorDeskLoadReceipt) {
+    return publish({
+      ...draft,
+      projectJson: remote.projectJson,
+      captures: cleanRemoteCaptures(remote.captures),
+      updatedAt: remote.updatedAt ?? now().toISOString(),
+      saveState: "saved",
+      error: null,
+      loadState: "loaded",
+      loadError: undefined,
+      remoteConflict: undefined,
+      saveReceipt: {
+        revision: remote.revision,
+        savedAt: remote.updatedAt,
+      },
+    });
+  }
+
+  async function loadProject() {
+    const loadingDraft = publish({ ...draft, loadState: "loading", loadError: undefined });
+    try {
+      const remote = await adapter.loadProject(scope);
+      if (!remote) {
+        return publish({ ...draft, loadState: "loaded", loadError: undefined });
+      }
+
+      const changedWhileLoading = draft.projectJson !== loadingDraft.projectJson || draft.updatedAt !== loadingDraft.updatedAt;
+      const hasUnsavedLocalDraft = (Boolean(storedDraft) || changedWhileLoading) && (draft.saveState === "local" || draft.saveState === "error");
+      const savedRevision = draft.saveReceipt?.revision;
+      const revisionChanged = !savedRevision || !remote.revision || savedRevision !== remote.revision;
+      if (hasUnsavedLocalDraft && revisionChanged) {
+        return publish({
+          ...draft,
+          loadState: "conflict",
+          loadError: undefined,
+          remoteConflict: { ...remote, captures: cleanRemoteCaptures(remote.captures) },
+        });
+      }
+      return adoptRemote(remote);
+    } catch (error) {
+      publish({ ...draft, loadState: "offline", loadError: errorMessage(error) });
+      throw error;
+    }
+  }
+
+  function resolveConflict(strategy: "local" | "remote") {
+    const remote = draft.remoteConflict;
+    if (!remote) return draft;
+    if (strategy === "remote") return adoptRemote(remote);
+    const current = publish({
+      ...draft,
+      loadState: "loaded",
+      loadError: undefined,
+      remoteConflict: undefined,
+    });
+    return persist(current);
   }
 
   async function persist(current: DirectorDeskDraft) {
@@ -206,6 +288,7 @@ export function createDirectorDeskSession({
         projectJson: saving.projectJson,
         captures: saving.captures,
         updatedAt: saving.updatedAt,
+        revision: saving.saveReceipt?.revision,
       });
       return publish({ ...saving, saveState: "saved", error: null, saveReceipt });
     } catch (error) {
@@ -263,9 +346,7 @@ export function createDirectorDeskSession({
       if (draft.captures.some((capture) => capture.id === id && capture.status === "uploading")) {
         publish({
           ...draft,
-          captures: draft.captures.map((capture) =>
-            capture.id === id ? { ...pending, status: "error", error: errorMessage(error) } : capture,
-          ),
+          captures: draft.captures.map((capture) => (capture.id === id ? { ...pending, status: "error", error: errorMessage(error) } : capture)),
           saveState: "error",
           error: errorMessage(error),
         });
@@ -281,6 +362,8 @@ export function createDirectorDeskSession({
       return () => listeners.delete(listener);
     },
     updateProject,
+    loadProject,
+    resolveConflict,
     saveProject(projectJson) {
       const current = projectJson ? updateProject(projectJson) : draft;
       return persist(current);

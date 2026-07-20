@@ -1,12 +1,13 @@
-import { FormEvent, useMemo, useState } from "react";
-import { AlertCircle, Box, Clapperboard, ImageIcon, LoaderCircle, Music2, Plus, Search, Users, X } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AlertCircle, Box, Clapperboard, History, ImageIcon, LoaderCircle, Music2, Pencil, Plus, Search, Trash2, Upload, Users, X } from "lucide-react";
 
 import { Button } from "@react/components/ui/button";
 import { Input } from "@react/components/ui/input";
 import { createApiClient, resolveApiBaseUrl } from "@react/lib/api/client";
 import { clearSession, getSessionToken } from "@react/lib/auth/session";
 import { createAssetApi, type AssetApi } from "./asset-api";
-import type { AssetRecord, AssetType, CreateAssetInput, VisualAssetType } from "./types";
+import { AudioAssetDialog } from "./audio-asset-dialog";
+import type { AssetImageHistory, AssetRecord, AssetType, CreateAssetInput, VisualAssetType } from "./types";
 import { useAssets } from "./use-assets";
 
 const TYPE_OPTIONS: Array<{ type: AssetType; label: string; icon: typeof Users }> = [
@@ -41,7 +42,7 @@ function typeLabel(type: AssetType): string {
 
 function assetStatus(asset: AssetRecord): string {
   if (asset.state === "生成中" || asset.promptState === "生成中") return "生成中";
-  if (asset.state === "生成失败" || asset.promptState === "生成失败") return "生成失败";
+  if (asset.state === "生成失败" || asset.state === "失败" || asset.promptState === "生成失败" || asset.promptState === "失败") return "生成失败";
   if (asset.state) return asset.state;
   if (asset.src) return "已完成";
   return "待生成";
@@ -70,7 +71,7 @@ function PreviewDialog({ asset, onClose }: { asset: AssetRecord; onClose: () => 
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-6" role="dialog" aria-modal="true" aria-label={`${asset.name}预览`}>
       <button className="absolute inset-0 cursor-default" aria-label="关闭预览" onClick={onClose} />
       <figure className="relative z-10 max-h-[88vh] max-w-[88vw]">
-        <img className="max-h-[80vh] max-w-full rounded-lg object-contain" src={asset.src ?? ""} alt={asset.name} />
+        {asset.type === "audio" ? <audio controls autoPlay src={asset.src ?? ""} aria-label={asset.name} /> : asset.type === "clip" ? <video controls autoPlay className="max-h-[80vh] max-w-full rounded-lg" src={asset.src ?? ""} aria-label={asset.name} /> : <img className="max-h-[80vh] max-w-full rounded-lg object-contain" src={asset.src ?? ""} alt={asset.name} />}
         <figcaption className="mt-3 text-center text-sm text-slate-300">{asset.name}</figcaption>
         <button
           type="button"
@@ -84,16 +85,17 @@ function PreviewDialog({ asset, onClose }: { asset: AssetRecord; onClose: () => 
   );
 }
 
-function AssetRow({ asset, onPreview, nested = false }: { asset: AssetRecord; onPreview: (asset: AssetRecord) => void; nested?: boolean }) {
+function AssetRow({ asset, onPreview, onEdit, onDelete, onHistory, onRetryPrompt, onRetryImage, selected, onSelect, nested = false }: { asset: AssetRecord; onPreview: (asset: AssetRecord) => void; onEdit: (asset: AssetRecord) => void; onDelete: (asset: AssetRecord) => void; onHistory: (asset: AssetRecord) => void; onRetryPrompt: (asset: AssetRecord) => void; onRetryImage: (asset: AssetRecord) => void; selected: boolean; onSelect: (id: number) => void; nested?: boolean }) {
   return (
-    <div className={`grid grid-cols-[72px_minmax(140px,1fr)_minmax(180px,2fr)_110px] items-center gap-4 border-b border-white/[.06] px-4 py-3 ${nested ? "bg-white/[.015] pl-10" : ""}`}>
+    <div className={`grid grid-cols-[32px_72px_minmax(140px,1fr)_minmax(180px,2fr)_110px_120px] items-center gap-4 border-b border-white/[.06] px-4 py-3 ${nested ? "bg-white/[.015] pl-10" : ""}`}>
+      <input type="checkbox" aria-label={`选择资产 ${asset.name}`} checked={selected} onChange={() => onSelect(asset.id)} />
       <button
         type="button"
         aria-label={`预览 ${asset.name}`}
         disabled={!asset.src}
         onClick={() => onPreview(asset)}
         className="group grid size-14 place-items-center overflow-hidden rounded-md bg-slate-900 ring-1 ring-white/10 disabled:cursor-default">
-        {asset.src ? (
+        {asset.src && asset.type === "audio" ? <Music2 className="text-primary" size={22} /> : asset.src && asset.type === "clip" ? <Clapperboard className="text-primary" size={22} /> : asset.src ? (
           <img src={asset.src} alt="" className="size-full object-cover transition group-hover:scale-105" />
         ) : (
           <ImageIcon className="text-slate-600" size={20} />
@@ -105,8 +107,55 @@ function AssetRow({ asset, onPreview, nested = false }: { asset: AssetRecord; on
       </div>
       <p className="line-clamp-2 text-sm leading-6 text-slate-400">{asset.prompt || "尚未生成提示词"}</p>
       <StatusBadge asset={asset} />
+      <div className="flex gap-1">
+        <button type="button" aria-label={`编辑 ${asset.name}`} onClick={() => onEdit(asset)} className="p-2 text-slate-400 hover:text-white"><Pencil size={15} /></button>
+        {VISUAL_TYPES.has(asset.type) ? <button type="button" aria-label={`图片历史 ${asset.name}`} onClick={() => onHistory(asset)} className="p-2 text-slate-400 hover:text-white"><History size={15} /></button> : null}
+        {asset.promptState === "生成失败" || asset.promptState === "失败" ? <button type="button" aria-label={`重试提示词 ${asset.name}`} onClick={() => onRetryPrompt(asset)} className="p-2 text-violet-400 hover:text-violet-300">重试词</button> : null}
+        {asset.state === "生成失败" ? <button type="button" aria-label={`重试图片 ${asset.name}`} onClick={() => onRetryImage(asset)} className="p-2 text-blue-400 hover:text-blue-300">重试图</button> : null}
+        <button type="button" aria-label={`删除 ${asset.name}`} onClick={() => onDelete(asset)} className="p-2 text-rose-400 hover:text-rose-300"><Trash2 size={15} /></button>
+      </div>
     </div>
   );
+}
+
+function EditAssetDialog({ asset, api, onClose, onSaved }: { asset: AssetRecord; api: AssetApi; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [name, setName] = useState(asset.name);
+  const [describe, setDescribe] = useState(asset.describe ?? "");
+  const [prompt, setPrompt] = useState(asset.prompt ?? "");
+  const [error, setError] = useState("");
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-label={`编辑${asset.name}`}>
+    <form className="w-full max-w-lg space-y-4 rounded-xl border border-white/10 bg-[#11141b] p-6" onSubmit={async (event) => { event.preventDefault(); try { await api.updateAsset({ id: asset.id, name, describe, prompt, remark: asset.remark }); await onSaved(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "保存失败"); } }}>
+      <h2 className="text-lg font-semibold">编辑资产</h2>
+      <label className="block text-sm">名称<Input aria-label="编辑名称" className="mt-2" value={name} onChange={(event) => setName(event.target.value)} /></label>
+      <label className="block text-sm">描述<textarea aria-label="编辑描述" className="mt-2 min-h-20 w-full rounded-md border border-border bg-transparent p-3" value={describe} onChange={(event) => setDescribe(event.target.value)} /></label>
+      <label className="block text-sm">提示词<textarea aria-label="编辑提示词" className="mt-2 min-h-20 w-full rounded-md border border-border bg-transparent p-3" value={prompt} onChange={(event) => setPrompt(event.target.value)} /></label>
+      {error ? <p role="alert" className="text-sm text-rose-400">{error}</p> : null}
+      <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>取消</Button><Button type="submit">保存修改</Button></div>
+    </form>
+  </div>;
+}
+
+function HistoryDialog({ asset, api, projectId, onClose, onChanged }: { asset: AssetRecord; api: AssetApi; projectId: number; onClose: () => void; onChanged: () => Promise<void> }) {
+  const [history, setHistory] = useState<AssetImageHistory | null>(null);
+  const [error, setError] = useState("");
+  const load = async () => { try { setHistory(await api.getImageHistory(asset.id)); } catch (cause) { setError(cause instanceof Error ? cause.message : "读取历史失败"); } };
+  useEffect(() => { void load(); }, [asset.id]);
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${asset.name}图片历史`}>
+    <section className="w-full max-w-3xl rounded-xl border border-white/10 bg-[#11141b] p-6">
+      <div className="mb-4 flex justify-between"><h2 className="text-lg font-semibold">{asset.name} · 图片历史</h2><button aria-label="关闭历史" onClick={onClose}><X /></button></div>
+      {error ? <p role="alert" className="text-rose-400">{error}</p> : null}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{history?.tempAssets.map((image) => <figure key={image.id} className={`rounded-lg border p-2 ${image.selected ? "border-primary" : "border-white/10"}`}><img alt={`历史图片 ${image.id}`} src={image.filePath} className="aspect-video w-full rounded object-cover" /><div className="mt-2 flex gap-2"><button type="button" aria-label={`选择历史图片 ${image.id}`} className="text-xs text-primary" onClick={async () => { try { await api.selectImage({ id: asset.id, projectId, type: asset.type as VisualAssetType, imageId: image.id, prompt: asset.prompt }); await onChanged(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "选择历史图片失败"); } }}>使用</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-xs text-rose-400" onClick={async () => { try { await api.deleteImage(image.id); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "删除历史图片失败"); } }}>删除</button></div></figure>)}</div>
+    </section>
+  </div>;
+}
+
+function fileAsDataUrl(file: File): Promise<string> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(reader.error); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(file); }); }
+
+function UploadAssetDialog({ projectId, api, onClose, onUploaded }: { projectId: number; api: AssetApi; onClose: () => void; onUploaded: () => Promise<void> }) {
+  const [name, setName] = useState(""); const [file, setFile] = useState<File | null>(null); const [error, setError] = useState("");
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-label="上传素材"><form className="w-full max-w-lg space-y-4 rounded-xl border border-white/10 bg-[#11141b] p-6" onSubmit={async (event) => { event.preventDefault(); if (!file || !name.trim()) { setError("请填写名称并选择文件"); return; } try { const base64 = await fileAsDataUrl(file); await api.uploadClip({ projectId, name: name.trim(), type: "clip", base64Data: base64 }); await onUploaded(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "上传失败"); } }}>
+    <h2 className="text-lg font-semibold">上传视频片段</h2><label className="block text-sm">名称<Input className="mt-2" value={name} onChange={(event) => setName(event.target.value)} /></label><input aria-label="选择文件" type="file" accept="video/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />{error ? <p role="alert" className="text-rose-400">{error}</p> : null}<div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>取消</Button><Button type="submit">上传</Button></div>
+  </form></div>;
 }
 
 function CreateAssetDialog({ projectId, type, api, onClose, onCreated }: { projectId: number; type: VisualAssetType; api: AssetApi; onClose: () => void; onCreated: () => Promise<void> }) {
@@ -162,9 +211,10 @@ function CreateAssetDialog({ projectId, type, api, onClose, onCreated }: { proje
 export interface AssetsCenterProps {
   projectId: number;
   api?: AssetApi;
+  imageModel?: string;
 }
 
-export function AssetsCenter({ projectId, api }: AssetsCenterProps) {
+export function AssetsCenter({ projectId, api, imageModel = "pancat:pancat-image" }: AssetsCenterProps) {
   const resolvedApi = useMemo(() => api ?? createDefaultAssetApi(), [api]);
   const [activeType, setActiveType] = useState<AssetType>("role");
   const [searchDraft, setSearchDraft] = useState("");
@@ -172,8 +222,18 @@ export function AssetsCenter({ projectId, api }: AssetsCenterProps) {
   const [page, setPage] = useState(1);
   const [preview, setPreview] = useState<AssetRecord | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<AssetRecord | null>(null);
+  const [historyAsset, setHistoryAsset] = useState<AssetRecord | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [creatingAudio, setCreatingAudio] = useState(false);
+  const [actionError, setActionError] = useState("");
   const { items, total, loading, error, reload } = useAssets({ api: resolvedApi, projectId, type: activeType, name: query, page, pageSize: PAGE_SIZE });
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const retryPrompt = async (asset: AssetRecord) => { setActionError(""); try { await resolvedApi.retryPrompt({ assetsId: asset.id, projectId, type: asset.type as VisualAssetType, name: asset.name, describe: asset.describe ?? "" }); await reload(); } catch (cause) { setActionError(cause instanceof Error ? cause.message : "提示词重试失败"); } };
+  const retryImage = async (asset: AssetRecord) => { setActionError(""); if (!asset.prompt?.trim()) { setActionError(`${asset.name}还没有提示词`); return; } try { await resolvedApi.retryImage({ projectId, model: imageModel, resolution: "1K", id: asset.id, type: asset.type as VisualAssetType, name: asset.name, prompt: asset.prompt }); await reload(); } catch (cause) { setActionError(cause instanceof Error ? cause.message : "图片重试失败"); } };
+  const deleteAsset = async (asset: AssetRecord) => { setActionError(""); try { await resolvedApi.deleteAsset(asset.id); await reload(); } catch (cause) { setActionError(cause instanceof Error ? cause.message : "资产删除失败"); } };
+  const batchDelete = async () => { setActionError(""); try { await resolvedApi.batchDeleteAssets(selectedIds); setSelectedIds([]); await reload(); } catch (cause) { setActionError(cause instanceof Error ? cause.message : "批量删除失败"); } };
 
   const selectType = (type: AssetType) => {
     setActiveType(type);
@@ -181,6 +241,7 @@ export function AssetsCenter({ projectId, api }: AssetsCenterProps) {
     setQuery("");
     setPage(1);
     setCreating(false);
+    setSelectedIds([]);
   };
 
   return (
@@ -193,7 +254,7 @@ export function AssetsCenter({ projectId, api }: AssetsCenterProps) {
         </div>
         {VISUAL_TYPES.has(activeType) ? (
           <Button onClick={() => setCreating(true)}><Plus size={16} />新建{typeLabel(activeType)}</Button>
-        ) : null}
+        ) : activeType === "clip" ? <Button aria-label="上传素材" onClick={() => setUploading(true)}><Upload size={16} />上传素材</Button> : <Button aria-label="新建音频" onClick={() => setCreatingAudio(true)}><Plus size={16} />新建音频</Button>}
       </header>
 
       <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-white/10" aria-label="资产类型">
@@ -214,10 +275,12 @@ export function AssetsCenter({ projectId, api }: AssetsCenterProps) {
         <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={16} /><Input aria-label="搜索资产" className="pl-9" placeholder={`搜索${typeLabel(activeType)}名称`} value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} /></div>
         <Button type="submit" variant="ghost" className="border border-border">搜索</Button>
       </form>
+      {actionError ? <p role="alert" className="mb-4 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm text-rose-300">{actionError}</p> : null}
 
       <section className="overflow-hidden rounded-lg border border-white/10 bg-[#0d1016]" aria-label={`${typeLabel(activeType)}列表`}>
-        <div className="grid grid-cols-[72px_minmax(140px,1fr)_minmax(180px,2fr)_110px] gap-4 border-b border-white/10 bg-white/[.025] px-4 py-2.5 text-xs font-medium text-slate-500">
-          <span>预览</span><span>名称</span><span>提示词</span><span>状态</span>
+        {selectedIds.length ? <div className="flex items-center justify-between border-b border-white/10 px-4 py-2"><span className="text-sm text-slate-400">已选 {selectedIds.length} 项</span><Button aria-label="批量删除" variant="ghost" onClick={() => void batchDelete()}><Trash2 size={15} />批量删除</Button></div> : null}
+        <div className="grid grid-cols-[32px_72px_minmax(140px,1fr)_minmax(180px,2fr)_110px_120px] gap-4 border-b border-white/10 bg-white/[.025] px-4 py-2.5 text-xs font-medium text-slate-500">
+          <span>选择</span><span>预览</span><span>名称</span><span>提示词</span><span>状态</span><span>操作</span>
         </div>
         {loading ? <div className="grid min-h-52 place-items-center text-sm text-slate-500"><span className="flex items-center gap-2"><LoaderCircle className="animate-spin" size={16} />正在加载资产</span></div> : null}
         {!loading && error ? (
@@ -226,8 +289,8 @@ export function AssetsCenter({ projectId, api }: AssetsCenterProps) {
         {!loading && !error && !items.length ? <div className="grid min-h-52 place-items-center text-sm text-slate-500">暂无{typeLabel(activeType)}资产</div> : null}
         {!loading && !error ? items.map((asset) => (
           <div key={asset.id}>
-            <AssetRow asset={asset} onPreview={setPreview} />
-            {asset.sonAssets?.map((child) => <AssetRow key={child.id} asset={child} onPreview={setPreview} nested />)}
+            <AssetRow asset={asset} onPreview={setPreview} onEdit={setEditing} onHistory={setHistoryAsset} onRetryPrompt={(item) => void retryPrompt(item)} onRetryImage={(item) => void retryImage(item)} onDelete={(item) => void deleteAsset(item)} selected={selectedIds.includes(asset.id)} onSelect={(id) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])} />
+            {asset.sonAssets?.map((child) => <AssetRow key={child.id} asset={child} onPreview={setPreview} onEdit={setEditing} onHistory={setHistoryAsset} onRetryPrompt={(item) => void retryPrompt(item)} onRetryImage={(item) => void retryImage(item)} onDelete={(item) => void deleteAsset(item)} selected={selectedIds.includes(child.id)} onSelect={(id) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])} nested />)}
           </div>
         )) : null}
       </section>
@@ -244,6 +307,11 @@ export function AssetsCenter({ projectId, api }: AssetsCenterProps) {
       {creating && VISUAL_TYPES.has(activeType) ? (
         <CreateAssetDialog projectId={projectId} type={activeType as VisualAssetType} api={resolvedApi} onClose={() => setCreating(false)} onCreated={reload} />
       ) : null}
+      {editing && editing.type !== "audio" ? <EditAssetDialog asset={editing} api={resolvedApi} onClose={() => setEditing(null)} onSaved={reload} /> : null}
+      {editing?.type === "audio" ? <AudioAssetDialog asset={editing} api={resolvedApi} projectId={projectId} onClose={() => setEditing(null)} onSaved={reload} /> : null}
+      {historyAsset ? <HistoryDialog asset={historyAsset} api={resolvedApi} projectId={projectId} onClose={() => setHistoryAsset(null)} onChanged={reload} /> : null}
+      {uploading ? <UploadAssetDialog projectId={projectId} api={resolvedApi} onClose={() => setUploading(false)} onUploaded={reload} /> : null}
+      {creatingAudio ? <AudioAssetDialog api={resolvedApi} projectId={projectId} onClose={() => setCreatingAudio(false)} onSaved={reload} /> : null}
     </main>
   );
 }

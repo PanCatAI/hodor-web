@@ -48,3 +48,18 @@ test("keeps upstream global styles inside the embedded component", () => {
   assert.match(embedSource, /styles\/index\.css\?inline/);
   assert.match(embedSource, /attachShadow/);
 });
+
+test("does not ship references to the unlicensed external model library", () => {
+  const catalogSource = read("src/editor/modelLibrary/modelLibraryCatalog.ts");
+
+  assert.doesNotMatch(catalogSource, /new URL\([\s\S]*模型库\/[\s\S]*import\.meta\.url/);
+  assert.doesNotMatch(catalogSource, /UPDATED_MODEL_THUMBNAIL_OVERRIDES/);
+});
+
+test("shows an actionable local-import empty state when a model category is not installed", () => {
+  const toolbarSource = read("src/editor/canvas/ViewportToolbar.tsx");
+
+  assert.match(toolbarSource, /当前模型分类未安装/);
+  assert.match(toolbarSource, /activeModelLibraryItems\.length === 0/);
+  assert.match(toolbarSource, /本地导入/);
+});

@@ -51,3 +51,19 @@ export interface PromptAssetUpdate {
   promptState: string;
   prompt?: string | null;
 }
+
+export interface UpdateAssetInput {
+  id: number;
+  name: string;
+  describe: string;
+  remark?: string | null;
+  prompt?: string | null;
+}
+
+export interface AssetHistoryImage { id: number; filePath: string; selected?: boolean }
+export interface AssetImageHistory { id: number; imageId: number | null; tempAssets: AssetHistoryImage[] }
+export interface SelectAssetImageInput { id: number; projectId: number; type: VisualAssetType; imageId: number; prompt?: string | null }
+export interface UploadClipInput { projectId: number; name: string; type: "clip"; base64Data: string }
+export interface AudioAssetItem { id?: number; src?: string; base64?: string; prompt: string; describe: string; name: string }
+export interface CreateAudioAssetInput { projectId: number; name: string; describe: string; assetsItem: AudioAssetItem[] }
+export interface UpdateAudioAssetInput extends CreateAudioAssetInput { id: number }

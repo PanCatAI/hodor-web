@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, FilePlus2, Pencil, Search, Trash2, X } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, FilePlus2, Pencil, Search, Trash2, Upload, X } from "lucide-react";
 
 import { Button } from "@react/components/ui/button";
 import { Input } from "@react/components/ui/input";
 import { Label } from "@react/components/ui/label";
 import type { CreateNovelInput, OriginalText, StoryApi } from "./story-api";
+import { parseNovelText, readImportFile } from "./import-parser";
 
-interface NovelPageProps {
+export interface NovelPageProps {
   api: StoryApi;
   projectId: number;
   pageSize?: number;
+  pollIntervalMs?: number;
 }
 
 type NovelDraft = Omit<CreateNovelInput, "projectId"> & { id?: number; event: string };
@@ -25,7 +27,7 @@ function eventStatus(row: OriginalText) {
   return { text: "待分析", className: "border-slate-400/20 bg-slate-400/10 text-slate-400" };
 }
 
-export function NovelPage({ api, projectId, pageSize = 10 }: NovelPageProps) {
+export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000 }: NovelPageProps) {
   const [rows, setRows] = useState<OriginalText[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -35,6 +37,10 @@ export function NovelPage({ api, projectId, pageSize = 10 }: NovelPageProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState<NovelDraft | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [importRows, setImportRows] = useState<Array<Omit<CreateNovelInput, "projectId">>>([]);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,6 +59,26 @@ export function NovelPage({ api, projectId, pageSize = 10 }: NovelPageProps) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const pendingIds = rows.filter((row) => row.eventState === 0).map((row) => row.id);
+    if (!pendingIds.length) return;
+    const poll = async () => {
+      try {
+        const updates = await api.pollNovelEvents(pendingIds);
+        if (!updates.length) return;
+        setRows((current) => current.map((row) => {
+          const update = updates.find((item) => item.id === row.id);
+          return update ? { ...row, ...update } : row;
+        }));
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "事件状态轮询失败");
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), pollIntervalMs);
+    return () => window.clearInterval(timer);
+  }, [api, pollIntervalMs, rows]);
 
   function openEditor(row?: OriginalText) {
     setDraft(
@@ -112,6 +138,61 @@ export function NovelPage({ api, projectId, pageSize = 10 }: NovelPageProps) {
     }
   }
 
+  function toggleSelected(id: number) {
+    setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  }
+
+  async function batchDelete() {
+    if (!selectedIds.length) return;
+    setError("");
+    try {
+      await api.deleteNovels(selectedIds);
+      setSelectedIds([]);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "批量删除失败");
+    }
+  }
+
+  async function analyzeEvents() {
+    if (!selectedIds.length) return;
+    setError("");
+    try {
+      await api.analyzeNovelEvents({ projectId, novelIds: selectedIds, concurrentCount: 5 });
+      setSelectedIds([]);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "事件分析启动失败");
+    }
+  }
+
+  async function chooseImportFile(file?: File) {
+    if (!file) return;
+    setError("");
+    try {
+      setImportRows(parseNovelText(await readImportFile(file)));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "原文文件解析失败");
+    }
+  }
+
+  async function importAll() {
+    if (!importRows.length) return;
+    setImporting(true);
+    setError("");
+    try {
+      await api.importNovels(projectId, importRows);
+      setImportRows([]);
+      setImportOpen(false);
+      setPage(1);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "原文导入失败");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   return (
@@ -140,9 +221,15 @@ export function NovelPage({ api, projectId, pageSize = 10 }: NovelPageProps) {
             />
           </div>
           <Button onClick={() => { setPage(1); setSearch(searchInput.trim()); }}>搜索</Button>
+          <Button variant="ghost" onClick={() => setImportOpen(true)}><Upload className="mr-2" size={17} />导入原文</Button>
           <Button onClick={() => openEditor()}><FilePlus2 className="mr-2" size={17} />新增原文</Button>
         </div>
       </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" disabled={!selectedIds.length} onClick={() => void analyzeEvents()}><BarChart3 className="mr-2" size={16} />分析事件 ({selectedIds.length})</Button>
+        <Button variant="ghost" className="text-red-300" disabled={!selectedIds.length} onClick={() => void batchDelete()}><Trash2 className="mr-2" size={16} />批量删除 ({selectedIds.length})</Button>
+      </div>
 
       {error ? <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">{error}</p> : null}
 
@@ -151,6 +238,7 @@ export function NovelPage({ api, projectId, pageSize = 10 }: NovelPageProps) {
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="border-b border-border bg-white/[0.025] text-xs uppercase tracking-wider text-slate-500">
               <tr>
+                <th className="px-5 py-4"><input aria-label="选择当前页全部原文" type="checkbox" checked={rows.length > 0 && rows.every((row) => selectedIds.includes(row.id))} onChange={(event) => setSelectedIds(event.target.checked ? rows.map((row) => row.id) : [])} /></th>
                 <th className="px-5 py-4">序号</th>
                 <th className="px-5 py-4">卷</th>
                 <th className="px-5 py-4">章节</th>
@@ -164,6 +252,7 @@ export function NovelPage({ api, projectId, pageSize = 10 }: NovelPageProps) {
                 const status = eventStatus(row);
                 return (
                   <tr key={row.id} className="align-top text-slate-300 hover:bg-white/[0.025]">
+                    <td className="px-5 py-4"><input aria-label={`选择 ${row.chapter}`} type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} /></td>
                     <td className="px-5 py-4 font-mono text-xs text-slate-500">{row.index}</td>
                     <td className="px-5 py-4">{row.reel || "—"}</td>
                     <td className="px-5 py-4 font-medium text-white">{row.chapter}</td>
@@ -194,6 +283,18 @@ export function NovelPage({ api, projectId, pageSize = 10 }: NovelPageProps) {
           </div>
         </footer>
       </div>
+
+      {importOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4" role="dialog" aria-modal="true" aria-labelledby="novel-import-title">
+          <div className="w-full max-w-3xl rounded-xl border border-border bg-[#0b0e14] p-6 shadow-2xl">
+            <header className="flex items-start justify-between"><div><h2 id="novel-import-title" className="text-xl font-semibold text-white">导入原文</h2><p className="mt-1 text-sm text-slate-500">支持 TXT、DOCX，最大 10MB；章节解析后批量写入。</p></div><Button aria-label="关闭原文导入" variant="ghost" onClick={() => setImportOpen(false)}><X size={18} /></Button></header>
+            <label className="mt-5 block cursor-pointer rounded-xl border border-dashed border-border p-8 text-center text-sm text-slate-400 hover:border-primary"><Upload className="mx-auto mb-3" /><span>选择原文文件</span><input aria-label="导入原文文件" className="sr-only" type="file" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => void chooseImportFile(event.target.files?.[0])} /></label>
+            <p className="mt-4 text-sm text-slate-300">已解析 {importRows.length} 章</p>
+            <div className="mt-3 max-h-72 overflow-auto rounded-lg border border-border divide-y divide-border">{importRows.map((row) => <div key={`${row.index}-${row.chapter}`} className="px-4 py-3"><p className="font-medium text-white">{row.index}. {row.chapter}</p><p className="mt-1 line-clamp-2 text-sm text-slate-500">{row.chapterData}</p></div>)}</div>
+            <footer className="mt-5 flex justify-end gap-3"><Button variant="ghost" onClick={() => setImportOpen(false)}>取消</Button><Button disabled={!importRows.length || importing} onClick={() => void importAll()}>{importing ? "导入中…" : `导入 ${importRows.length} 章`}</Button></footer>
+          </div>
+        </div>
+      ) : null}
 
       {draft ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/65" role="dialog" aria-modal="true" aria-labelledby="novel-editor-title">

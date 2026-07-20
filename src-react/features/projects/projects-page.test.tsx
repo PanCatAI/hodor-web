@@ -49,22 +49,15 @@ describe("Projects page", () => {
 
   it("carries the project id into the project workspace route", async () => {
     openProjects();
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          data: [
-            {
-              id: "7",
-              name: "长安十二时辰",
-              projectType: "novel",
-              imageModel: "pancat:pancat-image",
-              videoModel: "pancat:pancat-video",
-            },
-          ],
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const data = url.includes("/project/getProject")
+        ? [{ id: "7", name: "长安十二时辰", projectType: "novel", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video" }]
+        : url.includes("/novel/getNovel")
+          ? { data: [], total: 0 }
+          : { modelName: "pancat-model" };
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
 
     render(<HodorApp />);
     fireEvent.click(await screen.findByRole("link", { name: "打开项目 长安十二时辰" }));

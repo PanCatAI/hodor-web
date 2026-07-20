@@ -82,4 +82,42 @@ describe("Hodor API client", () => {
     );
     expect(onUnauthorized).toHaveBeenCalledOnce();
   });
+
+  it("rejects business errors returned with HTTP 200", async () => {
+    const client = createApiClient({
+      baseUrl: "http://localhost:10588/api",
+      fetchImpl: async () => Response.json({ code: 400, message: "目录不存在", data: null }, { status: 200 }),
+      getToken: () => "Bearer pancat-session",
+    });
+
+    await expect(client.request("/setting/fileManagement/openFolder")).rejects.toEqual(
+      expect.objectContaining({ status: 400, message: "目录不存在" }),
+    );
+  });
+
+  it("surfaces legacy error data instead of the wrapper success label", async () => {
+    const client = createApiClient({
+      baseUrl: "http://localhost:10588/api",
+      fetchImpl: async () => Response.json({ code: 200, message: "成功", data: "项目未配置视频模型" }, { status: 400 }),
+      getToken: () => "Bearer pancat-session",
+    });
+
+    await expect(client.request("/production/workbench/getGenerateData")).rejects.toEqual(
+      expect.objectContaining({ status: 400, message: "项目未配置视频模型" }),
+    );
+  });
+
+  it.each([
+    [{ error: "模型供应商不存在" }, "模型供应商不存在"],
+    [{ error: { message: "素材删除失败" } }, "素材删除失败"],
+    ["图片供应商请求失败", "图片供应商请求失败"],
+  ])("preserves legacy error response details", async (body, message) => {
+    const client = createApiClient({
+      baseUrl: "http://localhost:10588/api",
+      fetchImpl: async () => new Response(typeof body === "string" ? body : JSON.stringify(body), { status: 500 }),
+      getToken: () => "Bearer pancat-session",
+    });
+
+    await expect(client.request("/legacy-error")).rejects.toEqual(expect.objectContaining({ message }));
+  });
 });

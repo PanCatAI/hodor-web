@@ -2,11 +2,14 @@ import { Link, Outlet, useParams, useRouter } from "@tanstack/react-router";
 import { LogOut, Settings } from "lucide-react";
 
 import { clearSession, readSession } from "@react/lib/auth/session";
+import { detectRuntime } from "@react/platform/runtime";
+import { DesktopTitleBar } from "./desktop-title-bar";
 import { globalNavigation, projectNavigation } from "./navigation";
 
 export function ProtectedLayout() {
   const router = useRouter();
   const account = readSession();
+  const desktop = detectRuntime() === "electron";
   const { projectId } = useParams({ strict: false }) as { projectId?: string };
 
   const logout = async () => {
@@ -16,7 +19,8 @@ export function ProtectedLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080a0f] text-foreground lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
+    <div className={`min-h-screen bg-[#080a0f] text-foreground lg:grid lg:grid-cols-[248px_minmax(0,1fr)] ${desktop ? "pt-9" : ""}`}>
+      <DesktopTitleBar />
       <aside className="border-b border-border bg-[#0d1017] lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col px-4 py-4 lg:px-5 lg:py-6">
           <Link to="/projects" className="mb-5 flex items-center gap-3 px-2 lg:mb-10">

@@ -404,6 +404,7 @@ export function ViewportToolbar({
   }
 
   async function handleMyModelsImport() {
+    setActiveModelLibraryCategoryId("my-models");
     libraryLocalModelInputRef.current?.click();
   }
 
@@ -731,12 +732,20 @@ export function ViewportToolbar({
               );
             })}
           </div>
-          {activeModelLibraryCategoryId === "my-models" && activeModelLibraryItems.length === 0 ? (
-            <div className="model-library-empty-state object-search-empty-state" role="status" aria-label="暂无任何模型">
+          {activeModelLibraryItems.length === 0 ? (
+            <div
+              className="model-library-empty-state object-search-empty-state"
+              role="status"
+              aria-label={activeModelLibraryCategoryId === "my-models" ? "暂无任何模型" : "当前模型分类未安装"}
+            >
               <span className="object-search-empty-icon" data-testid="my-models-empty-icon">
                 <Boxes aria-hidden="true" size={16} strokeWidth={1.8} />
               </span>
-              <span>暂无任何模型</span>
+              <span>
+                {activeModelLibraryCategoryId === "my-models"
+                  ? "暂无任何模型"
+                  : "当前模型分类未安装，可从本地导入模型"}
+              </span>
               <button className="top-bar-action-button model-library-empty-action" type="button" onClick={() => void handleMyModelsImport()}>
                 本地导入
               </button>

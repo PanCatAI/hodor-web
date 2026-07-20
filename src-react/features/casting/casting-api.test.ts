@@ -103,4 +103,26 @@ describe("casting API contract", () => {
 
     await expect(api.cancelAsset({ projectId: 42, assetId: 7, types: [] })).rejects.toThrow("没有可取消的图片任务");
   });
+
+  it("selects and deletes history images, updates one role audio, and retries failures", async () => {
+    const request = vi.fn(async () => undefined);
+    const api = createCastingApi({ request });
+    await api.selectHistoryImage({ id: 7, projectId: 42, type: "role", imageId: 99, prompt: "角色图" });
+    await api.deleteHistoryImage(98);
+    await api.updateAssetAudio({ assetsId: 7, audioIds: [5] });
+    await api.retryPrompt({ assetsId: 7, projectId: 42, type: "role", name: "黛利拉", describe: "少女" });
+    await api.retryImage({ projectId: 42, model: "pancat:pancat-image", resolution: "1K", id: 7, type: "role", name: "黛利拉", prompt: "角色图" });
+    expect(request).toHaveBeenCalledWith("/assets/saveAssets", expect.objectContaining({ body: JSON.stringify({ id: 7, projectId: 42, type: "role", imageId: 99, prompt: "角色图" }) }));
+    expect(request).toHaveBeenCalledWith("/assets/delImage", expect.objectContaining({ body: JSON.stringify({ id: 98 }) }));
+    expect(request).toHaveBeenCalledWith("/cornerScape/updateAssetsAudio", expect.objectContaining({ body: JSON.stringify({ assetsId: 7, audioIds: [5] }) }));
+    expect(request).toHaveBeenCalledWith("/assetsGenerate/polishAssetsPrompt", expect.anything());
+    expect(request).toHaveBeenCalledWith("/assetsGenerate/generateAssets", expect.anything());
+  });
+
+  it("lists available parent audio assets for one-role binding", async () => {
+    const request = vi.fn(async () => ({ data: [{ id: 5, name: "少女音色" }], total: 1 }));
+    const api = createCastingApi({ request });
+    await expect(api.listAudioAssets(42)).resolves.toEqual([{ id: 5, name: "少女音色" }]);
+    expect(request).toHaveBeenCalledWith("/assets/getAssetsApi", { method: "POST", body: JSON.stringify({ projectId: 42, type: "audio", page: 1, limit: 1000 }) });
+  });
 });

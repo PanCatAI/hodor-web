@@ -45,6 +45,12 @@ export interface CastingApi {
   pollPrompts(ids: number[]): Promise<PromptStateUpdate[]>;
   pollImages(ids: number[]): Promise<ImageStateUpdate[]>;
   pollAudio(ids: number[]): Promise<AudioStateUpdate[]>;
+  selectHistoryImage(input: { id: number; projectId: number; type: CastingAssetType; imageId: number; prompt?: string }): Promise<void>;
+  deleteHistoryImage(id: number): Promise<void>;
+  updateAssetAudio(input: { assetsId: number; audioIds: number[] }): Promise<void>;
+  retryPrompt(input: { assetsId: number; projectId: number; type: CastingAssetType; name: string; describe: string }): Promise<void>;
+  retryImage(input: { projectId: number; model: string; resolution: string; id: number; type: CastingAssetType; name: string; prompt: string }): Promise<void>;
+  listAudioAssets(projectId: number): Promise<Array<{ id: number; name: string }>>;
 }
 
 function post(client: RequestClient, path: string, body: unknown): Promise<unknown> {
@@ -73,6 +79,15 @@ export function createCastingApi(client: RequestClient): CastingApi {
     },
     async bindAudio(input) {
       await post(client, "/cornerScape/batchBindAudio", input);
+    },
+    async selectHistoryImage(input) { await post(client, "/assets/saveAssets", input); },
+    async deleteHistoryImage(id) { await post(client, "/assets/delImage", { id }); },
+    async updateAssetAudio(input) { await post(client, "/cornerScape/updateAssetsAudio", input); },
+    async retryPrompt(input) { await post(client, "/assetsGenerate/polishAssetsPrompt", input); },
+    async retryImage(input) { await post(client, "/assetsGenerate/generateAssets", input); },
+    async listAudioAssets(projectId) {
+      const response = (await post(client, "/assets/getAssetsApi", { projectId, type: "audio", page: 1, limit: 1000 })) as { data?: Array<{ id: number; name: string }> };
+      return Array.isArray(response?.data) ? response.data : [];
     },
     async pollPrompts(ids) {
       const response = await post(client, "/assets/pollingPromptAssets", { ids });

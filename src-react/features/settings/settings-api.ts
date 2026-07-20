@@ -17,6 +17,7 @@ export type SettingsSectionId =
 
 export interface SettingsTransport {
   request(path: string, init?: RequestInit): Promise<unknown>;
+  requestBlob?(path: string, init?: RequestInit): Promise<{ blob: Blob; filename: string }>;
 }
 
 export interface SettingsApi {
@@ -72,8 +73,6 @@ export function createSettingsApi(transport: SettingsTransport): SettingsApi {
 
     async save(section, value) {
       switch (section) {
-        case "providers":
-          return transport.request("/setting/vendorConfig/addVendor", post(value));
         case "agents":
           return transport.request("/setting/agentDeploy/updateAgentModel", post(value));
         case "prompts":
@@ -85,7 +84,7 @@ export function createSettingsApi(transport: SettingsTransport): SettingsApi {
         case "development":
           return transport.request("/setting/dev/updateSwitchAiDevTool", post(value));
         default:
-          throw new Error("这个设置分区暂不支持保存");
+          throw new Error(`设置分区不支持整体保存：${section}`);
       }
     },
 
@@ -102,7 +101,53 @@ export function createSettingsApi(transport: SettingsTransport): SettingsApi {
       if (section === "about" && action === "checkUpdate") {
         return transport.request("/setting/about/checkUpdate", post(payload ?? { source: "github", url: null }));
       }
-      throw new Error("这个操作尚未接入");
+      if (section === "providers") {
+        const paths: Record<string, string> = {
+          updateInputs: "/setting/vendorConfig/updateVendorInputs",
+          enable: "/setting/vendorConfig/enableVendor",
+          delete: "/setting/vendorConfig/deleteVendor",
+          addModel: "/setting/vendorConfig/addVendorModel",
+          updateModel: "/setting/vendorConfig/upVendorModel",
+          deleteModel: "/setting/vendorConfig/delVendorModel",
+          add: "/setting/vendorConfig/addVendor",
+          updateCode: "/setting/vendorConfig/updateCode",
+          testText: "/setting/vendorConfig/modelTest/textTest",
+          testImage: "/setting/vendorConfig/modelTest/imageTest",
+          testVideo: "/setting/vendorConfig/modelTest/videoTest",
+        };
+        const path = paths[action];
+        if (path) return transport.request(path, post(payload));
+      }
+      if (section === "models") {
+        const paths: Record<string, string> = {
+          bindPrompt: "/setting/modelMap/bindingPrompt",
+          savePrompt: "/setting/modelMap/savePrompt",
+          updatePrompt: "/setting/modelMap/updatePrompt",
+          deletePrompt: "/setting/modelMap/deletePrompt",
+        };
+        const path = paths[action];
+        if (path) return transport.request(path, post(payload));
+      }
+      if (section === "agents" && action === "updateUseMode") {
+        return transport.request("/setting/agentDeploy/updateUseMode", post(payload));
+      }
+      if (section === "agents" && action === "deployMany") {
+        return transport.request("/setting/agentDeploy/deployAgentModel", post(payload));
+      }
+      if (section === "database" && action === "export") {
+        if (!transport.requestBlob) throw new Error("当前连接不支持下载数据库备份");
+        return transport.requestBlob("/setting/dbConfig/exportData");
+      }
+      if (section === "database" && action === "import") {
+        return transport.request("/setting/dbConfig/importData", post(payload));
+      }
+      if (section === "database" && action === "clearTable") {
+        return transport.request("/setting/dbConfig/clearTable", post(payload));
+      }
+      if (section === "database" && action === "clearAll") {
+        return transport.request("/setting/dbConfig/clearData");
+      }
+      throw new Error(`设置操作不存在：${section}/${action}`);
     },
   };
 }

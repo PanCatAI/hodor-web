@@ -31,13 +31,20 @@ function trimTrailingSlash(value: string): string {
 }
 
 function readErrorMessage(body: unknown, status: number): string {
+  if (typeof body === "string" && body.trim()) return body.trim();
   if (body && typeof body === "object") {
     const record = body as Record<string, unknown>;
-    if (typeof record.message === "string" && record.message) return record.message;
+    if (typeof record.data === "string" && record.data.trim()) return record.data;
     if (record.data && typeof record.data === "object") {
       const dataMessage = (record.data as Record<string, unknown>).message;
       if (typeof dataMessage === "string" && dataMessage) return dataMessage;
     }
+    if (typeof record.error === "string" && record.error.trim()) return record.error.trim();
+    if (record.error && typeof record.error === "object") {
+      const errorMessage = (record.error as Record<string, unknown>).message;
+      if (typeof errorMessage === "string" && errorMessage.trim()) return errorMessage.trim();
+    }
+    if (typeof record.message === "string" && record.message) return record.message;
   }
   return `Hodor 请求失败 (${status})`;
 }
@@ -57,6 +64,12 @@ function unwrapData<T>(body: unknown): T {
     return (body as { data: T }).data;
   }
   return body as T;
+}
+
+function readBusinessErrorStatus(body: unknown): number | null {
+  if (!body || typeof body !== "object") return null;
+  const code = Number((body as Record<string, unknown>).code);
+  return Number.isInteger(code) && code >= 400 ? code : null;
 }
 
 export function resolveApiBaseUrl({ envBaseUrl, storedBaseUrl, location }: ResolveApiBaseUrlOptions): string {
@@ -93,6 +106,12 @@ export function createApiClient({
     if (!response.ok) {
       if (response.status === 401) onUnauthorized?.();
       throw new ApiError(readErrorMessage(body, response.status), response.status, body);
+    }
+
+    const businessErrorStatus = readBusinessErrorStatus(body);
+    if (businessErrorStatus != null) {
+      if (businessErrorStatus === 401) onUnauthorized?.();
+      throw new ApiError(readErrorMessage(body, businessErrorStatus), businessErrorStatus, body);
     }
 
     return unwrapData<T>(body);

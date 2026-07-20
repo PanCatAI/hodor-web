@@ -44,6 +44,7 @@ function createClient(): AgentChatClient {
       listeners.forEach((listener) => listener());
     }),
     updateThinkLevel: vi.fn(),
+    updateContext: vi.fn(),
   };
 }
 

@@ -8,7 +8,9 @@ export {
   type DirectorDeskCaptureUploadInput,
   type DirectorDeskCaptureUploadReceipt,
   type DirectorDeskDraft,
+  type DirectorDeskLoadReceipt,
   type DirectorDeskProjectJson,
+  type DirectorDeskRemoteConflict,
   type DirectorDeskSaveInput,
   type DirectorDeskSaveReceipt,
   type DirectorDeskScope,
@@ -16,11 +18,6 @@ export {
   type DirectorDeskSession,
 } from "./director-desk-contract";
 
-export {
-  DirectorDeskPage,
-  type DirectorDeskEditorModule,
-  type DirectorDeskEditorProps,
-  type DirectorDeskPageProps,
-} from "./director-desk-page";
+export { DirectorDeskPage, type DirectorDeskEditorModule, type DirectorDeskEditorProps, type DirectorDeskPageProps } from "./director-desk-page";
 
 export { createHodorDirectorDeskAdapter } from "./hodor-director-adapter";

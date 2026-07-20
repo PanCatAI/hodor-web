@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, AudioLines, ImageIcon, LoaderCircle, Sparkles, Square, SquareCheckBig, X } from "lucide-react";
+import { AlertTriangle, AudioLines, History, ImageIcon, LoaderCircle, RotateCcw, Sparkles, Square, SquareCheckBig, Trash2, X } from "lucide-react";
 
 import { Button } from "@react/components/ui/button";
 import type { CastingApi } from "./casting-api";
@@ -27,7 +27,15 @@ const typeLabels: Record<CastingAssetType, string> = {
 };
 
 function messageOf(error: unknown): string {
-  return error instanceof Error && error.message ? error.message : "请求失败";
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const value = error as { message?: unknown; error?: unknown };
+    if (typeof value.message === "string") return value.message;
+    if (typeof value.error === "string") return value.error;
+    try { return JSON.stringify(error); } catch { return "请求失败"; }
+  }
+  return "请求失败";
 }
 
 function updateAssets(current: CastingAsset[], updates: Array<Partial<CastingAsset> & { id: number }>): CastingAsset[] {
@@ -40,7 +48,7 @@ function updateAssets(current: CastingAsset[], updates: Array<Partial<CastingAss
 }
 
 function stateClass(state: string): string {
-  if (state === "生成失败") return "border-red-500/30 bg-red-500/10 text-red-300";
+  if (state === "生成失败" || state === "失败") return "border-red-500/30 bg-red-500/10 text-red-300";
   if (state === "生成中") return "border-blue-500/30 bg-blue-500/10 text-blue-300";
   if (state === "已完成") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
   return "border-slate-700 bg-slate-900 text-slate-400";
@@ -54,6 +62,11 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
   const [otherTextPrompt, setOtherTextPrompt] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [historyAsset, setHistoryAsset] = useState<CastingAsset | null>(null);
+  const [audioAsset, setAudioAsset] = useState<CastingAsset | null>(null);
+  const [audioIdDraft, setAudioIdDraft] = useState("");
+  const [audioOptions, setAudioOptions] = useState<Array<{ id: number; name: string }>>([]);
+  const [audioOptionsLoading, setAudioOptionsLoading] = useState(false);
 
   const activeTypes = useMemo<CastingAssetType[]>(() => (filter ? [filter] : []), [filter]);
 
@@ -223,6 +236,54 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
     }
   }
 
+  async function useHistoryImage(asset: CastingAsset, imageId: number) {
+    setError("");
+    try {
+      await api.selectHistoryImage({ id: asset.id, projectId, type: asset.type, imageId, prompt: asset.prompt });
+      setHistoryAsset(null);
+      await loadAssets();
+    } catch (cause) { setError(messageOf(cause)); }
+  }
+
+  async function deleteHistoryImage(imageId: number) {
+    try {
+      await api.deleteHistoryImage(imageId);
+      setHistoryAsset((current) => current ? { ...current, historyImages: current.historyImages?.filter((image) => image.id !== imageId) } : null);
+    } catch (cause) { setError(messageOf(cause)); }
+  }
+
+  async function retryPrompt(asset: CastingAsset) {
+    setError("");
+    setAssets((current) => updateAssets(current, [{ id: asset.id, promptState: "生成中", promptErrorReason: "" }]));
+    try { await api.retryPrompt({ assetsId: asset.id, projectId, type: asset.type, name: asset.name, describe: asset.describe ?? "" }); }
+    catch (cause) { const reason = messageOf(cause); setAssets((current) => updateAssets(current, [{ id: asset.id, promptState: "生成失败", promptErrorReason: reason }])); setError(reason); }
+  }
+
+  async function retryImage(asset: CastingAsset) {
+    if (!asset.prompt?.trim()) { setError(`${asset.name}还没有提示词`); return; }
+    setError("");
+    setAssets((current) => updateAssets(current, [{ id: asset.id, state: "生成中", errorReason: "" }]));
+    try { await api.retryImage({ projectId, model: imageModel, resolution, id: asset.id, type: asset.type, name: asset.name, prompt: asset.prompt }); }
+    catch (cause) { const reason = messageOf(cause); setAssets((current) => updateAssets(current, [{ id: asset.id, state: "生成失败", errorReason: reason }])); setError(reason); }
+  }
+
+  async function saveAudio() {
+    if (!audioAsset) return;
+    const audioIds = audioIdDraft.trim() ? [Number(audioIdDraft)] : [];
+    if (audioIds.some((id) => !Number.isInteger(id) || id <= 0)) { setError("请输入有效的音频资产 ID"); return; }
+    try { await api.updateAssetAudio({ assetsId: audioAsset.id, audioIds }); setAudioAsset(null); setAudioIdDraft(""); await loadAssets(); }
+    catch (cause) { setError(messageOf(cause)); }
+  }
+
+  async function openAudio(asset: CastingAsset) {
+    setAudioAsset(asset);
+    setAudioIdDraft(String(asset.relepedAudio?.[0]?.id ?? ""));
+    setAudioOptionsLoading(true);
+    try { setAudioOptions(await api.listAudioAssets(projectId)); }
+    catch (cause) { setError(messageOf(cause)); setAudioOptions([]); }
+    finally { setAudioOptionsLoading(false); }
+  }
+
   return (
     <main className="min-h-full bg-[#090b10] p-5 text-slate-100 lg:p-8">
       <header className="mx-auto mb-6 max-w-[1600px]">
@@ -368,6 +429,12 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
                           <X className="size-3.5" /> 取消生成
                         </button>
                       ) : null}
+                      <div className="grid grid-cols-2 gap-2">
+                        {asset.historyImages?.length ? <button type="button" aria-label={`历史图片 ${asset.name}`} onClick={() => setHistoryAsset(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-slate-700 px-2 py-2 text-xs text-slate-300"><History className="size-3.5" />历史图片</button> : null}
+                        {asset.type === "role" ? <button type="button" aria-label={`更新音频 ${asset.name}`} onClick={() => void openAudio(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-slate-700 px-2 py-2 text-xs text-slate-300"><AudioLines className="size-3.5" />更新音频</button> : null}
+                        {asset.promptState === "生成失败" || asset.promptState === "失败" ? <button type="button" aria-label={`重试提示词 ${asset.name}`} onClick={() => void retryPrompt(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-violet-500/30 px-2 py-2 text-xs text-violet-300"><RotateCcw className="size-3.5" />重试提示词</button> : null}
+                        {asset.state === "生成失败" ? <button type="button" aria-label={`重试图片 ${asset.name}`} onClick={() => void retryImage(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-blue-500/30 px-2 py-2 text-xs text-blue-300"><RotateCcw className="size-3.5" />重试图片</button> : null}
+                      </div>
                     </div>
                   </article>
                 );
@@ -376,6 +443,8 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
           )}
         </section>
       </div>
+      {historyAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${historyAsset.name}历史图片`}><section className="w-full max-w-3xl rounded-xl border border-slate-800 bg-[#10131a] p-6"><div className="mb-4 flex justify-between"><h2 className="text-lg font-semibold">{historyAsset.name} · 历史图片</h2><button aria-label="关闭历史图片" onClick={() => setHistoryAsset(null)}><X /></button></div><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{historyAsset.historyImages?.map((image) => <figure key={image.id} className="rounded-lg border border-slate-800 p-2"><img src={image.filePath} alt={`历史图片 ${image.id}`} className="aspect-video w-full rounded object-cover" /><div className="mt-2 flex justify-between"><button type="button" aria-label={`使用历史图片 ${image.id}`} className="text-xs text-blue-300" onClick={() => void useHistoryImage(historyAsset, image.id)}>替换</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-rose-400" onClick={() => void deleteHistoryImage(image.id)}><Trash2 className="size-3.5" /></button></div></figure>)}</div></section></div> : null}
+      {audioAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${audioAsset.name}更新音频`}><section className="w-full max-w-md space-y-4 rounded-xl border border-slate-800 bg-[#10131a] p-6"><h2 className="text-lg font-semibold">更新单项音频</h2><p className="text-sm text-slate-400">从资产中心已上传的音频中选择；选“解除绑定”可清空。</p><select aria-label="选择音频资产" disabled={audioOptionsLoading} className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2" value={audioIdDraft} onChange={(event) => setAudioIdDraft(event.target.value)}><option value="">解除绑定</option>{audioOptions.map((audio) => <option key={audio.id} value={audio.id}>{audio.name}</option>)}</select><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setAudioAsset(null)}>取消</Button><Button onClick={() => void saveAudio()}>保存音频</Button></div></section></div> : null}
     </main>
   );
 }

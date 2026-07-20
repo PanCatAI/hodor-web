@@ -470,6 +470,17 @@ it("shows a centered empty state with a local import action inside the my-models
   expect(within(emptyState).getByRole("button", { name: "本地导入" })).toBeInTheDocument();
 });
 
+it("shows a local import action when the bundled model category is not installed", async () => {
+  const user = userEvent.setup();
+  render(<ViewportToolbar />);
+
+  await user.click(screen.getByRole("button", { name: "模型库" }));
+
+  const emptyState = screen.getByRole("status", { name: "当前模型分类未安装" });
+  expect(emptyState).toHaveTextContent("当前模型分类未安装，可从本地导入模型");
+  expect(within(emptyState).getByRole("button", { name: "本地导入" })).toBeInTheDocument();
+});
+
 it("imports a local model into the my-models tab without adding it to the scene immediately", async () => {
   const user = userEvent.setup();
   mockReadLocalModelFile.mockResolvedValue({

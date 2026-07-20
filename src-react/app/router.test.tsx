@@ -46,15 +46,14 @@ describe("Hodor React router", () => {
     expect(screen.queryByRole("link", { name: "资产" })).not.toBeInTheDocument();
   });
 
-  it("keeps the project id while navigating to the 3D director desk", async () => {
+  it("requires a storyboard when the director desk route is opened directly", async () => {
     authenticate();
-    openRoute("/projects/7/novels");
+    openRoute("/projects/7/director-desk");
 
     render(<HodorApp />);
-    fireEvent.click(await screen.findByRole("link", { name: /3D 导演台/ }));
 
     expect(await screen.findByText("请从分镜页面选择镜头，再进入 3D 导演台。")).toBeInTheDocument();
-    await waitFor(() => expect(window.location.hash).toBe("#/projects/7/director-desk"));
+    expect(window.location.hash).toBe("#/projects/7/director-desk");
   });
 
   it("redirects legacy Vue routes to the selected project route", async () => {
@@ -63,9 +62,7 @@ describe("Hodor React router", () => {
     openRoute("/cornerScape");
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
-      const data = url.endsWith("/project/getProject")
-        ? [{ id: 9, imageModel: "pancat:pancat-image" }]
-        : [];
+      const data = url.endsWith("/project/getProject") ? [{ id: 9, imageModel: "pancat:pancat-image" }] : [];
       return new Response(JSON.stringify({ data }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -114,6 +111,42 @@ describe("Hodor React router", () => {
     expect(await screen.findByLabelText("Hodor API 地址")).toBeInTheDocument();
   });
 
+  it("uses the resolved Electron backend and session for settings requests and database exports", async () => {
+    authenticate();
+    openRoute("/settings");
+    const baseUrl = "http://127.0.0.1:24680/api";
+    const requests: Array<{ url: string; authorization: string | null }> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      requests.push({ url, authorization: new Headers(init?.headers).get("Authorization") });
+      if (url.endsWith("/setting/dbConfig/exportData")) {
+        return new Response(JSON.stringify({ exportTime: 1, tables: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", "Content-Disposition": 'attachment; filename="hodor-backup.json"' },
+        });
+      }
+      return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:settings-backup") });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<HodorApp resolveBackendApiBaseUrl={async () => baseUrl} />);
+
+    expect(await screen.findByLabelText("Hodor API 地址")).toHaveValue(baseUrl);
+    fireEvent.click(screen.getByRole("button", { name: "供应商" }));
+    await waitFor(() => expect(requests.some((request) => request.url === `${baseUrl}/setting/vendorConfig/getVendorList`)).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "数据库" }));
+    fireEvent.click(await screen.findByRole("button", { name: "导出数据库" }));
+    await waitFor(() => expect(requests.some((request) => request.url === `${baseUrl}/setting/dbConfig/exportData`)).toBe(true));
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ url: `${baseUrl}/setting/vendorConfig/getVendorList`, authorization: "Bearer pancat-session" }),
+        expect.objectContaining({ url: `${baseUrl}/setting/dbConfig/exportData`, authorization: "Bearer pancat-session" }),
+      ]),
+    );
+  });
+
   it("mounts the migrated original-text page with the route project id", async () => {
     authenticate();
     openRoute("/projects/7/novels");
@@ -152,5 +185,15 @@ describe("Hodor React router", () => {
     render(<HodorApp />);
 
     expect(await screen.findByText("请先选择剧本，再进入分镜工作台。")).toBeInTheDocument();
+  });
+
+  it("renders a finished not-found page for unknown routes", async () => {
+    authenticate();
+    openRoute("/missing-workspace");
+
+    render(<HodorApp />);
+
+    expect(await screen.findByRole("heading", { name: "页面不存在" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "返回项目列表" })).toHaveAttribute("href", "#/projects");
   });
 });

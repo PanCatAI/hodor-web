@@ -274,12 +274,6 @@ const MODEL_LIBRARY_THUMB_NAME_MAP: Record<string, string> = {
   "display_cooler_low.fbx": "展示冰柜",
 };
 
-const UPDATED_MODEL_THUMBNAIL_OVERRIDES: Record<string, string> = {
-  "deer_skull_low.fbx": new URL("../../../../模型库/户外出行/缩略图/鹿头骨.png", import.meta.url).href,
-  "drill_press_low.fbx": new URL("../../../../模型库/工具配件/缩略图/台钻.png", import.meta.url).href,
-  "thermus_low.fbx": new URL("../../../../模型库/户外出行/缩略图/保温瓶.png", import.meta.url).href,
-};
-
 function createModelName(fileName: string) {
   const mappedName = MODEL_LIBRARY_NAME_MAP[fileName];
   if (mappedName) return mappedName;
@@ -322,9 +316,7 @@ export function getModelLibraryItems() {
 
       if (!category || !fileName) return null;
       const name = createModelName(fileName);
-      const thumbUrl =
-        UPDATED_MODEL_THUMBNAIL_OVERRIDES[fileName] ??
-        thumbnailsByCategoryId.get(category.id)?.get(createModelThumbnailName(fileName));
+      const thumbUrl = thumbnailsByCategoryId.get(category.id)?.get(createModelThumbnailName(fileName));
 
       return {
         categoryId: category.id,

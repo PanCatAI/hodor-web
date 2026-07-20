@@ -3,6 +3,18 @@ import * as path from "path";
 import checker from "license-checker";
 
 const excludeNames = ["toonflow-serve"];
+const manualNotices = `Name: storyai-3d-director-desk
+License: MIT
+Repository: https://github.com/jiguang132/storyai-3d-director-desk
+Revision: 8c8bd361790be4d37158a7430365e65546e358fe
+Copyright: Copyright (c) 2026 YZ
+License file: vendor/storyai-3d-director-desk/LICENSE
+
+Bundled asset: UE Mannequin (Retopology)
+Author: William Luque
+Source: https://sketchfab.com/3d-models/ue-mannequin-retopology-5394d9f894374a2ab7c57a21929ce4c2
+License: Sketchfab Standard License
+License file: vendor/storyai-3d-director-desk/assets/ue-mannequin-retopology.license.txt`;
 // const strictWhiteList = ["MIT", "BSD-2-Clause", "BSD-3-Clause", "BSD", "0BSD"];
 const strictWhiteList: string[] = [];
 
@@ -61,12 +73,14 @@ checker.init({ start: process.cwd() }, (err: Error, packages: Record<string, any
 
   // 排除名单过滤
   const filteredDeclare = needDeclare.filter((pkg) => pkg.name && !excludeNames.some((exName) => pkg.name.startsWith(exName)));
-  const content = filteredDeclare
+  const uniqueDeclare = [...new Map(filteredDeclare.map((pkg) => [`${pkg.name}@${pkg.version}`, pkg])).values()];
+  const dependencyNotices = uniqueDeclare
     .map(
       (pkg) =>
         `Name: ${pkg.name}\nLicense: ${Array.isArray(pkg.licenses) ? pkg.licenses.join(", ") : pkg.licenses}\nRepository: ${pkg.repository ?? "N/A"}`,
     )
     .join("\n\n-----------------------------\n\n");
+  const content = [dependencyNotices, manualNotices].filter(Boolean).join("\n\n-----------------------------\n\n");
   fs.writeFileSync(path.resolve(process.cwd(), "NOTICES.txt"), content, "utf-8");
   console.log("已生成依赖声明 NOTICES.txt");
 });

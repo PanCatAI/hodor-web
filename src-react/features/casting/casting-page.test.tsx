@@ -30,6 +30,12 @@ function createFakeApi(overrides: Partial<CastingApi> = {}): CastingApi {
     pollPrompts: vi.fn(async () => []),
     pollImages: vi.fn(async () => []),
     pollAudio: vi.fn(async () => []),
+    selectHistoryImage: vi.fn(async () => undefined),
+    deleteHistoryImage: vi.fn(async () => undefined),
+    updateAssetAudio: vi.fn(async () => undefined),
+    retryPrompt: vi.fn(async () => undefined),
+    retryImage: vi.fn(async () => undefined),
+    listAudioAssets: vi.fn(async () => [{ id: 5, name: "少女音色" }, { id: 8, name: "少年音色" }]),
     ...overrides,
   };
 }
@@ -154,5 +160,31 @@ describe("React casting page", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("黛利拉还没有提示词");
     expect(api.batchGenerateImages).not.toHaveBeenCalled();
+  });
+
+  it("replaces a generated image from history and retries failed prompt and image jobs", async () => {
+    const failed = { ...role, state: "生成失败", promptState: "生成失败", historyImages: [{ id: 88, filePath: "https://example.com/old.png" }] };
+    const api = createFakeApi({ listAssets: vi.fn(async () => [failed]) });
+    render(<CastingPage projectId={42} imageModel="pancat:pancat-image" api={api} />);
+    await screen.findByText("黛利拉");
+    fireEvent.click(screen.getByRole("button", { name: "历史图片 黛利拉" }));
+    fireEvent.click(await screen.findByRole("button", { name: "使用历史图片 88" }));
+    await waitFor(() => expect(api.selectHistoryImage).toHaveBeenCalledWith(expect.objectContaining({ id: 7, imageId: 88 })));
+    fireEvent.click(screen.getByRole("button", { name: "重试提示词 黛利拉" }));
+    fireEvent.click(screen.getByRole("button", { name: "重试图片 黛利拉" }));
+    await waitFor(() => expect(api.retryPrompt).toHaveBeenCalled());
+    await waitFor(() => expect(api.retryImage).toHaveBeenCalled());
+  });
+
+  it("updates one role audio binding and can clear it", async () => {
+    const withAudio = { ...role, relepedAudio: [{ id: 5, name: "少女音色" }] };
+    const api = createFakeApi({ listAssets: vi.fn(async () => [withAudio]) });
+    render(<CastingPage projectId={42} imageModel="pancat:pancat-image" api={api} />);
+    await screen.findByText("黛利拉");
+    fireEvent.click(screen.getByRole("button", { name: "更新音频 黛利拉" }));
+    await screen.findByRole("option", { name: "少年音色" });
+    fireEvent.change(screen.getByLabelText("选择音频资产"), { target: { value: "8" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存音频" }));
+    await waitFor(() => expect(api.updateAssetAudio).toHaveBeenCalledWith({ assetsId: 7, audioIds: [8] }));
   });
 });

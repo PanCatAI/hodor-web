@@ -88,5 +88,9 @@ describe("production API adapter", () => {
     expect(normalizeProductionStatus("生成中")).toBe("running");
     expect(normalizeProductionStatus("生成失败")).toBe("failed");
     expect(normalizeProductionStatus("未生成")).toBe("idle");
+    expect(normalizeProductionStatus(2)).toBe("running");
+    expect(normalizeProductionStatus(0)).toBe("running");
+    expect(normalizeProductionStatus(1)).toBe("completed");
+    expect(normalizeProductionStatus(-1)).toBe("failed");
   });
 });

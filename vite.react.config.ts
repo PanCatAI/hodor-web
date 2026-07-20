@@ -19,6 +19,7 @@ export default defineConfig({
   },
   build: {
     outDir: "dist-react",
+    assetsDir: "static",
     emptyOutDir: true,
     rollupOptions: {
       input: fileURLToPath(new URL("./index.html", import.meta.url)),
@@ -31,6 +32,12 @@ export default defineConfig({
   },
   server: {
     port: 50288,
+    strictPort: true,
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "credentialless",
+      "Origin-Agent-Cluster": "?1",
+    },
     proxy: {
       "/api": "http://127.0.0.1:10588",
       "/assets": "http://127.0.0.1:10588",

@@ -3,6 +3,7 @@ export type ProductionState = "idle" | "running" | "completed" | "failed";
 export interface ProductionProject {
   id: number;
   name: string;
+  imageModel?: string;
   videoModel: string;
   videoMode: string;
   videoResolution?: string;
@@ -25,6 +26,33 @@ export interface StoryboardItem {
   src: string;
   state: ProductionState;
   errorReason: string;
+  duration?: number;
+  associateAssetsIds?: number[];
+  shouldGenerateImage?: number;
+  flowId?: number;
+  trackId?: number;
+}
+
+export interface DerivedAsset {
+  id: number;
+  assetsId: number | null;
+  name: string;
+  type: "role" | "tool" | "scene" | "clip";
+  prompt: string;
+  desc: string;
+  src: string;
+  state: ProductionState;
+  errorReason: string;
+  flowId?: number;
+}
+
+export interface ProductionAsset extends Omit<DerivedAsset, "assetsId"> {
+  derive: DerivedAsset[];
+}
+
+export interface FlowNodePosition {
+  x: number;
+  y: number;
 }
 
 export interface TrackMedia {
@@ -34,6 +62,7 @@ export interface TrackMedia {
   src: string;
   name?: string;
   prompt?: string;
+  selected?: boolean;
 }
 
 export interface VideoItem {
@@ -41,6 +70,7 @@ export interface VideoItem {
   src: string;
   state: ProductionState;
   errorReason: string;
+  duration?: number;
 }
 
 export interface VideoTrack {
@@ -55,10 +85,52 @@ export interface VideoTrack {
 }
 
 export interface ProductionFlowData {
+  script: string;
+  scriptPlan: string;
+  assets: ProductionAsset[];
+  storyboardTable: string;
   storyboard: StoryboardItem[];
+  layout?: Record<string, FlowNodePosition>;
 }
 
 export interface ProductionGenerationData {
   storyboardList: StoryboardItem[];
   trackList: VideoTrack[];
+}
+
+export interface ProductionMediaItem {
+  id: string;
+  sourceId: number;
+  type: "video" | "audio" | "image";
+  name: string;
+  src: string;
+  duration: number;
+  selected?: boolean;
+}
+
+export interface ImageFlowNode {
+  id: string;
+  type: "upload" | "generated";
+  position: FlowNodePosition;
+  data: {
+    image?: string;
+    generatedImage?: string;
+    prompt?: string;
+    model?: string;
+    quality?: string;
+    ratio?: string;
+    references?: Array<{ image: string }>;
+  };
+}
+
+export interface ImageFlowEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+export interface ImageFlowData {
+  id?: number;
+  nodes: ImageFlowNode[];
+  edges: ImageFlowEdge[];
 }
