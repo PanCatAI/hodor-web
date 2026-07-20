@@ -1,5 +1,10 @@
-import { LoginPage } from "@react/features/auth/login-page";
+import { useState } from "react";
+import { RouterProvider } from "@tanstack/react-router";
+
+import { createHodorRouter } from "./router";
 
 export function HodorApp() {
-  return <LoginPage />;
+  const [router] = useState(createHodorRouter);
+
+  return <RouterProvider router={router} />;
 }

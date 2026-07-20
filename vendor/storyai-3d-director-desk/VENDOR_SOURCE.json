@@ -1,0 +1,11 @@
+{
+  "name": "storyai-3d-director-desk",
+  "repository": "https://github.com/jiguang132/storyai-3d-director-desk.git",
+  "commit": "8c8bd361790be4d37158a7430365e65546e358fe",
+  "retrievedAt": "2026-07-20",
+  "license": "MIT",
+  "localAdaptations": [
+    "Expose the application as the StoryAiDirectorDesk React component.",
+    "Bundle the UE mannequin model through Vite so nested Hodor routes resolve it correctly."
+  ]
+}

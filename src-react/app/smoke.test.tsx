@@ -1,12 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { HodorApp } from "./hodor-app";
 
 describe("Hodor React app", () => {
-  it("renders the product name", () => {
+  it("renders the product name", async () => {
+    window.scrollTo = vi.fn();
+    window.history.replaceState(null, "", "/index.react.html#/login");
     render(<HodorApp />);
 
-    expect(screen.getByText("Hodor")).toBeInTheDocument();
+    expect(await screen.findByText("Hodor")).toBeInTheDocument();
   });
 });

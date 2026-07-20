@@ -21,7 +21,7 @@ export default defineConfig({
     outDir: "dist-react",
     emptyOutDir: true,
     rollupOptions: {
-      input: fileURLToPath(new URL("./index.react.html", import.meta.url)),
+      input: fileURLToPath(new URL("./index.html", import.meta.url)),
     },
   },
   css: {

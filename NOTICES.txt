@@ -1,4 +1,10 @@
-Name: @eonova/v3-directives
+Name: @dagrejs/dagre
+License: MIT
+Repository: https://github.com/dagrejs/dagre
+
+-----------------------------
+
+Name: @devui-design/icons
 License: MIT
 Repository: N/A
 
@@ -7,6 +13,72 @@ Repository: N/A
 Name: @icon-park/vue-next
 License: Apache-2.0
 Repository: https://github.com/bytedance/IconPark
+
+-----------------------------
+
+Name: @radix-ui/react-slot
+License: MIT
+Repository: https://github.com/radix-ui/primitives
+
+-----------------------------
+
+Name: @react-three/drei
+License: MIT
+Repository: https://github.com/pmndrs/drei
+
+-----------------------------
+
+Name: @react-three/fiber
+License: MIT
+Repository: https://github.com/pmndrs/react-three-fiber
+
+-----------------------------
+
+Name: @tanstack/react-query
+License: MIT
+Repository: https://github.com/TanStack/query
+
+-----------------------------
+
+Name: @tanstack/react-router
+License: MIT
+Repository: https://github.com/TanStack/router
+
+-----------------------------
+
+Name: @tdesign-vue-next/auto-import-resolver
+License: MIT
+Repository: https://github.com/Tencent/tdesign-vue-next
+
+-----------------------------
+
+Name: @tdesign-vue-next/chat
+License: MIT
+Repository: https://github.com/Tencent/tdesign-vue-next
+
+-----------------------------
+
+Name: @testing-library/dom
+License: MIT
+Repository: https://github.com/testing-library/dom-testing-library
+
+-----------------------------
+
+Name: @testing-library/jest-dom
+License: MIT
+Repository: https://github.com/testing-library/jest-dom
+
+-----------------------------
+
+Name: @testing-library/react
+License: MIT
+Repository: https://github.com/testing-library/react-testing-library
+
+-----------------------------
+
+Name: @testing-library/user-event
+License: MIT
+Repository: https://github.com/testing-library/user-event
 
 -----------------------------
 
@@ -28,9 +100,45 @@ Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
 
 -----------------------------
 
+Name: @types/react-dom
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/react
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/react
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/splitpanes
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/three
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
 Name: @types/uuid
 License: MIT
 Repository: N/A
+
+-----------------------------
+
+Name: @vitejs/plugin-react
+License: MIT
+Repository: https://github.com/vitejs/vite-plugin-react
 
 -----------------------------
 
@@ -40,15 +148,21 @@ Repository: https://github.com/vitejs/vite-plugin-vue
 
 -----------------------------
 
-Name: @vue/eslint-config-prettier
+Name: @vue-flow/background
 License: MIT
-Repository: https://github.com/vuejs/eslint-config-prettier
+Repository: https://github.com/bcakmakoglu/vue-flow/packages/plugins/background
 
 -----------------------------
 
-Name: @vue/eslint-config-typescript
+Name: @vue-flow/controls
 License: MIT
-Repository: https://github.com/vuejs/eslint-config-typescript
+Repository: https://github.com/bcakmakoglu/vue-flow/packages/plugins/controls
+
+-----------------------------
+
+Name: @vue-flow/core
+License: MIT
+Repository: https://github.com/bcakmakoglu/vue-flow
 
 -----------------------------
 
@@ -70,15 +184,33 @@ Repository: https://github.com/vueuse/vueuse
 
 -----------------------------
 
-Name: ant-design-vue
+Name: @webav/av-canvas
+License: MIT*
+Repository: https://github.com/WebAV-Tech/WebAV
+
+-----------------------------
+
+Name: @webav/av-cliper
+License: MIT*
+Repository: https://github.com/WebAV-Tech/WebAV
+
+-----------------------------
+
+Name: autoprefixer
 License: MIT
-Repository: https://github.com/vueComponent/ant-design-vue
+Repository: https://github.com/postcss/autoprefixer
 
 -----------------------------
 
 Name: axios
 License: MIT
 Repository: https://github.com/axios/axios
+
+-----------------------------
+
+Name: camera-controls
+License: MIT
+Repository: https://github.com/yomotsu/camera-controls
 
 -----------------------------
 
@@ -100,27 +232,21 @@ Repository: https://github.com/iamkun/dayjs
 
 -----------------------------
 
-Name: element-plus
+Name: js-confetti
 License: MIT
-Repository: https://github.com/element-plus/element-plus
+Repository: https://github.com/loonywizard/js-confetti
 
 -----------------------------
 
-Name: eslint-plugin-oxlint
+Name: jsdom
 License: MIT
-Repository: https://github.com/oxc-project/eslint-plugin-oxlint
+Repository: https://github.com/jsdom/jsdom
 
 -----------------------------
 
-Name: eslint-plugin-vue
+Name: jsdom
 License: MIT
-Repository: https://github.com/vuejs/eslint-plugin-vue
-
------------------------------
-
-Name: eslint
-License: MIT
-Repository: https://github.com/eslint/eslint
+Repository: https://github.com/jsdom/jsdom
 
 -----------------------------
 
@@ -130,21 +256,45 @@ Repository: https://github.com/davglass/license-checker
 
 -----------------------------
 
+Name: lodash
+License: MIT
+Repository: https://github.com/lodash/lodash
+
+-----------------------------
+
+Name: lucide-react
+License: ISC
+Repository: https://github.com/lucide-icons/lucide
+
+-----------------------------
+
 Name: mammoth
 License: BSD-2-Clause
 Repository: https://github.com/mwilliamson/mammoth.js
 
 -----------------------------
 
-Name: npm-run-all2
+Name: md-editor-v3
 License: MIT
-Repository: https://github.com/bcomnes/npm-run-all2
+Repository: https://github.com/imzbf/md-editor-v3
 
 -----------------------------
 
-Name: oxlint
+Name: monaco-editor-vue3
 License: MIT
-Repository: https://github.com/oxc-project/oxc
+Repository: https://github.com/bazingaedward/monaco-editor-vue3
+
+-----------------------------
+
+Name: monaco-editor
+License: MIT
+Repository: https://github.com/microsoft/monaco-editor
+
+-----------------------------
+
+Name: p-limit
+License: MIT
+Repository: https://github.com/sindresorhus/p-limit
 
 -----------------------------
 
@@ -160,15 +310,93 @@ Repository: https://github.com/vuejs/pinia
 
 -----------------------------
 
+Name: postcss-px-to-viewport
+License: MIT
+Repository: https://github.com/evrone/postcss-px-to-viewport
+
+-----------------------------
+
+Name: postcss
+License: MIT
+Repository: https://github.com/postcss/postcss
+
+-----------------------------
+
+Name: postcss
+License: MIT
+Repository: https://github.com/postcss/postcss
+
+-----------------------------
+
 Name: prettier
 License: MIT
 Repository: https://github.com/prettier/prettier
 
 -----------------------------
 
+Name: prettier
+License: MIT
+Repository: https://github.com/prettier/prettier
+
+-----------------------------
+
+Name: react-dom
+License: MIT
+Repository: https://github.com/facebook/react
+
+-----------------------------
+
+Name: react
+License: MIT
+Repository: https://github.com/facebook/react
+
+-----------------------------
+
 Name: sass
 License: MIT
 Repository: https://github.com/sass/dart-sass
+
+-----------------------------
+
+Name: socket.io-client
+License: MIT
+Repository: https://github.com/socketio/socket.io
+
+-----------------------------
+
+Name: splitpanes
+License: MIT
+Repository: https://github.com/antoniandre/splitpanes
+
+-----------------------------
+
+Name: tailwind-merge
+License: MIT
+Repository: https://github.com/dcastil/tailwind-merge
+
+-----------------------------
+
+Name: tailwind-merge
+License: MIT
+Repository: https://github.com/dcastil/tailwind-merge
+
+-----------------------------
+
+Name: tailwindcss
+License: MIT
+Repository: https://github.com/tailwindlabs/tailwindcss.git#v3
+
+-----------------------------
+
+Name: tdesign-vue-next
+License: MIT
+Repository: https://github.com/Tencent/tdesign-vue-next
+
+-----------------------------
+
+Name: three
+License: MIT
+Repository: https://github.com/mrdoob/three.js
 
 -----------------------------
 
@@ -190,15 +418,21 @@ Repository: https://github.com/unplugin/unplugin-vue-components
 
 -----------------------------
 
+Name: unplugin-vue-components
+License: MIT
+Repository: https://github.com/unplugin/unplugin-vue-components
+
+-----------------------------
+
 Name: uuid
 License: MIT
 Repository: https://github.com/uuidjs/uuid
 
 -----------------------------
 
-Name: vite-plugin-lazy-import
+Name: uuid
 License: MIT
-Repository: https://github.com/x-extends/vite-plugin-lazy-import
+Repository: https://github.com/uuidjs/uuid
 
 -----------------------------
 
@@ -211,6 +445,30 @@ Repository: https://github.com/richardtallent/vite-plugin-singlefile
 Name: vite
 License: MIT
 Repository: https://github.com/vitejs/vite
+
+-----------------------------
+
+Name: vitest
+License: MIT
+Repository: https://github.com/vitest-dev/vitest
+
+-----------------------------
+
+Name: vue-clip-track
+License: MIT
+Repository: https://github.com/caohongz/vue-clip-track
+
+-----------------------------
+
+Name: vue-draggable-plus
+License: MIT
+Repository: https://github.com/Alfred-Skyblue/vue-draggable-plus
+
+-----------------------------
+
+Name: vue-i18n
+License: MIT
+Repository: https://github.com/intlify/vue-i18n
 
 -----------------------------
 
@@ -228,16 +486,43 @@ Repository: https://github.com/vuejs/language-tools
 
 Name: vue
 License: MIT
+Repository: https://github.com/vuejs/vue
+
+-----------------------------
+
+Name: vue
+License: MIT
 Repository: https://github.com/vuejs/core
 
 -----------------------------
 
-Name: vuedraggable
+Name: zustand
 License: MIT
-Repository: https://github.com/SortableJS/Vue.Draggable
+Repository: https://github.com/pmndrs/zustand
 
 -----------------------------
 
-Name: vxe-table
+Name: storyai-3d-director-desk
 License: MIT
-Repository: https://github.com/x-extends/vxe-table
+Repository: https://github.com/jiguang132/storyai-3d-director-desk
+Revision: 8c8bd361790be4d37158a7430365e65546e358fe
+Copyright: Copyright (c) 2026 YZ
+License file: vendor/storyai-3d-director-desk/LICENSE
+
+Bundled asset: UE Mannequin (Retopology)
+Author: William Luque
+Source: https://sketchfab.com/3d-models/ue-mannequin-retopology-5394d9f894374a2ab7c57a21929ce4c2
+License: Sketchfab Standard License
+License file: vendor/storyai-3d-director-desk/assets/ue-mannequin-retopology.license.txt
+
+-----------------------------
+
+Name: zustand
+License: MIT
+Repository: https://github.com/pmndrs/zustand
+
+-----------------------------
+
+Name: zustand
+License: MIT
+Repository: https://github.com/pmndrs/zustand
