@@ -102,7 +102,12 @@ describe("ProductionWorkbench", () => {
 
   it("adds, edits, generates a prompt for and deletes video tracks", async () => {
     const api = createApi();
-    render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
 
     await screen.findByTestId("video-track-51");
     fireEvent.click(screen.getByRole("button", { name: "新增视频轨道" }));
@@ -124,7 +129,12 @@ describe("ProductionWorkbench", () => {
 
   it("selects media references and generated videos, supports preview downloads and deletion", async () => {
     const api = createApi();
-    render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
 
     const track = await screen.findByTestId("video-track-51");
     const media = within(track).getByLabelText("使用参考素材 32");
@@ -139,7 +149,12 @@ describe("ProductionWorkbench", () => {
 
   it("edits storyboard text and opens its combined preview from the reachable workbench", async () => {
     const api = createApi();
-    render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
 
     const card = await screen.findByTestId("storyboard-31");
     fireEvent.change(within(card).getByLabelText("分镜画面提示词 31"), { target: { value: "雨夜医院全景" } });
@@ -153,7 +168,12 @@ describe("ProductionWorkbench", () => {
 
   it("mounts the flow board, image workflow and video editor from reachable controls", async () => {
     const api = createApi();
-    render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
 
     await screen.findByTestId("storyboard-31");
     fireEvent.click(screen.getByRole("button", { name: "产线图" }));
@@ -171,28 +191,46 @@ describe("ProductionWorkbench", () => {
 
   it("inserts a storyboard before or after its neighbour and persists the new order", async () => {
     const api = createApi();
-    render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
 
     const card = await screen.findByTestId("storyboard-31");
     fireEvent.click(within(card).getByRole("button", { name: "在分镜 31 后插入" }));
 
-    await waitFor(() => expect(api.addStoryboard).toHaveBeenCalledWith(7, 12, {
-      prompt: "",
-      duration: 0,
-      state: "未生成",
-      videoDesc: "",
-      shouldGenerateImage: 0,
-      src: null,
-    }));
+    await waitFor(() =>
+      expect(api.addStoryboard).toHaveBeenCalledWith(7, 12, {
+        prompt: "",
+        duration: 0,
+        state: "未生成",
+        videoDesc: "",
+        shouldGenerateImage: 0,
+        src: null,
+      }),
+    );
     expect(await screen.findByTestId("storyboard-77")).toBeInTheDocument();
-    await waitFor(() => expect(api.saveFlowData).toHaveBeenCalledWith(7, 12, expect.objectContaining({
-      storyboard: expect.arrayContaining([expect.objectContaining({ id: 77, index: 1 })]),
-    })));
+    await waitFor(() =>
+      expect(api.saveFlowData).toHaveBeenCalledWith(
+        7,
+        12,
+        expect.objectContaining({
+          storyboard: expect.arrayContaining([expect.objectContaining({ id: 77, index: 1 })]),
+        }),
+      ),
+    );
   });
 
   it("keeps the edit timeline mounted while switching production tabs", async () => {
     const api = createApi();
-    render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
 
     await screen.findByTestId("storyboard-31");
     fireEvent.click(screen.getByRole("button", { name: "视频编辑" }));
@@ -210,7 +248,12 @@ describe("ProductionWorkbench", () => {
       { id: 12, name: "第一幕", content: "", state: "completed", errorReason: "" },
       { id: 13, name: "第二幕", content: "", state: "completed", errorReason: "" },
     ]);
-    render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
 
     await screen.findByTestId("storyboard-31");
     fireEvent.click(screen.getByRole("button", { name: "视频编辑" }));
@@ -225,7 +268,12 @@ describe("ProductionWorkbench", () => {
   it("keeps the production workbench usable when the edit media library fails and offers retry", async () => {
     const api = createApi();
     vi.mocked(api.getMediaLibrary).mockRejectedValueOnce(new Error("对象存储暂时不可用"));
-    render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
 
     expect(await screen.findByTestId("storyboard-31")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "视频编辑" }));
@@ -235,5 +283,52 @@ describe("ProductionWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "重试加载剪辑素材" }));
     await waitFor(() => expect(api.getMediaLibrary).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText("剪辑素材库加载失败：对象存储暂时不可用")).not.toBeInTheDocument());
+  });
+
+  it("keeps the production agent beside the canvas and refreshes shared flow data after agent writes", async () => {
+    const api = createApi();
+    const onOpenAgent = vi.fn();
+    const renderProductionAgent = vi.fn((episodeId: number, onFlowDataChange: () => void) => (
+      <section aria-label="真实生产智能体">
+        <span>剧本 #{episodeId}</span>
+        <button type="button" onClick={onFlowDataChange}>
+          同步产线图
+        </button>
+      </section>
+    ));
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", imageModel: "pancat:pancat-image", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+        onOpenAgent={onOpenAgent}
+        renderProductionAgent={renderProductionAgent}
+      />,
+    );
+
+    await screen.findByTestId("storyboard-31");
+    fireEvent.click(screen.getByRole("button", { name: "生产智能体" }));
+
+    expect(screen.getByRole("region", { name: "生产流图" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "生产智能体侧栏" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "真实生产智能体" })).toHaveTextContent("剧本 #12");
+
+    vi.mocked(api.getFlowData).mockResolvedValueOnce({
+      script: "雨夜",
+      scriptPlan: "智能体刚写入的新拍摄计划",
+      assets: [],
+      storyboardTable: "",
+      storyboard: [],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "同步产线图" }));
+    await waitFor(() => expect(api.getFlowData).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("智能体刚写入的新拍摄计划")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "独立打开" }));
+    expect(onOpenAgent).toHaveBeenCalledWith(12);
+
+    fireEvent.click(screen.getByRole("button", { name: "收起生产智能体" }));
+    expect(screen.queryByRole("complementary", { name: "生产智能体侧栏" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "生产智能体" }));
+    expect(screen.getByRole("complementary", { name: "生产智能体侧栏" })).toBeInTheDocument();
   });
 });

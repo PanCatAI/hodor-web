@@ -1,7 +1,7 @@
 import { createHashHistory, createRootRouteWithContext, createRoute, createRouter, redirect, useParams, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { ProductionAgentPage, ScriptAgentPage } from "@react/features/agents";
+import { ProductionAgentPage, ProductionAgentPanel, ScriptAgentPage } from "@react/features/agents";
 import { AssetsCenter, createAssetApi } from "@react/features/assets";
 import { LoginPage } from "@react/features/auth/login-page";
 import { CastingPage, createCastingApi } from "@react/features/casting";
@@ -278,7 +278,7 @@ function normalizeProductionProject(value: RawProductionProject | RawProductionP
 }
 
 function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
-  const { apiClient } = projectProductionRoute.useRouteContext();
+  const { apiClient, apiBaseUrl, getToken } = projectProductionRoute.useRouteContext();
   const router = useRouter();
   const api = useMemo(() => createProductionApi(apiClient), [apiClient]);
   const [project, setProject] = useState<ProductionProject | null>(null);
@@ -316,6 +316,16 @@ function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
           search: { view: "agent", episodeId },
         })
       }
+      renderProductionAgent={(episodeId, onFlowDataChange) => (
+        <ProductionAgentPanel
+          projectId={projectId}
+          episodeId={episodeId}
+          apiClient={apiClient}
+          apiBaseUrl={apiBaseUrl}
+          getToken={getToken}
+          onFlowDataChange={onFlowDataChange}
+        />
+      )}
     />
   );
 }

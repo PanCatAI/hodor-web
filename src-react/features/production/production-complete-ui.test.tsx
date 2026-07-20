@@ -24,7 +24,17 @@ function flowData(): ProductionFlowData {
         state: "completed",
         errorReason: "",
         derive: [
-          { id: 41, assetsId: 3, name: "雨衣造型", type: "role", prompt: "黄色雨衣", desc: "雨夜服装", src: "", state: "failed", errorReason: "审核失败" },
+          {
+            id: 41,
+            assetsId: 3,
+            name: "雨衣造型",
+            type: "role",
+            prompt: "黄色雨衣",
+            desc: "雨夜服装",
+            src: "",
+            state: "failed",
+            errorReason: "审核失败",
+          },
         ],
       },
     ],
@@ -38,7 +48,10 @@ describe("complete production UI", () => {
     render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={flowData()} />);
 
     expect(screen.getByTestId("flow-node-script")).toHaveAttribute("data-x", "0");
-    fireEvent.change(screen.getByLabelText("拍摄计划"), { target: { value: "低机位推进" } });
+    fireEvent.click(screen.getByRole("button", { name: "编辑拍摄计划" }));
+    const editor = screen.getByRole("dialog", { name: "编辑拍摄计划" });
+    fireEvent.change(within(editor).getByLabelText("拍摄计划内容"), { target: { value: "低机位推进" } });
+    fireEvent.click(within(editor).getByRole("button", { name: "保存" }));
     fireEvent.click(screen.getByRole("button", { name: "自动布局" }));
     fireEvent.dragEnd(screen.getByTestId("flow-node-script"), { clientX: 640, clientY: 320 });
     fireEvent.click(screen.getByRole("button", { name: "保存产线图" }));
@@ -55,7 +68,19 @@ describe("complete production UI", () => {
     const api = {
       saveFlowData: vi.fn(async () => undefined),
       generateDerivedAssets: vi.fn(async () => undefined),
-      pollDerivedAssets: vi.fn(async () => [{ id: 41, assetsId: 3, name: "雨衣造型", type: "role", prompt: "黄色雨衣", desc: "雨夜服装", src: "", state: "failed", errorReason: "真人审核失败" }]),
+      pollDerivedAssets: vi.fn(async () => [
+        {
+          id: 41,
+          assetsId: 3,
+          name: "雨衣造型",
+          type: "role",
+          prompt: "黄色雨衣",
+          desc: "雨夜服装",
+          src: "",
+          state: "failed",
+          errorReason: "真人审核失败",
+        },
+      ]),
       deleteDerivedAsset: vi.fn(async () => undefined),
     } as unknown as ProductionApi;
     render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={flowData()} pollIntervalMs={5} />);
@@ -104,7 +129,15 @@ describe("complete production UI", () => {
         api={api}
         projectId={7}
         scriptId={12}
-        storyboard={{ id: 31, index: 0, prompt: "医院远景", videoDesc: "推进", src: "https://example.test/ref.jpg", state: "completed", errorReason: "" }}
+        storyboard={{
+          id: 31,
+          index: 0,
+          prompt: "医院远景",
+          videoDesc: "推进",
+          src: "https://example.test/ref.jpg",
+          state: "completed",
+          errorReason: "",
+        }}
         imageModel="pancat:pancat-image"
         onClose={onClose}
         onSaved={vi.fn()}

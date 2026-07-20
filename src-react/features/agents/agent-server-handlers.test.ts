@@ -186,6 +186,7 @@ describe("createAgentServerHandlers", () => {
   it("recovers server-side unfinished generations and backs off after polling errors", async () => {
     const { client, request } = createClient();
     const delays: number[] = [];
+    const onFlowDataChange = vi.fn();
     let assetPolls = 0;
     request.mockImplementation(async (path: string) => {
       if (path === "/production/getFlowData") {
@@ -214,6 +215,7 @@ describe("createAgentServerHandlers", () => {
       recoveryDelay: async (milliseconds) => {
         delays.push(milliseconds);
       },
+      onFlowDataChange,
     });
 
     await handlers.restoreWorkData?.();
@@ -232,6 +234,7 @@ describe("createAgentServerHandlers", () => {
       "/production/saveFlowData",
       expect.objectContaining({ body: expect.stringContaining("https://cdn/shot.png") }),
     );
+    expect(onFlowDataChange).toHaveBeenCalledOnce();
   });
 
   it("acknowledges generation submission before continuing server-backed recovery", async () => {
@@ -315,5 +318,32 @@ describe("createAgentServerHandlers", () => {
     await vi.waitFor(() => expect(request).toHaveBeenCalledWith("/production/storyboard/batchAddStoryboardInfo", expect.anything()));
     await expect(added).resolves.toEqual({ success: true, message: "分镜已保存" });
     handlers.stopRecovery?.();
+  });
+
+  it("notifies the shared canvas after production work tags are persisted", async () => {
+    const { client, request } = createClient();
+    const onFlowDataChange = vi.fn();
+    request
+      .mockResolvedValueOnce({ script: "旧原文", scriptPlan: "旧计划", storyboardTable: "旧分镜表", assets: [], storyboard: [] })
+      .mockResolvedValueOnce(undefined);
+    const handlers = createAgentServerHandlers({
+      agentType: "productionAgent",
+      projectId: 7,
+      episodeId: 12,
+      apiClient: client,
+      onFlowDataChange,
+    });
+
+    await handlers.onWorkDataTag?.({ tag: "scriptPlan", value: "智能体写入的新计划", attrs: {}, status: "complete" });
+
+    expect(request).toHaveBeenLastCalledWith("/production/saveFlowData", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: 7,
+        episodesId: 12,
+        data: { script: "旧原文", scriptPlan: "智能体写入的新计划", storyboardTable: "旧分镜表", assets: [], storyboard: [] },
+      }),
+    });
+    expect(onFlowDataChange).toHaveBeenCalledOnce();
   });
 });

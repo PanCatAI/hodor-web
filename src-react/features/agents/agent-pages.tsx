@@ -17,13 +17,11 @@ interface AgentPageProps {
 
 interface ProductionAgentPageProps extends AgentPageProps {
   episodeId: number;
+  onFlowDataChange?: () => void;
 }
 
 export function ScriptAgentPage({ projectId, apiClient, apiBaseUrl, getToken, socketFactory, handlers }: AgentPageProps) {
-  const defaultHandlers = useMemo(
-    () => createAgentServerHandlers({ agentType: "scriptAgent", projectId, apiClient }),
-    [apiClient, projectId],
-  );
+  const defaultHandlers = useMemo(() => createAgentServerHandlers({ agentType: "scriptAgent", projectId, apiClient }), [apiClient, projectId]);
   const activeHandlers = handlers ?? defaultHandlers;
   const client = useMemo(
     () =>
@@ -42,10 +40,19 @@ export function ScriptAgentPage({ projectId, apiClient, apiBaseUrl, getToken, so
   return <AgentConsole client={client} title="剧本智能体" description="拆分原文、整理故事骨架并形成可生产的剧本。" />;
 }
 
-export function ProductionAgentPage({ projectId, episodeId, apiClient, apiBaseUrl, getToken, socketFactory, handlers }: ProductionAgentPageProps) {
+export function ProductionAgentPage({
+  projectId,
+  episodeId,
+  apiClient,
+  apiBaseUrl,
+  getToken,
+  socketFactory,
+  handlers,
+  onFlowDataChange,
+}: ProductionAgentPageProps) {
   const defaultHandlers = useMemo(
-    () => createAgentServerHandlers({ agentType: "productionAgent", projectId, episodeId, apiClient }),
-    [apiClient, episodeId, projectId],
+    () => createAgentServerHandlers({ agentType: "productionAgent", projectId, episodeId, apiClient, onFlowDataChange }),
+    [apiClient, episodeId, onFlowDataChange, projectId],
   );
   const activeHandlers = handlers ?? defaultHandlers;
   const client = useMemo(
@@ -64,6 +71,39 @@ export function ProductionAgentPage({ projectId, episodeId, apiClient, apiBaseUr
   );
 
   return <AgentConsole client={client} title="生产智能体" description="协调资产、分镜、视频和后续生产任务。" />;
+}
+
+export function ProductionAgentPanel({
+  projectId,
+  episodeId,
+  apiClient,
+  apiBaseUrl,
+  getToken,
+  socketFactory,
+  handlers,
+  onFlowDataChange,
+}: ProductionAgentPageProps) {
+  const defaultHandlers = useMemo(
+    () => createAgentServerHandlers({ agentType: "productionAgent", projectId, episodeId, apiClient, onFlowDataChange }),
+    [apiClient, episodeId, onFlowDataChange, projectId],
+  );
+  const activeHandlers = handlers ?? defaultHandlers;
+  const client = useMemo(
+    () =>
+      createAgentChatClient({
+        agentType: "productionAgent",
+        projectId,
+        episodeId,
+        apiClient,
+        apiBaseUrl,
+        getToken,
+        socketFactory,
+        handlers: activeHandlers,
+      }),
+    [activeHandlers, apiBaseUrl, apiClient, episodeId, getToken, projectId, socketFactory],
+  );
+
+  return <AgentConsole client={client} title="生产智能体" description="协调资产、分镜、视频和后续生产任务。" display="panel" />;
 }
 
 export type { AgentPageProps, ProductionAgentPageProps };

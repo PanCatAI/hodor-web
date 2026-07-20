@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Check,
@@ -8,6 +8,8 @@ import {
   ImageIcon,
   LoaderCircle,
   Pencil,
+  PanelRightClose,
+  PanelRightOpen,
   Play,
   Plus,
   RefreshCw,
@@ -36,6 +38,7 @@ export interface ProductionWorkbenchProps {
   project: ProductionProject;
   pollIntervalMs?: number;
   onOpenAgent?: (scriptId: number) => void;
+  renderProductionAgent?: (scriptId: number, onFlowDataChange: () => void) => ReactNode;
 }
 
 const emptyFlow: ProductionFlowData = { script: "", scriptPlan: "", assets: [], storyboardTable: "", storyboard: [] };
@@ -122,7 +125,7 @@ function toEditorMedia(item: ProductionMediaItem): WebAvEditorClip {
   };
 }
 
-export function ProductionWorkbench({ api, project, pollIntervalMs = 3_000, onOpenAgent }: ProductionWorkbenchProps) {
+export function ProductionWorkbench({ api, project, pollIntervalMs = 3_000, onOpenAgent, renderProductionAgent }: ProductionWorkbenchProps) {
   const [scripts, setScripts] = useState<ScriptSummary[]>([]);
   const [scriptId, setScriptId] = useState<number | null>(null);
   const [flowData, setFlowData] = useState<ProductionFlowData>(emptyFlow);
@@ -137,7 +140,45 @@ export function ProductionWorkbench({ api, project, pollIntervalMs = 3_000, onOp
   const [loading, setLoading] = useState(true);
   const [switchingScript, setSwitchingScript] = useState(false);
   const [error, setError] = useState("");
+  const [agentPanelOpen, setAgentPanelOpen] = useState(true);
+  const [agentPanelWidth, setAgentPanelWidth] = useState(440);
+  const [flowRevision, setFlowRevision] = useState(0);
   const loadSequence = useRef(0);
+  const agentResize = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  useEffect(() => {
+    const handleMove = (event: PointerEvent) => {
+      const resize = agentResize.current;
+      if (!resize) return;
+      const maximum = Math.max(400, Math.floor(window.innerWidth * 0.8));
+      setAgentPanelWidth(Math.min(maximum, Math.max(400, resize.startWidth + resize.startX - event.clientX)));
+    };
+    const handleUp = () => {
+      agentResize.current = null;
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+    };
+  }, []);
+
+  function beginAgentResize(event: React.PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    agentResize.current = { startX: event.clientX, startWidth: agentPanelWidth };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  function resizeAgentByKeyboard(delta: number) {
+    const maximum = Math.max(400, Math.floor(window.innerWidth * 0.8));
+    setAgentPanelWidth((current) => Math.min(maximum, Math.max(400, current + delta)));
+  }
 
   useEffect(() => {
     let active = true;
@@ -187,14 +228,23 @@ export function ProductionWorkbench({ api, project, pollIntervalMs = 3_000, onOp
             medias: track.medias.map((media) => ({ ...media, selected: media.selected !== false })),
           })),
         );
+        return true;
       } catch (cause) {
         if (loadSequence.current === sequence) setError(messageOf(cause));
+        return false;
       } finally {
         if (loadSequence.current === sequence) setLoading(false);
       }
     },
     [api, project.id],
   );
+
+  const refreshSelectedFlow = useCallback(() => {
+    if (scriptId == null) return;
+    void loadProductionData(scriptId).then((loaded) => {
+      if (loaded) setFlowRevision((current) => current + 1);
+    });
+  }, [loadProductionData, scriptId]);
 
   function retryMediaLibrary() {
     if (scriptId == null) return;
@@ -442,12 +492,20 @@ export function ProductionWorkbench({ api, project, pollIntervalMs = 3_000, onOp
               {label}
             </button>
           ))}
-          {onOpenAgent && scriptId != null ? (
+          {(renderProductionAgent || onOpenAgent) && scriptId != null ? (
             <button
               type="button"
-              onClick={() => onOpenAgent(scriptId)}
+              aria-expanded={renderProductionAgent ? agentPanelOpen : undefined}
+              onClick={() => {
+                if (renderProductionAgent) {
+                  setAgentPanelOpen((open) => (tab === "flow" ? !open : true));
+                  openTab("flow");
+                } else {
+                  onOpenAgent?.(scriptId);
+                }
+              }}
               className="flex items-center gap-1.5 rounded-lg border border-violet-700/70 bg-violet-500/10 px-3 py-2 text-xs text-violet-200">
-              <Sparkles className="size-3.5" />
+              {renderProductionAgent && agentPanelOpen ? <PanelRightClose className="size-3.5" /> : <PanelRightOpen className="size-3.5" />}
               生产智能体
             </button>
           ) : null}
@@ -480,19 +538,64 @@ export function ProductionWorkbench({ api, project, pollIntervalMs = 3_000, onOp
         ) : !scripts.length ? (
           <div className="rounded-xl border border-dashed border-slate-800 py-20 text-center text-sm text-slate-500">项目还没有剧本。</div>
         ) : tab === "flow" && scriptId != null ? (
-          <ProductionFlowBoard
-            api={api}
-            projectId={project.id}
-            scriptId={scriptId}
-            initialData={{ ...flowData, storyboard: storyboards }}
-            imageModel={project.imageModel || "pancat:pancat-image"}
-            pollIntervalMs={pollIntervalMs}
-            onChange={(next) => {
-              setFlowData(next);
-              setStoryboards(next.storyboard);
-            }}
-            onOpenWorkbench={() => openTab("generation")}
-          />
+          <div className="relative min-w-0">
+            <div className="min-w-0">
+              <ProductionFlowBoard
+                api={api}
+                projectId={project.id}
+                scriptId={scriptId}
+                initialData={{ ...flowData, storyboard: storyboards }}
+                externalRevision={flowRevision}
+                imageModel={project.imageModel || "pancat:pancat-image"}
+                pollIntervalMs={pollIntervalMs}
+                onChange={(next) => {
+                  setFlowData(next);
+                  setStoryboards(next.storyboard);
+                }}
+                onOpenWorkbench={() => openTab("generation")}
+              />
+            </div>
+            {renderProductionAgent && agentPanelOpen ? (
+              <aside
+                aria-label="生产智能体侧栏"
+                className="absolute bottom-0 right-0 top-[60px] z-30 flex min-h-0 flex-col rounded-xl border border-slate-700 bg-slate-950/95 p-1 shadow-2xl shadow-black/60 backdrop-blur"
+                style={{ width: agentPanelWidth }}>
+                <div
+                  role="separator"
+                  aria-label="调整生产智能体侧栏宽度"
+                  aria-orientation="vertical"
+                  tabIndex={0}
+                  onPointerDown={beginAgentResize}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowLeft") resizeAgentByKeyboard(24);
+                    if (event.key === "ArrowRight") resizeAgentByKeyboard(-24);
+                  }}
+                  className="absolute inset-y-2 -left-1 z-20 w-2 cursor-col-resize rounded-full hover:bg-violet-400/40 focus:bg-violet-400/40 focus:outline-none"
+                />
+                <div className="mb-1 flex h-9 shrink-0 items-center justify-between px-2 text-xs text-slate-500">
+                  <span>当前剧本 #{scriptId}</span>
+                  <div className="flex items-center gap-1">
+                    {onOpenAgent ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenAgent(scriptId)}
+                        className="rounded-md px-2 py-1 hover:bg-slate-800 hover:text-slate-200">
+                        独立打开
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label="收起生产智能体"
+                      onClick={() => setAgentPanelOpen(false)}
+                      className="rounded-md p-1 hover:bg-slate-800 hover:text-slate-200">
+                      <PanelRightClose className="size-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1">{renderProductionAgent(scriptId, refreshSelectedFlow)}</div>
+              </aside>
+            ) : null}
+          </div>
         ) : tab === "generation" ? (
           <div className="grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
             <section aria-labelledby="storyboard-title" className="min-w-0">

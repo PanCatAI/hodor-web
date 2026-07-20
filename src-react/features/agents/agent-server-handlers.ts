@@ -11,6 +11,7 @@ interface CreateAgentServerHandlersOptions {
   concurrentCount?: number;
   recoveryDelay?: (milliseconds: number) => Promise<void>;
   recoveryDelayMaxMs?: number;
+  onFlowDataChange?: () => void;
 }
 
 interface ScriptItem extends UnknownRecord {
@@ -61,12 +62,14 @@ function normalizePlan(value: unknown): ScriptPlanData {
     ...data,
     storySkeleton: asString(data.storySkeleton),
     adaptationStrategy: asString(data.adaptationStrategy),
-    script: asArray(data.script).filter(isRecord).map((item) => ({
-      ...item,
-      ...(asNumber(item.id) === null ? {} : { id: asNumber(item.id)! }),
-      name: asString(item.name),
-      content: asString(item.content),
-    })),
+    script: asArray(data.script)
+      .filter(isRecord)
+      .map((item) => ({
+        ...item,
+        ...(asNumber(item.id) === null ? {} : { id: asNumber(item.id)! }),
+        name: asString(item.name),
+        content: asString(item.content),
+      })),
   };
 }
 
@@ -103,7 +106,9 @@ function flowForAgent(data: ProductionFlowData): ProductionFlowData {
 
 function normalizeIds(payload: unknown): number[] {
   if (!isRecord(payload)) return [];
-  return asArray(payload.ids).map(asNumber).filter((id): id is number => id !== null);
+  return asArray(payload.ids)
+    .map(asNumber)
+    .filter((id): id is number => id !== null);
 }
 
 function normalizeStoryboard(payload: unknown): UnknownRecord {
@@ -117,7 +122,9 @@ function normalizeStoryboard(payload: unknown): UnknownRecord {
     src: null,
     videoDesc: asString(data.videoDesc),
     shouldGenerateImage,
-    associateAssetsIds: asArray(data.associateAssetsIds).map(asNumber).filter((id): id is number => id !== null),
+    associateAssetsIds: asArray(data.associateAssetsIds)
+      .map(asNumber)
+      .filter((id): id is number => id !== null),
   };
 }
 
@@ -154,9 +161,7 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
 
   async function loadFlow() {
     if (episodeId === undefined) throw new Error("生产智能体缺少剧本 ID");
-    flowData = normalizeFlow(
-      await post<unknown>(apiClient, "/production/getFlowData", { projectId, episodesId: episodeId }),
-    );
+    flowData = normalizeFlow(await post<unknown>(apiClient, "/production/getFlowData", { projectId, episodesId: episodeId }));
     return flowData;
   }
 
@@ -164,6 +169,7 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
     if (episodeId === undefined) throw new Error("生产智能体缺少剧本 ID");
     const data = flowData ?? (await loadFlow());
     await post(apiClient, "/production/saveFlowData", { projectId, episodesId: episodeId, data });
+    options.onFlowDataChange?.();
     return data;
   }
 
@@ -259,6 +265,7 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
           if (latest !== data) mergeProductionRecovery(latest, assetUpdates, storyboardUpdates);
           if (episodeId === undefined) throw new Error("生产智能体缺少剧本 ID");
           await post(apiClient, "/production/saveFlowData", { projectId, episodesId: episodeId, data: latest });
+          options.onFlowDataChange?.();
         });
         delayMs = 1000;
         const remaining = runningProductionIds(data);

@@ -9,6 +9,7 @@ interface AgentConsoleProps {
   title: string;
   description?: string;
   confirmClear?: (type: MemoryType) => boolean;
+  display?: "page" | "panel";
 }
 
 const connectionLabels = {
@@ -68,7 +69,7 @@ function ContentBlock({ content, onSuggestion }: { content: AgentMessageContent;
   return <div className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-200">{text}</div>;
 }
 
-export function AgentConsole({ client, title, description, confirmClear }: AgentConsoleProps) {
+export function AgentConsole({ client, title, description, confirmClear, display = "page" }: AgentConsoleProps) {
   const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const [input, setInput] = useState("");
   const transcriptRef = useRef<HTMLDivElement>(null);
@@ -101,8 +102,12 @@ export function AgentConsole({ client, title, description, confirmClear }: Agent
   }
 
   return (
-    <section className="flex min-h-[680px] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 shadow-2xl shadow-black/20">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-5 py-4">
+    <section
+      className={`flex flex-col overflow-hidden border border-slate-800 bg-slate-950 text-slate-100 shadow-2xl shadow-black/20 ${
+        display === "panel" ? "h-full min-h-0 rounded-xl" : "min-h-[680px] rounded-2xl"
+      }`}>
+      <header
+        className={`flex flex-wrap items-center justify-between border-b border-slate-800 ${display === "panel" ? "gap-2 px-4 py-3" : "gap-4 px-5 py-4"}`}>
         <div>
           <div className="flex items-center gap-2">
             <BrainCircuit className="size-5 text-blue-400" aria-hidden="true" />
@@ -148,7 +153,10 @@ export function AgentConsole({ client, title, description, confirmClear }: Agent
         </div>
       ) : null}
 
-      <div ref={transcriptRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-6" aria-label="智能体消息">
+      <div
+        ref={transcriptRef}
+        className={`min-h-0 flex-1 space-y-5 overflow-y-auto ${display === "panel" ? "px-4 py-4" : "px-5 py-6"}`}
+        aria-label="智能体消息">
         {snapshot.loadingHistory ? <p className="text-center text-sm text-slate-500">正在加载历史消息…</p> : null}
         {!snapshot.loadingHistory && snapshot.messages.length === 0 ? (
           <div className="mx-auto flex max-w-sm flex-col items-center py-20 text-center">
@@ -193,7 +201,7 @@ export function AgentConsole({ client, title, description, confirmClear }: Agent
         })}
       </div>
 
-      <footer className="border-t border-slate-800 bg-slate-950/95 px-5 py-4">
+      <footer className={`border-t border-slate-800 bg-slate-950/95 ${display === "panel" ? "px-4 py-3" : "px-5 py-4"}`}>
         <div className="mb-3 flex flex-wrap gap-2">
           {(["message", "summary", "all"] as const).map((type) => (
             <button

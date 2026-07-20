@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Background, BackgroundVariant, BaseEdge, Controls, getBezierPath, MiniMap, ReactFlow, useNodesState } from "@xyflow/react";
 import type { EdgeProps, Node, NodeProps, ReactFlowInstance } from "@xyflow/react";
-import { Focus, LoaderCircle, Map as MapIcon, Save, Sparkles } from "lucide-react";
+import { Download, Focus, LoaderCircle, Map as MapIcon, Save, Sparkles, X } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 
 import { ImageFlowEditor } from "./image-flow-editor";
@@ -9,7 +9,14 @@ import type { ProductionApi } from "./production-api";
 import type { DerivedAsset, ProductionFlowData, StoryboardItem } from "./types";
 import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
-import { applyProductionLayout, mergeProductionLayout, productionAutoLayout, productionEdges, productionNodeOrder } from "./production-flow-layout";
+import {
+  applyProductionLayout,
+  estimateProductionNodeSizes,
+  mergeProductionLayout,
+  productionAutoLayout,
+  productionEdges,
+  productionNodeOrder,
+} from "./production-flow-layout";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
 
 // React Flow relies on ResizeObserver. The desktop/browser runtime provides it;
@@ -36,6 +43,7 @@ export interface ProductionFlowBoardProps {
   initialData: ProductionFlowData;
   imageModel?: string;
   pollIntervalMs?: number;
+  externalRevision?: number;
   onChange?: (data: ProductionFlowData) => void;
   onOpenWorkbench?: () => void;
 }
@@ -58,6 +66,23 @@ function updateDerived(data: ProductionFlowData, updates: DerivedAsset[]) {
 
 function updateStoryboard(data: ProductionFlowData, update: StoryboardItem) {
   return { ...data, storyboard: data.storyboard.map((item) => (item.id === update.id ? { ...item, ...update, src: update.src || item.src } : item)) };
+}
+
+function updateStoryboards(current: StoryboardItem[], updates: StoryboardItem[]) {
+  const map = new Map(updates.map((item) => [item.id, item]));
+  return current.map((item) => {
+    const update = map.get(item.id);
+    return update
+      ? {
+          ...item,
+          ...update,
+          index: update.index ?? item.index,
+          prompt: update.prompt || item.prompt,
+          videoDesc: update.videoDesc || item.videoDesc,
+          src: update.src || item.src,
+        }
+      : item;
+  });
 }
 
 function errorMessage(error: unknown) {
@@ -95,6 +120,7 @@ export function ProductionFlowBoard({
   initialData,
   imageModel = "pancat:pancat-image",
   pollIntervalMs = 3_000,
+  externalRevision = 0,
   onChange,
   onOpenWorkbench,
 }: ProductionFlowBoardProps) {
@@ -103,9 +129,16 @@ export function ProductionFlowBoard({
   const [notice, setNotice] = useState("");
   const [editingAsset, setEditingAsset] = useState<DerivedAsset | null>(null);
   const [editingStoryboard, setEditingStoryboard] = useState<StoryboardItem | null>(null);
+  const [editingStoryboardInfo, setEditingStoryboardInfo] = useState<StoryboardItem | null>(null);
+  const [selectedStoryboardIds, setSelectedStoryboardIds] = useState<number[]>([]);
+  const [generatingStoryboards, setGeneratingStoryboards] = useState(false);
+  const [storyboardPreview, setStoryboardPreview] = useState("");
   const [spacePressed, setSpacePressed] = useState(false);
+  const [isInteracting, setIsInteracting] = useState(false);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<ProductionNode> | null>(null);
   const identityRef = useRef(`${projectId}:${scriptId}`);
+  const revisionRef = useRef(externalRevision);
+  const interactionTimerRef = useRef(0);
   const mountedRef = useRef(false);
 
   const changeText = useCallback((field: "script" | "scriptPlan" | "storyboardTable", value: string) => {
@@ -150,6 +183,108 @@ export function ProductionFlowBoard({
     onOpenWorkbench?.();
   }, [onOpenWorkbench]);
 
+  const toggleStoryboard = useCallback((id: number) => {
+    setSelectedStoryboardIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }, []);
+
+  const selectAllStoryboards = useCallback(() => {
+    setSelectedStoryboardIds(data.storyboard.map((item) => item.id));
+  }, [data.storyboard]);
+
+  const clearStoryboardSelection = useCallback(() => setSelectedStoryboardIds([]), []);
+
+  const generateStoryboards = useCallback(async () => {
+    if (!selectedStoryboardIds.length) return;
+    const ids = [...selectedStoryboardIds];
+    setGeneratingStoryboards(true);
+    setNotice("");
+    setData((current) => ({
+      ...current,
+      storyboard: current.storyboard.map((item) => (ids.includes(item.id) ? { ...item, state: "running", errorReason: "" } : item)),
+    }));
+    try {
+      const updates = await api.generateStoryboards({ projectId, scriptId, storyboardIds: ids });
+      if (updates.length) {
+        setData((current) => ({ ...current, storyboard: updateStoryboards(current.storyboard, updates) }));
+      }
+      setSelectedStoryboardIds([]);
+    } catch (error) {
+      const message = errorMessage(error);
+      setData((current) => ({
+        ...current,
+        storyboard: current.storyboard.map((item) => (ids.includes(item.id) ? { ...item, state: "failed", errorReason: message } : item)),
+      }));
+      setNotice(message);
+    } finally {
+      setGeneratingStoryboards(false);
+    }
+  }, [api, projectId, scriptId, selectedStoryboardIds]);
+
+  const deleteStoryboards = useCallback(
+    async (ids: number[]) => {
+      if (!ids.length || !window.confirm(`确定删除选中的 ${ids.length} 个分镜吗？`)) return;
+      setNotice("");
+      try {
+        await api.deleteStoryboards(projectId, ids);
+        setData((current) => ({
+          ...current,
+          storyboard: current.storyboard.filter((item) => !ids.includes(item.id)).map((item, index) => ({ ...item, index })),
+        }));
+        setSelectedStoryboardIds((current) => current.filter((id) => !ids.includes(id)));
+      } catch (error) {
+        setNotice(errorMessage(error));
+      }
+    },
+    [api, projectId],
+  );
+
+  const insertStoryboard = useCallback(
+    async (referenceId: number, placement: "before" | "after") => {
+      setNotice("");
+      try {
+        const id = await api.addStoryboard(projectId, scriptId, {
+          prompt: "",
+          duration: 0,
+          state: "未生成",
+          videoDesc: "",
+          shouldGenerateImage: 0,
+          src: null,
+        });
+        const referenceIndex = data.storyboard.findIndex((item) => item.id === referenceId);
+        const insertionIndex = Math.max(0, referenceIndex + (placement === "after" ? 1 : 0));
+        const storyboard = [...data.storyboard];
+        storyboard.splice(insertionIndex, 0, {
+          id,
+          index: insertionIndex,
+          prompt: "",
+          videoDesc: "",
+          src: "",
+          state: "idle",
+          errorReason: "",
+          duration: 0,
+          shouldGenerateImage: 0,
+        });
+        const nextFlow = { ...data, storyboard: storyboard.map((item, index) => ({ ...item, index })) };
+        setData(nextFlow);
+        await api.saveFlowData(projectId, scriptId, nextFlow);
+      } catch (error) {
+        setNotice(`新增分镜失败：${errorMessage(error)}`);
+      }
+    },
+    [api, data, projectId, scriptId],
+  );
+
+  const previewStoryboards = useCallback(async () => {
+    const ids = data.storyboard.filter((item) => item.src).map((item) => item.id);
+    if (!ids.length) return;
+    setNotice("");
+    try {
+      setStoryboardPreview(await api.previewStoryboards(ids));
+    } catch (error) {
+      setNotice(errorMessage(error));
+    }
+  }, [api, data.storyboard]);
+
   const handlers = useMemo<ProductionNodeHandlers>(
     () => ({
       onTextChange: changeText,
@@ -157,9 +292,33 @@ export function ProductionFlowBoard({
       onRemoveAsset: (id) => void remove(id),
       onEditAsset: setEditingAsset,
       onEditStoryboard: setEditingStoryboard,
+      onEditStoryboardInfo: setEditingStoryboardInfo,
+      selectedStoryboardIds,
+      generatingStoryboards,
+      onToggleStoryboard: toggleStoryboard,
+      onSelectAllStoryboards: selectAllStoryboards,
+      onClearStoryboardSelection: clearStoryboardSelection,
+      onGenerateStoryboards: () => void generateStoryboards(),
+      onDeleteStoryboards: (ids) => void deleteStoryboards(ids),
+      onInsertStoryboard: (id, placement) => void insertStoryboard(id, placement),
+      onPreviewStoryboards: () => void previewStoryboards(),
       onOpenWorkbench: openWorkbench,
     }),
-    [changeText, generate, openWorkbench, remove],
+    [
+      changeText,
+      clearStoryboardSelection,
+      deleteStoryboards,
+      generate,
+      generateStoryboards,
+      generatingStoryboards,
+      insertStoryboard,
+      openWorkbench,
+      previewStoryboards,
+      remove,
+      selectAllStoryboards,
+      selectedStoryboardIds,
+      toggleStoryboard,
+    ],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState<ProductionNode>(createNodes(initialData, handlers));
@@ -169,12 +328,26 @@ export function ProductionFlowBoard({
 
   useEffect(() => {
     const identity = `${projectId}:${scriptId}`;
-    if (identityRef.current === identity) return;
+    const identityChanged = identityRef.current !== identity;
+    const revisionChanged = revisionRef.current !== externalRevision;
+    if (!identityChanged && !revisionChanged) return;
     identityRef.current = identity;
+    revisionRef.current = externalRevision;
     mountedRef.current = false;
     setData(initialData);
+    if (identityChanged) {
+      setSelectedStoryboardIds([]);
+      setStoryboardPreview("");
+    }
     setNodes(createNodes(initialData, handlers));
-  }, [handlers, initialData, projectId, scriptId, setNodes]);
+  }, [externalRevision, handlers, initialData, projectId, scriptId, setNodes]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(interactionTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     setNodes((current) =>
@@ -223,6 +396,8 @@ export function ProductionFlowBoard({
     [data.assets],
   );
 
+  const runningStoryboardIds = useMemo(() => data.storyboard.filter((item) => item.state === "running").map((item) => item.id), [data.storyboard]);
+
   useEffect(() => {
     if (runningAssetIds.length === 0) return;
     const timer = window.setInterval(() => {
@@ -233,6 +408,17 @@ export function ProductionFlowBoard({
     }, pollIntervalMs);
     return () => window.clearInterval(timer);
   }, [api, pollIntervalMs, runningAssetIds.join(",")]);
+
+  useEffect(() => {
+    if (!runningStoryboardIds.length) return;
+    const timer = window.setInterval(() => {
+      void api
+        .pollStoryboards(runningStoryboardIds)
+        .then((updates) => setData((current) => ({ ...current, storyboard: updateStoryboards(current.storyboard, updates) })))
+        .catch((error) => setNotice(`分镜轮询暂时失败：${errorMessage(error)}`));
+    }, pollIntervalMs);
+    return () => window.clearInterval(timer);
+  }, [api, pollIntervalMs, runningStoryboardIds.join(",")]);
 
   async function save() {
     setSaving(true);
@@ -254,8 +440,24 @@ export function ProductionFlowBoard({
     setData((current) => ({ ...current, layout: { ...mergeProductionLayout(current.layout), [id]: position } }));
   }
 
+  function beginInteraction() {
+    window.clearTimeout(interactionTimerRef.current);
+    setIsInteracting(true);
+  }
+
+  function endInteraction() {
+    window.clearTimeout(interactionTimerRef.current);
+    interactionTimerRef.current = window.setTimeout(() => setIsInteracting(false), 120);
+  }
+
   function autoLayout() {
-    const layout = productionAutoLayout();
+    const measured = Object.fromEntries(nodes.map((node) => [node.id, node.measured ?? {}]));
+    const nodeSizes = estimateProductionNodeSizes({
+      assetCount: data.assets.length,
+      storyboardCount: data.storyboard.length,
+      measured,
+    });
+    const layout = productionAutoLayout({ nodeSizes });
     setNodes((current) =>
       applyProductionLayout(current, layout).map((node) => ({ ...node, data: { ...node.data, position: layout[node.id as ProductionFlowNodeId] } })),
     );
@@ -275,6 +477,18 @@ export function ProductionFlowBoard({
     const updated: StoryboardItem = { ...editingStoryboard, src: url, flowId, state: "completed", errorReason: "" };
     await api.updateStoryboardImage(editingStoryboard.id, url, flowId);
     setData((current) => updateStoryboard(current, updated));
+  }
+
+  async function saveStoryboardInfo() {
+    if (!editingStoryboardInfo) return;
+    setNotice("");
+    try {
+      await api.editStoryboard(editingStoryboardInfo.id, editingStoryboardInfo.prompt, editingStoryboardInfo.videoDesc);
+      setData((current) => updateStoryboard(current, editingStoryboardInfo));
+      setEditingStoryboardInfo(null);
+    } catch (error) {
+      setNotice(errorMessage(error));
+    }
   }
 
   return (
@@ -315,13 +529,20 @@ export function ProductionFlowBoard({
       ) : null}
       <div
         data-testid="production-infinite-canvas"
+        data-interacting={isInteracting ? "true" : "false"}
         aria-label="可拖动生产流程"
         className={`relative h-[72vh] min-h-[680px] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 ${spacePressed ? "cursor-grabbing" : "cursor-default"}`}>
         <ReactFlow<ProductionNode>
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
-          onNodeDragStop={(_event, node) => updateNodePosition(node)}
+          onNodeDragStart={beginInteraction}
+          onNodeDragStop={(_event, node) => {
+            updateNodePosition(node);
+            endInteraction();
+          }}
+          onMoveStart={beginInteraction}
+          onMoveEnd={endInteraction}
           onInit={setFlowInstance}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -338,7 +559,7 @@ export function ProductionFlowBoard({
           maxZoom={10}
           fitView
           fitViewOptions={{ padding: 0.12, maxZoom: 0.9 }}
-          onlyRenderVisibleElements={false}
+          onlyRenderVisibleElements
           proOptions={{ hideAttribution: true }}
           colorMode="dark">
           <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="#334155" />
@@ -378,6 +599,77 @@ export function ProductionFlowBoard({
           onClose={() => setEditingStoryboard(null)}
           onSaved={adoptStoryboard}
         />
+      ) : null}
+      {editingStoryboardInfo ? (
+        <div role="dialog" aria-label="编辑分镜信息" className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/85 p-6 backdrop-blur-sm">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveStoryboardInfo();
+            }}
+            className="w-full max-w-lg space-y-4 rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <strong className="text-sm">编辑分镜信息</strong>
+              <button
+                type="button"
+                aria-label="关闭分镜信息编辑"
+                onClick={() => setEditingStoryboardInfo(null)}
+                className="rounded-lg border border-slate-700 p-2">
+                <X className="size-4" />
+              </button>
+            </div>
+            <label className="grid gap-2 text-xs text-slate-400">
+              画面提示词
+              <textarea
+                aria-label="画面提示词"
+                value={editingStoryboardInfo.prompt}
+                onChange={(event) => setEditingStoryboardInfo((current) => (current ? { ...current, prompt: event.target.value } : current))}
+                className="h-28 resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-slate-100 outline-none focus:border-blue-500"
+              />
+            </label>
+            <label className="grid gap-2 text-xs text-slate-400">
+              镜头描述
+              <textarea
+                aria-label="镜头描述"
+                value={editingStoryboardInfo.videoDesc}
+                onChange={(event) => setEditingStoryboardInfo((current) => (current ? { ...current, videoDesc: event.target.value } : current))}
+                className="h-24 resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-slate-100 outline-none focus:border-blue-500"
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setEditingStoryboardInfo(null)} className="rounded-lg border border-slate-700 px-3 py-2 text-xs">
+                取消
+              </button>
+              <button type="submit" className="rounded-lg bg-blue-600 px-3 py-2 text-xs text-white hover:bg-blue-500">
+                保存分镜信息
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+      {storyboardPreview ? (
+        <div role="dialog" aria-label="分镜合并预览" className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/85 p-6 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-2xl border border-slate-700 bg-slate-950 p-4 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <strong className="text-sm">分镜合并预览</strong>
+              <button
+                type="button"
+                aria-label="关闭分镜预览"
+                onClick={() => setStoryboardPreview("")}
+                className="rounded-lg border border-slate-700 p-2">
+                <X className="size-4" />
+              </button>
+            </div>
+            <img src={storyboardPreview} alt="画布分镜合并预览" className="w-full rounded-xl" />
+            <a
+              href={storyboardPreview}
+              download="storyboard-preview.jpg"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs text-white hover:bg-blue-500">
+              <Download className="size-3.5" />
+              下载合并预览
+            </a>
+          </div>
+        </div>
       ) : null}
     </section>
   );
