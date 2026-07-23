@@ -9,14 +9,13 @@ function createClient() {
 }
 
 describe("createAgentServerHandlers", () => {
-  it("loads script work data and persists completed XML work updates", async () => {
+  it("persists planning work while leaving generated script persistence to the backend", async () => {
     const { client, request } = createClient();
     request
       .mockResolvedValueOnce({
         id: 41,
         data: { storySkeleton: "旧骨架", adaptationStrategy: "旧策略", script: [{ id: 9, name: "第一集", content: "旧内容" }] },
       })
-      .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce(undefined);
     const handlers = createAgentServerHandlers({ agentType: "scriptAgent", projectId: 7, apiClient: client });
 
@@ -40,14 +39,7 @@ describe("createAgentServerHandlers", () => {
         data: { storySkeleton: "新骨架", adaptationStrategy: "旧策略", script: [{ id: 9, name: "第一集", content: "旧内容" }] },
       }),
     });
-    expect(request).toHaveBeenNthCalledWith(3, "/scriptAgent/setPlanData", {
-      method: "POST",
-      body: JSON.stringify({
-        projectId: 7,
-        agentType: "scriptAgent",
-        data: { storySkeleton: "新骨架", adaptationStrategy: "旧策略", script: [{ id: 9, name: "第一集", content: "新内容" }] },
-      }),
-    });
+    expect(request).toHaveBeenCalledTimes(2);
   });
 
   it("binds production callbacks to flow, asset, storyboard, and save endpoints", async () => {

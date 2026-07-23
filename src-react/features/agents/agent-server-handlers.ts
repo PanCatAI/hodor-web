@@ -181,14 +181,14 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
 
   async function updateScriptWorkData(event: AgentWorkDataTagEvent) {
     if (event.status !== "complete") return;
+    // Generated scripts are validated and persisted by the backend after the
+    // complete agent response is available. Keeping this write in the browser
+    // would create two competing database writers for the same script.
+    if (event.tag === "scriptItem") return;
     const data = planData ?? (await loadPlan());
     if (event.tag === "storySkeleton") data.storySkeleton = event.value;
     else if (event.tag === "adaptationStrategy") data.adaptationStrategy = event.value;
-    else if (event.tag === "scriptItem" && event.attrs.name) {
-      const item = data.script.find((script) => script.name === event.attrs.name);
-      if (item) item.content = event.value;
-      else data.script.push({ name: event.attrs.name, content: event.value });
-    } else return;
+    else return;
     await savePlan();
   }
 
