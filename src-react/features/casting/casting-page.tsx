@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, AudioLines, History, ImageIcon, LoaderCircle, RotateCcw, Sparkles, Square, SquareCheckBig, Trash2, X } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, AudioLines, History, ImageIcon, LoaderCircle, PencilLine, RotateCcw, Sparkles, Square, SquareCheckBig, Trash2, X } from "lucide-react";
 
 import { Button } from "@react/components/ui/button";
 import type { CastingApi } from "./casting-api";
@@ -54,6 +54,113 @@ function stateClass(state: string): string {
   return "border-slate-700 bg-slate-900 text-slate-400";
 }
 
+function EditCastingAssetDialog({
+  asset,
+  api,
+  onClose,
+  onSaved,
+}: {
+  asset: CastingAsset;
+  api: CastingApi;
+  onClose: () => void;
+  onSaved: (updated: CastingAsset) => void;
+}) {
+  const [describe, setDescribe] = useState(asset.describe ?? "");
+  const [prompt, setPrompt] = useState(asset.prompt ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setSaveError("");
+    try {
+      await api.updateAsset({
+        id: asset.id,
+        name: asset.name,
+        describe,
+        prompt,
+      });
+      onSaved({ ...asset, describe, prompt });
+      onClose();
+    } catch (cause) {
+      setSaveError(messageOf(cause));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`编辑资产 ${asset.name}`}>
+      <form onSubmit={(event) => void save(event)} className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-[#10131a] shadow-2xl shadow-black/60">
+        <header className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">{typeLabels[asset.type]}</span>
+              <span className="text-xs text-slate-500">资产 #{asset.id}</span>
+            </div>
+            <h2 className="text-xl font-semibold text-slate-100">{asset.name}</h2>
+            <p className="mt-1 text-sm text-slate-400">查看并编辑生成图片所用的完整描述和提示词。</p>
+          </div>
+          <button type="button" aria-label="关闭资产编辑" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white">
+            <X className="size-5" />
+          </button>
+        </header>
+
+        <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+          <div className="space-y-5">
+            <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+              {asset.filePath ? (
+                <img src={asset.filePath} alt={asset.name} className="aspect-video w-full object-cover" />
+              ) : (
+                <div className="grid aspect-video place-items-center text-slate-700"><ImageIcon className="size-10" /></div>
+              )}
+            </div>
+            <label className="block space-y-2">
+              <span className="flex items-center justify-between text-sm font-medium text-slate-200">
+                资产描述
+                <span className="font-normal text-slate-500">{describe.length} 字</span>
+              </span>
+              <textarea
+                aria-label="资产描述"
+                value={describe}
+                onChange={(event) => setDescribe(event.target.value)}
+                className="min-h-48 w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                placeholder="填写角色、场景或道具的完整描述"
+              />
+            </label>
+          </div>
+
+          <label className="flex min-h-0 flex-col gap-2">
+            <span className="flex items-center justify-between text-sm font-medium text-slate-200">
+              图片提示词
+              <span className="font-normal text-slate-500">{prompt.length} 字</span>
+            </span>
+            <textarea
+              aria-label="图片提示词"
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              className="min-h-80 flex-1 resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-mono text-sm leading-6 text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              placeholder="填写将提交给图片模型的完整提示词"
+            />
+          </label>
+        </div>
+
+        <footer className="flex items-center justify-between gap-4 border-t border-slate-800 bg-slate-950/40 px-6 py-4">
+          <div className="min-w-0 text-sm text-red-300" role={saveError ? "alert" : undefined}>{saveError}</div>
+          <div className="flex shrink-0 gap-2">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>取消</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <PencilLine className="mr-2 size-4" />}
+              {saving ? "保存中…" : "保存描述和提示词"}
+            </Button>
+          </div>
+        </footer>
+      </form>
+    </div>
+  );
+}
+
 export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, pollIntervalMs = 3_000 }: CastingPageProps) {
   const [assets, setAssets] = useState<CastingAsset[]>([]);
   const [filter, setFilter] = useState<"" | CastingAssetType>("");
@@ -64,6 +171,7 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
   const [error, setError] = useState("");
   const [historyAsset, setHistoryAsset] = useState<CastingAsset | null>(null);
   const [audioAsset, setAudioAsset] = useState<CastingAsset | null>(null);
+  const [editingAsset, setEditingAsset] = useState<CastingAsset | null>(null);
   const [audioIdDraft, setAudioIdDraft] = useState("");
   const [audioOptions, setAudioOptions] = useState<Array<{ id: number; name: string }>>([]);
   const [audioOptionsLoading, setAudioOptionsLoading] = useState(false);
@@ -420,6 +528,13 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
                       {asset.errorReason || asset.promptErrorReason ? (
                         <p className="text-xs leading-5 text-red-300">{asset.errorReason || asset.promptErrorReason}</p>
                       ) : null}
+                      <button
+                        type="button"
+                        aria-label={`查看并编辑 ${asset.name}`}
+                        onClick={() => setEditingAsset(asset)}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs font-medium text-blue-200 transition hover:border-blue-400/50 hover:bg-blue-500/10">
+                        <PencilLine className="size-3.5" /> 查看并编辑描述/提示词
+                      </button>
                       {asset.state === "生成中" ? (
                         <button
                           type="button"
@@ -445,6 +560,14 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
       </div>
       {historyAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${historyAsset.name}历史图片`}><section className="w-full max-w-3xl rounded-xl border border-slate-800 bg-[#10131a] p-6"><div className="mb-4 flex justify-between"><h2 className="text-lg font-semibold">{historyAsset.name} · 历史图片</h2><button aria-label="关闭历史图片" onClick={() => setHistoryAsset(null)}><X /></button></div><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{historyAsset.historyImages?.map((image) => <figure key={image.id} className="rounded-lg border border-slate-800 p-2"><img src={image.filePath} alt={`历史图片 ${image.id}`} className="aspect-video w-full rounded object-cover" /><div className="mt-2 flex justify-between"><button type="button" aria-label={`使用历史图片 ${image.id}`} className="text-xs text-blue-300" onClick={() => void useHistoryImage(historyAsset, image.id)}>替换</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-rose-400" onClick={() => void deleteHistoryImage(image.id)}><Trash2 className="size-3.5" /></button></div></figure>)}</div></section></div> : null}
       {audioAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${audioAsset.name}更新音频`}><section className="w-full max-w-md space-y-4 rounded-xl border border-slate-800 bg-[#10131a] p-6"><h2 className="text-lg font-semibold">更新单项音频</h2><p className="text-sm text-slate-400">从资产中心已上传的音频中选择；选“解除绑定”可清空。</p><select aria-label="选择音频资产" disabled={audioOptionsLoading} className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2" value={audioIdDraft} onChange={(event) => setAudioIdDraft(event.target.value)}><option value="">解除绑定</option>{audioOptions.map((audio) => <option key={audio.id} value={audio.id}>{audio.name}</option>)}</select><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setAudioAsset(null)}>取消</Button><Button onClick={() => void saveAudio()}>保存音频</Button></div></section></div> : null}
+      {editingAsset ? (
+        <EditCastingAssetDialog
+          asset={editingAsset}
+          api={api}
+          onClose={() => setEditingAsset(null)}
+          onSaved={(updated) => setAssets((current) => updateAssets(current, [{ id: updated.id, describe: updated.describe, prompt: updated.prompt }]))}
+        />
+      ) : null}
     </main>
   );
 }

@@ -125,4 +125,16 @@ describe("casting API contract", () => {
     await expect(api.listAudioAssets(42)).resolves.toEqual([{ id: 5, name: "少女音色" }]);
     expect(request).toHaveBeenCalledWith("/assets/getAssetsApi", { method: "POST", body: JSON.stringify({ projectId: 42, type: "audio", page: 1, limit: 1000 }) });
   });
+
+  it("updates the full casting description and prompt through the asset update route", async () => {
+    const request = vi.fn(async () => undefined);
+    const api = createCastingApi({ request });
+
+    await api.updateAsset({ id: 7, name: "黛利拉", describe: "完整描述", prompt: "完整提示词" });
+
+    expect(request).toHaveBeenCalledWith("/assets/updateAssets", {
+      method: "POST",
+      body: JSON.stringify({ id: 7, name: "黛利拉", describe: "完整描述", prompt: "完整提示词" }),
+    });
+  });
 });

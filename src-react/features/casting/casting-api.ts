@@ -38,6 +38,7 @@ export interface CancelAssetInput {
 
 export interface CastingApi {
   listAssets(input: CastingListInput): Promise<CastingAsset[]>;
+  updateAsset(input: { id: number; name: string; describe: string; prompt: string }): Promise<void>;
   batchPolish(input: BatchPolishInput): Promise<void>;
   batchGenerateImages(input: BatchGenerateImagesInput): Promise<void>;
   cancelAsset(input: CancelAssetInput): Promise<void>;
@@ -65,6 +66,9 @@ export function createCastingApi(client: RequestClient): CastingApi {
 
   return {
     listAssets,
+    async updateAsset(input) {
+      await post(client, "/assets/updateAssets", input);
+    },
     async batchPolish(input) {
       await post(client, "/assetsGenerate/batchPolishAssetsPrompt", input);
     },

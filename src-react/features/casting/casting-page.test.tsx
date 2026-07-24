@@ -33,6 +33,7 @@ function createFakeApi(overrides: Partial<CastingApi> = {}): CastingApi {
     selectHistoryImage: vi.fn(async () => undefined),
     deleteHistoryImage: vi.fn(async () => undefined),
     updateAssetAudio: vi.fn(async () => undefined),
+    updateAsset: vi.fn(async () => undefined),
     retryPrompt: vi.fn(async () => undefined),
     retryImage: vi.fn(async () => undefined),
     listAudioAssets: vi.fn(async () => [{ id: 5, name: "少女音色" }, { id: 8, name: "少年音色" }]),
@@ -186,5 +187,36 @@ describe("React casting page", () => {
     fireEvent.change(screen.getByLabelText("选择音频资产"), { target: { value: "8" } });
     fireEvent.click(screen.getByRole("button", { name: "保存音频" }));
     await waitFor(() => expect(api.updateAssetAudio).toHaveBeenCalledWith({ assetsId: 7, audioIds: [8] }));
+  });
+
+  it("shows the full description and prompt in an editable asset dialog", async () => {
+    const detailedRole = {
+      ...role,
+      describe: "女性，30岁出头，深色头发束在脑后，眼神冷静锐利，先观察后评判。",
+      prompt: "女性角色四视图设定图，真人写实摄影，都市写实纪实，强对比度，极致细节，character design sheet, character turnaround",
+    };
+    const api = createFakeApi({ listAssets: vi.fn(async () => [detailedRole]) });
+    render(<CastingPage projectId={42} imageModel="pancat:pancat-image" api={api} />);
+    await screen.findByText("黛利拉");
+
+    fireEvent.click(screen.getByRole("button", { name: "查看并编辑 黛利拉" }));
+
+    expect(screen.getByRole("dialog", { name: "编辑资产 黛利拉" })).toBeInTheDocument();
+    expect(screen.getByLabelText("资产描述")).toHaveValue(detailedRole.describe);
+    expect(screen.getByLabelText("图片提示词")).toHaveValue(detailedRole.prompt);
+
+    fireEvent.change(screen.getByLabelText("资产描述"), { target: { value: "更新后的完整描述" } });
+    fireEvent.change(screen.getByLabelText("图片提示词"), { target: { value: "更新后的完整提示词" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存描述和提示词" }));
+
+    await waitFor(() =>
+      expect(api.updateAsset).toHaveBeenCalledWith({
+        id: 7,
+        name: "黛利拉",
+        describe: "更新后的完整描述",
+        prompt: "更新后的完整提示词",
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "编辑资产 黛利拉" })).not.toBeInTheDocument());
   });
 });
