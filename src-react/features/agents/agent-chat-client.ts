@@ -26,6 +26,7 @@ interface CreateAgentChatClientOptions {
   socketFactory?: AgentSocketFactory;
   handlers?: AgentServerHandlers;
   initialMessages?: AgentMessage[];
+  messageContext?: () => Record<string, unknown> | undefined;
 }
 
 interface MessageEvent extends Omit<AgentMessage, "content"> {
@@ -453,7 +454,11 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
         content: [{ type: "text", data: text, status: "complete" }],
       };
       update({ messages: [...snapshot.messages, userMessage], error: null });
-      socket.emit("chat", { content: text });
+      const messageContext = options.messageContext?.();
+      socket.emit("chat", {
+        content: text,
+        ...(messageContext && Object.keys(messageContext).length > 0 ? { context: messageContext } : {}),
+      });
       return true;
     },
     stop() {

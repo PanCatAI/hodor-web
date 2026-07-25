@@ -17,6 +17,7 @@ export interface ProjectsPageProps {
 function projectTypeLabel(type: string): string {
   if (type === "novel") return "小说原文";
   if (type === "script") return "剧本";
+  if (type === "interactive") return "互动剧";
   return type || "未分类";
 }
 
@@ -32,7 +33,8 @@ function readError(error: unknown, fallback = "项目加载失败"): string {
 }
 
 function projectHref(project: HodorProject): string {
-  return `#/projects/${project.id}/${project.projectType === "novel" ? "novels" : "scripts"}`;
+  const section = project.projectType === "novel" ? "novels" : project.projectType === "interactive" ? "interactive" : "scripts";
+  return `#/projects/${project.id}/${section}`;
 }
 
 export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {

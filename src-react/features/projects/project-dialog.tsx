@@ -135,7 +135,7 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <label className={fieldClass}><span>项目名称</span><Input aria-label="项目名称" required value={form.name} onChange={(event) => update("name", event.target.value)} /></label>
           <SelectField label="项目来源" value={form.projectType} onChange={(value) => update("projectType", value)}>
-            <option value="novel">小说原文</option><option value="script">剧本</option>
+            <option value="novel">小说原文</option><option value="script">剧本</option><option value="interactive">互动剧</option>
           </SelectField>
           <label className={fieldClass}><span>题材类型</span><Input aria-label="题材类型" required value={form.type} onChange={(event) => update("type", event.target.value)} placeholder="悬疑、科幻、言情" /></label>
           <SelectField label="画面比例" value={form.videoRatio} onChange={(value) => update("videoRatio", value)}>

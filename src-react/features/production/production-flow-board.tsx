@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { Background, Controls, ReactFlow, useNodesState, useUpdateNodeInternals } from "@xyflow/react";
+import { useNodesState, useUpdateNodeInternals } from "@xyflow/react";
 import type { Node, NodeProps, ReactFlowInstance } from "@xyflow/react";
-import { Download, Workflow, X } from "lucide-react";
-import "@xyflow/react/dist/style.css";
+import { Download, X } from "lucide-react";
 
+import { InfiniteCanvas, readCanvasWheelEvent } from "@react/features/canvas";
 import { ImageFlowEditor } from "./image-flow-editor";
 import type { ProductionApi } from "./production-api";
 import type { DerivedAsset, ProductionFlowData, StoryboardItem } from "./types";
@@ -11,23 +11,6 @@ import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
 import { applyProductionLayout, mergeProductionLayout, productionAutoLayout, productionEdges, productionNodeOrder } from "./production-flow-layout";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
-
-// React Flow relies on ResizeObserver. The desktop/browser runtime provides it;
-// this fallback keeps server rendering and DOM-only test environments usable.
-if (typeof globalThis.ResizeObserver === "undefined") {
-  globalThis.ResizeObserver = class implements ResizeObserver {
-    constructor(_callback: ResizeObserverCallback) {}
-    observe(target: Element) {
-      const element = target as HTMLElement;
-      const width = Number.parseFloat(element.style.width) || 500;
-      const height = Number.parseFloat(element.style.height) || 500;
-      if (!element.offsetWidth) Object.defineProperty(element, "offsetWidth", { configurable: true, value: width });
-      if (!element.offsetHeight) Object.defineProperty(element, "offsetHeight", { configurable: true, value: height });
-    }
-    unobserve() {}
-    disconnect() {}
-  };
-}
 
 export interface ProductionFlowBoardProps {
   api: ProductionApi;
@@ -46,8 +29,6 @@ export interface ProductionFlowBoardProps {
 
 type ProductionNode = Node<ProductionNodeData, "production">;
 
-export type CanvasWheelEvent = "zoom" | "scroll";
-
 interface MeasuredLayoutNode {
   id: string;
   measured?: { width?: number; height?: number };
@@ -61,18 +42,7 @@ interface StableNodeMeasurementOptions<T extends MeasuredLayoutNode> {
   delayMs?: number;
 }
 
-export function readCanvasWheelEvent(storage: Pick<Storage, "getItem"> = globalThis.localStorage): CanvasWheelEvent {
-  const direct = storage.getItem("canvasWheelEvent");
-  if (direct === "zoom" || direct === "scroll") return direct;
-
-  try {
-    const legacy = JSON.parse(storage.getItem("setting") ?? "null") as { canvasWheelEvent?: unknown } | null;
-    if (legacy?.canvasWheelEvent === "zoom" || legacy?.canvasWheelEvent === "scroll") return legacy.canvasWheelEvent;
-  } catch {
-    // Keep the upstream default when the legacy Pinia value is malformed.
-  }
-  return "zoom";
-}
+export { readCanvasWheelEvent };
 
 export async function waitForStableNodeMeasurements<T extends MeasuredLayoutNode>({
   nodeIds,
@@ -199,18 +169,13 @@ export function ProductionFlowBoard({
   const [selectedStoryboardIds, setSelectedStoryboardIds] = useState<number[]>([]);
   const [generatingStoryboards, setGeneratingStoryboards] = useState(false);
   const [storyboardPreview, setStoryboardPreview] = useState("");
-  const [spacePressed, setSpacePressed] = useState(false);
-  const [isInteracting, setIsInteracting] = useState(false);
-  const [canvasWheelEvent, setCanvasWheelEvent] = useState<CanvasWheelEvent>(() => readCanvasWheelEvent());
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<ProductionNode> | null>(null);
   const identityRef = useRef(`${projectId}:${scriptId}`);
   const revisionRef = useRef(externalRevision);
-  const interactionTimerRef = useRef(0);
   const initializationRunRef = useRef(0);
   const layoutRunRef = useRef(0);
   const layoutCompletedRef = useRef("");
   const mountedRef = useRef(false);
-  const spacePanRef = useRef<{ startX: number; startY: number; viewportX: number; viewportY: number; zoom: number } | null>(null);
   const updateNodeInternalsRef = useRef<ReturnType<typeof useUpdateNodeInternals> | null>(null);
 
   const changeText = useCallback(
@@ -406,15 +371,6 @@ export function ProductionFlowBoard({
   const nodeTypes = useMemo(() => ({ production: ProductionFlowNode as (props: NodeProps) => React.ReactNode }), []);
 
   useEffect(() => {
-    function syncCanvasWheelEvent(event: StorageEvent) {
-      if (event.key && event.key !== "canvasWheelEvent" && event.key !== "setting") return;
-      setCanvasWheelEvent(readCanvasWheelEvent());
-    }
-    window.addEventListener("storage", syncCanvasWheelEvent);
-    return () => window.removeEventListener("storage", syncCanvasWheelEvent);
-  }, []);
-
-  useEffect(() => {
     const identity = `${projectId}:${scriptId}`;
     const identityChanged = identityRef.current !== identity;
     const revisionChanged = revisionRef.current !== externalRevision;
@@ -437,13 +393,6 @@ export function ProductionFlowBoard({
     if (flowInstance) void initializeLayout(flowInstance);
   }, [externalRevision, projectId, scriptId]);
 
-  useEffect(
-    () => () => {
-      window.clearTimeout(interactionTimerRef.current);
-    },
-    [],
-  );
-
   useEffect(() => {
     setNodes((current) =>
       current.map((node) => ({
@@ -460,31 +409,6 @@ export function ProductionFlowBoard({
     }
     onChange?.(data, revisionRef.current);
   }, [data, onChange]);
-
-  useEffect(() => {
-    function isEditableTarget(target: EventTarget | null) {
-      return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
-    }
-    function keyDown(event: KeyboardEvent) {
-      if (event.code !== "Space" || isEditableTarget(event.target)) return;
-      event.preventDefault();
-      setSpacePressed(true);
-    }
-    function keyUp(event: KeyboardEvent) {
-      if (event.code === "Space") setSpacePressed(false);
-    }
-    function release() {
-      setSpacePressed(false);
-    }
-    document.addEventListener("keydown", keyDown);
-    document.addEventListener("keyup", keyUp);
-    window.addEventListener("blur", release);
-    return () => {
-      document.removeEventListener("keydown", keyDown);
-      document.removeEventListener("keyup", keyUp);
-      window.removeEventListener("blur", release);
-    };
-  }, []);
 
   const runningAssetIds = useMemo(
     () => data.assets.flatMap((asset) => asset.derive.filter((item) => item.state === "running").map((item) => item.id)),
@@ -520,50 +444,6 @@ export function ProductionFlowBoard({
     const position = { x: Math.round(node.position.x), y: Math.round(node.position.y) };
     setNodes((current) => current.map((item) => (item.id === id ? { ...item, position, data: { ...item.data, position } } : item)));
     setData((current) => ({ ...current, layout: { ...mergeProductionLayout(current.layout), [id]: position } }));
-  }
-
-  function beginInteraction() {
-    window.clearTimeout(interactionTimerRef.current);
-    setIsInteracting(true);
-  }
-
-  function endInteraction() {
-    window.clearTimeout(interactionTimerRef.current);
-    interactionTimerRef.current = window.setTimeout(() => setIsInteracting(false), 150);
-  }
-
-  function moveSpacePan(event: MouseEvent) {
-    const origin = spacePanRef.current;
-    if (!origin || !flowInstance) return;
-    void flowInstance.setViewport({
-      x: origin.viewportX + event.clientX - origin.startX,
-      y: origin.viewportY + event.clientY - origin.startY,
-      zoom: origin.zoom,
-    });
-  }
-
-  function endSpacePan() {
-    spacePanRef.current = null;
-    document.removeEventListener("mousemove", moveSpacePan);
-    document.removeEventListener("mouseup", endSpacePan);
-    endInteraction();
-  }
-
-  function beginSpacePan(event: React.MouseEvent<HTMLDivElement>) {
-    if (!spacePressed || event.button !== 0 || !flowInstance) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const viewport = flowInstance.getViewport();
-    spacePanRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      viewportX: viewport.x,
-      viewportY: viewport.y,
-      zoom: viewport.zoom,
-    };
-    beginInteraction();
-    document.addEventListener("mousemove", moveSpacePan);
-    document.addEventListener("mouseup", endSpacePan, { once: true });
   }
 
   function applyAutoLayout(instance = flowInstance, measuredNodes = instance?.getNodes() ?? nodes) {
@@ -643,18 +523,6 @@ export function ProductionFlowBoard({
 
   return (
     <section className="relative h-full min-h-0" aria-label="生产流图">
-      <div className="absolute left-0 top-[10px] z-30 flex items-center gap-2">
-        {leadingControls}
-        <button
-          type="button"
-          title="自动布局"
-          aria-label="自动布局"
-          onClick={() => void runAutoLayout()}
-          className="grid size-10 place-items-center rounded-lg border border-slate-700 bg-slate-950/95 text-slate-300 shadow-lg hover:bg-slate-900">
-          <Workflow className="size-4" />
-        </button>
-        {trailingControls}
-      </div>
       {notice ? (
         <div
           role="status"
@@ -662,59 +530,23 @@ export function ProductionFlowBoard({
           {notice}
         </div>
       ) : null}
-      <div
-        data-testid="production-infinite-canvas"
-        data-interacting={isInteracting ? "true" : "false"}
-        aria-label="可拖动生产流程"
-        onMouseDown={beginSpacePan}
-        className={`relative h-full min-h-0 overflow-hidden bg-slate-950 ${spacePressed ? "cursor-grab" : "cursor-default"}`}>
-        <ReactFlow<ProductionNode>
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onNodeDragStart={beginInteraction}
-          onNodeDragStop={(_event, node) => {
-            updateNodePosition(node);
-            endInteraction();
-          }}
-          onMoveStart={beginInteraction}
-          onMoveEnd={endInteraction}
-          onInit={(instance) => {
-            setFlowInstance(instance);
-            void initializeLayout(instance);
-          }}
-          nodeTypes={nodeTypes}
-          nodesDraggable={!spacePressed}
-          nodesConnectable={!spacePressed}
-          elementsSelectable={!spacePressed}
-          panOnDrag
-          panActivationKeyCode={null}
-          zoomActivationKeyCode={null}
-          panOnScroll={canvasWheelEvent === "scroll"}
-          zoomOnScroll={canvasWheelEvent === "zoom"}
-          zoomOnPinch
-          zoomOnDoubleClick={false}
-          minZoom={0.1}
-          maxZoom={10}
-          fitView
-          onlyRenderVisibleElements={false}
-          nodesFocusable={false}
-          edgesFocusable={false}
-          edgesReconnectable={false}
-          elevateEdgesOnSelect={false}
-          selectNodesOnDrag={false}
-          autoPanOnNodeDrag={false}
-          autoPanOnConnect={false}
-          deleteKeyCode={null}
-          selectionKeyCode={null}
-          multiSelectionKeyCode={null}
-          proOptions={{ hideAttribution: true }}
-          colorMode="dark">
-          <NodeInternalsBridge updateRef={updateNodeInternalsRef} />
-          <Background />
-          <Controls />
-        </ReactFlow>
-      </div>
+      <InfiniteCanvas<ProductionNode>
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        nodeTypes={nodeTypes}
+        leadingControls={leadingControls}
+        trailingControls={trailingControls}
+        ariaLabel="可拖动生产流程"
+        testId="production-infinite-canvas"
+        onNodeDragStop={updateNodePosition}
+        onInit={(instance) => {
+          setFlowInstance(instance);
+          void initializeLayout(instance);
+        }}
+        onAutoLayout={(instance) => void runAutoLayout(instance)}>
+        <NodeInternalsBridge updateRef={updateNodeInternalsRef} />
+      </InfiniteCanvas>
       {editingAsset ? (
         <ImageFlowEditor
           api={api}

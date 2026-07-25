@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
+import { topologyLevelLayout } from "@react/features/canvas";
 import type { FlowNodePosition } from "./types";
 
 export const productionNodeOrder = ["script", "scriptPlan", "assets", "storyboardTable", "storyboard", "workbench"] as const;
@@ -89,15 +90,6 @@ function measuredNodeSizes(
   ) as Record<ProductionFlowNodeId, ProductionNodeSize>;
 }
 
-function overlaps(firstPosition: FlowNodePosition, firstSize: ProductionNodeSize, secondPosition: FlowNodePosition, secondSize: ProductionNodeSize) {
-  return (
-    firstPosition.x < secondPosition.x + secondSize.width &&
-    firstPosition.x + firstSize.width > secondPosition.x &&
-    firstPosition.y < secondPosition.y + secondSize.height &&
-    firstPosition.y + firstSize.height > secondPosition.y
-  );
-}
-
 /**
  * Match the upstream Vue canvas auto-layout contract: use React Flow's measured
  * dimensions, place the main chain left-to-right with an 80px default gap, and
@@ -107,34 +99,13 @@ function overlaps(firstPosition: FlowNodePosition, firstSize: ProductionNodeSize
 export function productionAutoLayout(options?: ProductionLayoutOptions): Record<ProductionFlowNodeId, FlowNodePosition> {
   const sizes = measuredNodeSizes(options?.nodeSizes);
   const gap = finitePositive(options?.gap, productionLayoutGap);
-  const mainChain: ProductionFlowNodeId[] = ["script", "scriptPlan", "storyboardTable", "storyboard", "workbench"];
-  const layout = {} as Record<ProductionFlowNodeId, FlowNodePosition>;
-
-  let cursorX = 0;
-  for (const id of mainChain) {
-    layout[id] = { x: cursorX, y: 0 };
-    cursorX += sizes[id].width + gap;
-  }
-
-  layout.assets = {
-    x: layout.script.x,
-    y: layout.script.y + sizes.script.height + gap,
-  };
-
-  // Keep the upstream behavior: on the first collision, move that main-chain
-  // node and every following node together so their internal gaps stay intact.
-  for (let index = 1; index < mainChain.length; index += 1) {
-    const id = mainChain[index];
-    if (!overlaps(layout.assets, sizes.assets, layout[id], sizes[id])) continue;
-    const shift = layout.assets.x + sizes.assets.width + gap - layout[id].x;
-    for (let following = index; following < mainChain.length; following += 1) {
-      const followingId = mainChain[following];
-      layout[followingId] = { ...layout[followingId], x: layout[followingId].x + shift };
-    }
-    break;
-  }
-
-  return layout;
+  return topologyLevelLayout({
+    nodeIds: [...productionNodeOrder],
+    edges: productionConnections,
+    nodeSizes: sizes,
+    underSourceNodeIds: ["assets"],
+    gap,
+  }) as Record<ProductionFlowNodeId, FlowNodePosition>;
 }
 
 export function mergeProductionLayout(layout?: Record<string, FlowNodePosition>): Record<ProductionFlowNodeId, FlowNodePosition> {

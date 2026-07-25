@@ -38,6 +38,7 @@ import {
   X,
 } from "lucide-react";
 
+import { CanvasAgentPanel } from "@react/features/canvas";
 import type { ProductionApi } from "./production-api";
 import { ProductionFlowBoard } from "./production-flow-board";
 import type {
@@ -63,6 +64,7 @@ export interface ProductionWorkbenchProps {
   project: ProductionProject;
   pollIntervalMs?: number;
   initialView?: "generation" | "flow" | "editor";
+  initialScriptId?: number;
   onOpenAgent?: (scriptId: number) => void;
   renderProductionAgent?: (scriptId: number, onFlowDataChange: () => void, onBusyChange: (busy: boolean) => void) => ReactNode;
 }
@@ -1294,6 +1296,7 @@ export function ProductionWorkbench({
   project,
   pollIntervalMs = 3_000,
   initialView = "generation",
+  initialScriptId,
   onOpenAgent,
   renderProductionAgent,
 }: ProductionWorkbenchProps) {
@@ -1317,7 +1320,6 @@ export function ProductionWorkbench({
   const [flowRevision, setFlowRevision] = useState(0);
   const flowRevisionRef = useRef(0);
   const loadSequence = useRef(0);
-  const agentResize = useRef<{ startX: number; startWidth: number } | null>(null);
   const storyboards = flowData.storyboard;
   const bumpFlowRevision = useCallback(() => {
     flowRevisionRef.current += 1;
@@ -1354,40 +1356,6 @@ export function ProductionWorkbench({
   }, [tab, workbenchOpen]);
 
   useEffect(() => {
-    const handleMove = (event: PointerEvent) => {
-      const resize = agentResize.current;
-      if (!resize) return;
-      const maximum = Math.max(400, Math.floor(window.innerWidth * 0.8));
-      setAgentPanelWidth(Math.min(maximum, Math.max(400, resize.startWidth + resize.startX - event.clientX)));
-    };
-    const handleUp = () => {
-      agentResize.current = null;
-      document.body.style.removeProperty("cursor");
-      document.body.style.removeProperty("user-select");
-    };
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
-    return () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-      document.body.style.removeProperty("cursor");
-      document.body.style.removeProperty("user-select");
-    };
-  }, []);
-
-  function beginAgentResize(event: React.PointerEvent<HTMLDivElement>) {
-    event.preventDefault();
-    agentResize.current = { startX: event.clientX, startWidth: agentPanelWidth };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }
-
-  function resizeAgentByKeyboard(delta: number) {
-    const maximum = Math.max(400, Math.floor(window.innerWidth * 0.8));
-    setAgentPanelWidth((current) => Math.min(maximum, Math.max(400, current + delta)));
-  }
-
-  useEffect(() => {
     let active = true;
     setLoading(true);
     void api
@@ -1395,7 +1363,11 @@ export function ProductionWorkbench({
       .then((items) => {
         if (!active) return;
         setScripts(items);
-        setScriptId((current) => (items.some((item) => item.id === current) ? current : (items[0]?.id ?? null)));
+        setScriptId((current) =>
+          items.some((item) => item.id === current)
+            ? current
+            : (items.find((item) => item.id === initialScriptId)?.id ?? items[0]?.id ?? null),
+        );
         if (!items.length) setLoading(false);
       })
       .catch((cause) => {
@@ -1407,7 +1379,7 @@ export function ProductionWorkbench({
     return () => {
       active = false;
     };
-  }, [api, project.id]);
+  }, [api, initialScriptId, project.id]);
 
   const loadProductionData = useCallback(
     async (nextScriptId: number) => {
@@ -1709,38 +1681,21 @@ export function ProductionWorkbench({
               ) : null}
 
               {renderProductionAgent && scriptId != null ? (
-                <aside
-                  aria-label="生产智能体侧栏"
-                  aria-hidden={!agentPanelOpen}
-                  className={`absolute bottom-[10px] right-[5px] top-[10px] z-50 flex min-w-[400px] flex-col overflow-hidden rounded-[10px] border border-slate-700 bg-slate-950 shadow-[-4px_2px_10px_rgba(0,0,0,.45)] transition-transform duration-300 ease-out ${agentPanelOpen ? "translate-x-0" : "pointer-events-none translate-x-[calc(100%+5px)]"}`}
-                  style={{ width: agentPanelWidth }}>
-                  <div
-                    role="separator"
-                    aria-label="调整生产智能体侧栏宽度"
-                    aria-orientation="vertical"
-                    tabIndex={0}
-                    onPointerDown={beginAgentResize}
-                    onKeyDown={(event) => {
-                      if (event.key === "ArrowLeft") resizeAgentByKeyboard(24);
-                      if (event.key === "ArrowRight") resizeAgentByKeyboard(-24);
-                    }}
-                    className="absolute inset-y-0 left-0 z-[70] w-1 cursor-col-resize hover:bg-slate-700 focus:bg-slate-700 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    aria-label="收起生产智能体"
-                    onClick={() => setAgentPanelOpen(false)}
-                    className="absolute right-2 top-2 z-[70] grid size-8 place-items-center rounded-md bg-slate-900/90 text-slate-400 hover:text-slate-100">
-                    <PanelRightClose className="size-4" />
-                  </button>
-                  <div className="h-full min-h-0">{renderProductionAgent(scriptId, refreshSelectedFlow, setProductionAgentBusy)}</div>
-                </aside>
+                <CanvasAgentPanel
+                  open={agentPanelOpen}
+                  onOpenChange={setAgentPanelOpen}
+                  label="生产智能体侧栏"
+                  name="生产智能体"
+                  width={agentPanelWidth}
+                  onWidthChange={setAgentPanelWidth}>
+                  {renderProductionAgent(scriptId, refreshSelectedFlow, setProductionAgentBusy)}
+                </CanvasAgentPanel>
               ) : null}
-              {(renderProductionAgent || onOpenAgent) && scriptId != null && (!renderProductionAgent || !agentPanelOpen) ? (
+              {!renderProductionAgent && onOpenAgent && scriptId != null ? (
                 <button
                   type="button"
                   aria-label="打开生产智能体"
-                  onClick={() => (renderProductionAgent ? setAgentPanelOpen(true) : onOpenAgent?.(scriptId))}
+                  onClick={() => onOpenAgent(scriptId)}
                   className="absolute right-0 top-[10px] z-40 grid size-10 place-items-center rounded-[10px] border border-slate-700 bg-slate-950 text-slate-300 shadow-lg hover:bg-slate-900">
                   <PanelRightOpen className="size-5" />
                 </button>

@@ -194,6 +194,29 @@ describe("agent chat client", () => {
     expect(client.getSnapshot().messages[0].content[0].data).toBe("旧消息");
   });
 
+  it("adds the currently selected interactive node to a script-agent message without changing isolation", () => {
+    const socket = new FakeSocket();
+    let selectedNodeId = "scene-1";
+    const client = createAgentChatClient({
+      agentType: "scriptAgent",
+      projectId: 7,
+      apiBaseUrl: "/api",
+      getToken: () => "session-token",
+      apiClient: { request: vi.fn(async () => []) } as unknown as HodorApiClient,
+      socketFactory: (() => socket) as AgentSocketFactory,
+      messageContext: () => ({ selectedNodeId }),
+    });
+    client.connect();
+
+    client.send("扩展这个分支");
+    selectedNodeId = "ending-1";
+    client.send("调整这个结局");
+
+    expect(socket.emitted).toContainEqual({ event: "chat", data: { content: "扩展这个分支", context: { selectedNodeId: "scene-1" } } });
+    expect(socket.emitted).toContainEqual({ event: "chat", data: { content: "调整这个结局", context: { selectedNodeId: "ending-1" } } });
+    expect(socket.auth).toMatchObject({ isolationKey: "7:scriptAgent" });
+  });
+
   it("includes the episode context for production agents", () => {
     const socket = new FakeSocket();
     const socketFactory = vi.fn(() => socket) as unknown as AgentSocketFactory;

@@ -4,8 +4,8 @@ export { createAgentChatClient, resolveAgentSocketUrl } from "./agent-chat-clien
 export type { CreateAgentChatClientOptions } from "./agent-chat-client";
 export { createAgentServerHandlers } from "./agent-server-handlers";
 export type { CreateAgentServerHandlersOptions } from "./agent-server-handlers";
-export { ProductionAgentPage, ProductionAgentPanel, ScriptAgentPage } from "./agent-pages";
-export type { AgentPageProps, ProductionAgentPageProps } from "./agent-pages";
+export { ProductionAgentPage, ProductionAgentPanel, ScriptAgentPage, ScriptAgentPanel } from "./agent-pages";
+export type { AgentPageProps, ProductionAgentPageProps, ScriptAgentPanelProps } from "./agent-pages";
 export type {
   AgentActivityState,
   AgentChatClient,

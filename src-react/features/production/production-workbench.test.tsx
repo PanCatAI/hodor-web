@@ -369,6 +369,23 @@ describe("ProductionWorkbench", () => {
     await waitFor(() => expect(api.getGenerationData).toHaveBeenCalledWith(7, 13));
   });
 
+  it("opens the script selected by an interactive-story production link", async () => {
+    const api = createApi([
+      { id: 12, name: "第一幕", content: "", state: "completed", errorReason: "" },
+      { id: 13, name: "分支结局", content: "", state: "completed", errorReason: "" },
+    ]);
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+        initialScriptId={13}
+      />,
+    );
+
+    expect(await screen.findByLabelText("当前剧本")).toHaveValue("13");
+    await waitFor(() => expect(api.getFlowData).toHaveBeenCalledWith(7, 13));
+  });
+
   it("keeps the edit timeline mounted and isolated per episode", async () => {
     const api = createApi([
       { id: 12, name: "第一幕", content: "", state: "completed", errorReason: "" },

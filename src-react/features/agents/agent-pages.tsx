@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { HodorApiClient } from "@react/lib/api/client";
 import { AgentConsole } from "./agent-console";
@@ -20,6 +20,11 @@ interface ProductionAgentPageProps extends AgentPageProps {
   episodeTitle?: string;
   onFlowDataChange?: () => void;
   onBusyChange?: (busy: boolean) => void;
+}
+
+interface ScriptAgentPanelProps extends AgentPageProps {
+  onBusyChange?: (busy: boolean) => void;
+  selectedNodeId?: string | null;
 }
 
 const productionWelcomeMessages = [
@@ -129,6 +134,48 @@ export function ScriptAgentPage({ projectId, apiClient, apiBaseUrl, getToken, so
   return <AgentConsole client={client} title="剧本智能体" description="拆分原文、整理故事骨架并形成可生产的剧本。" showThink={showThink} />;
 }
 
+export function ScriptAgentPanel({
+  projectId,
+  apiClient,
+  apiBaseUrl,
+  getToken,
+  socketFactory,
+  handlers,
+  onBusyChange,
+  selectedNodeId,
+}: ScriptAgentPanelProps) {
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  selectedNodeIdRef.current = selectedNodeId;
+  const messageContext = useCallback(
+    () => (selectedNodeIdRef.current ? { selectedNodeId: selectedNodeIdRef.current } : undefined),
+    [],
+  );
+  const showThink = useThinkCapability(apiClient, "scriptAgent");
+  const defaultHandlers = useMemo(() => createAgentServerHandlers({ agentType: "scriptAgent", projectId, apiClient }), [apiClient, projectId]);
+  const activeHandlers = handlers ?? defaultHandlers;
+  const client = useMemo(
+    () =>
+      createAgentChatClient({
+        agentType: "scriptAgent",
+        projectId,
+        apiClient,
+        apiBaseUrl,
+        getToken,
+        socketFactory,
+        handlers: activeHandlers,
+        messageContext,
+      }),
+    [activeHandlers, apiBaseUrl, apiClient, getToken, messageContext, projectId, socketFactory],
+  );
+
+  return (
+    <>
+      <AgentBusyReporter client={client} onBusyChange={onBusyChange} />
+      <AgentConsole client={client} title="互动剧智能体" showThink={showThink} display="panel" />
+    </>
+  );
+}
+
 export function ProductionAgentPage({
   projectId,
   episodeId,
@@ -209,4 +256,4 @@ export function ProductionAgentPanel({
   );
 }
 
-export type { AgentPageProps, ProductionAgentPageProps };
+export type { AgentPageProps, ProductionAgentPageProps, ScriptAgentPanelProps };

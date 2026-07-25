@@ -2,7 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { HodorApiClient } from "@react/lib/api/client";
-import { ProductionAgentPanel, ScriptAgentPage } from "./agent-pages";
+import { ProductionAgentPanel, ScriptAgentPage, ScriptAgentPanel } from "./agent-pages";
 import type { AgentSocket, AgentSocketFactory } from "./types";
 
 class PageSocket implements AgentSocket {
@@ -124,6 +124,47 @@ describe("agent pages", () => {
 
     await act(async () => socket.trigger("message:update", { id: "assistant-running", status: "complete" }));
     expect(onBusyChange).toHaveBeenLastCalledWith(false);
+    await act(async () => view.unmount());
+  });
+
+  it("mounts the script agent as one project-level panel session", async () => {
+    const socket = new PageSocket();
+    const socketFactory = vi.fn(() => socket);
+    const request = vi.fn(async (path: string) => {
+      if (path === "/agents/getMemory") return [];
+      if (path === "/project/getModelDetails") return { think: false };
+      throw new Error(`未预期接口 ${path}`);
+    });
+    const apiClient = { request } as unknown as HodorApiClient;
+    const getToken = () => "session-token";
+
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(
+        <ScriptAgentPanel
+          projectId={7}
+          apiClient={apiClient}
+          apiBaseUrl="/api"
+          getToken={getToken}
+          socketFactory={socketFactory}
+          selectedNodeId="scene-1"
+        />,
+      );
+    });
+
+    expect(await screen.findByRole("heading", { name: "互动剧智能体" })).toBeInTheDocument();
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    await act(async () => view.rerender(
+      <ScriptAgentPanel
+        projectId={7}
+        apiClient={apiClient}
+        apiBaseUrl="/api"
+        getToken={getToken}
+        socketFactory={socketFactory}
+        selectedNodeId="ending-1"
+      />,
+    ));
+    expect(socketFactory).toHaveBeenCalledTimes(1);
     await act(async () => view.unmount());
   });
 });

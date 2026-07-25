@@ -3,6 +3,7 @@ import { LogOut, Settings } from "lucide-react";
 
 import { clearSession, readSession } from "@react/lib/auth/session";
 import { detectRuntime } from "@react/platform/runtime";
+import { CurrentProjectProvider, useCurrentProject } from "./current-project";
 import { DesktopTitleBar } from "./desktop-title-bar";
 import { globalNavigation, projectNavigation } from "./navigation";
 
@@ -11,6 +12,14 @@ export function ProtectedLayout() {
   const account = readSession();
   const desktop = detectRuntime() === "electron";
   const { projectId } = useParams({ strict: false }) as { projectId?: string };
+  const numericProjectId = Number(projectId);
+  const { project, loading, error } = useCurrentProject(
+    router.options.context.apiClient,
+    Number.isInteger(numericProjectId) && numericProjectId > 0 ? numericProjectId : null,
+  );
+  const visibleProjectNavigation = projectNavigation.filter(
+    (item) => item.to !== "/projects/$projectId/interactive" || project?.projectType === "interactive",
+  );
 
   const logout = async () => {
     clearSession();
@@ -46,7 +55,7 @@ export function ProtectedLayout() {
             {projectId ? (
               <>
                 <div className="col-span-full my-2 hidden border-t border-border lg:block" />
-                {projectNavigation.map(({ label, to, icon: Icon }) => (
+                {visibleProjectNavigation.map(({ label, to, icon: Icon }) => (
                   <Link
                     key={to}
                     to={to}
@@ -85,7 +94,9 @@ export function ProtectedLayout() {
       </aside>
 
       <main className="min-w-0 overflow-hidden">
-        <Outlet />
+        <CurrentProjectProvider value={{ project, loading, error }}>
+          <Outlet />
+        </CurrentProjectProvider>
       </main>
     </div>
   );

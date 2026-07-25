@@ -1,13 +1,14 @@
 import { createHashHistory, createRootRouteWithContext, createRoute, createRouter, redirect, useParams, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { ProductionAgentPage, ProductionAgentPanel, ScriptAgentPage } from "@react/features/agents";
+import { ProductionAgentPage, ProductionAgentPanel, ScriptAgentPage, ScriptAgentPanel } from "@react/features/agents";
 import { AssetsCenter, createAssetApi } from "@react/features/assets";
 import { LoginPage } from "@react/features/auth/login-page";
 import { CastingPage, createCastingApi } from "@react/features/casting";
 import { createHodorDirectorDeskAdapter, DirectorDeskPage, type DirectorDeskEditorModule } from "@react/features/director-desk";
 import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type ProductionProject, type StoryboardItem } from "@react/features/production";
 import type { ProductionVideoRatio } from "@react/features/production/types";
+import { createInteractiveStoryApi, InteractiveStoryPage } from "@react/features/interactive-story";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
@@ -18,6 +19,7 @@ import { clearSession, getSessionToken } from "@react/lib/auth/session";
 import { PlaceholderPage } from "./placeholder-page";
 import { ProtectedLayout } from "./protected-layout";
 import { RootLayout } from "./root-layout";
+import { useCurrentProjectContext } from "./current-project";
 
 export interface RouterContext {
   apiClient: HodorApiClient;
@@ -284,7 +286,7 @@ export function normalizeProductionProject(value: RawProductionProject | RawProd
   };
 }
 
-function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
+function ProductionWorkbenchRoutePage({ projectId, initialScriptId }: { projectId: number; initialScriptId?: number }) {
   const { apiClient, apiBaseUrl, getToken } = projectProductionRoute.useRouteContext();
   const router = useRouter();
   const api = useMemo(() => createProductionApi(apiClient), [apiClient]);
@@ -317,6 +319,7 @@ function ProductionWorkbenchRoutePage({ projectId }: { projectId: number }) {
       api={api}
       project={project}
       initialView="flow"
+      initialScriptId={initialScriptId}
       onOpenAgent={(episodeId) =>
         void router.navigate({
           to: "/projects/$projectId/production",
@@ -352,7 +355,44 @@ function ProductionRoutePage() {
       </WorkspaceBoundary>
     );
   }
-  return <ProductionWorkbenchRoutePage projectId={projectId} />;
+  return <ProductionWorkbenchRoutePage projectId={projectId} initialScriptId={episodeId} />;
+}
+
+function InteractiveStoryRoutePage() {
+  const projectId = readProjectId();
+  const router = useRouter();
+  const { apiClient, apiBaseUrl, getToken } = projectInteractiveStoryRoute.useRouteContext();
+  const api = useMemo(() => createInteractiveStoryApi(apiClient), [apiClient]);
+  const { project, loading, error } = useCurrentProjectContext();
+  if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
+  if (loading) return <MissingContext>正在核验项目类型…</MissingContext>;
+  if (error) return <MissingContext>{error}</MissingContext>;
+  if (project?.projectType !== "interactive") {
+    return <MissingContext>当前项目使用线性流程，只有互动剧项目可以进入互动剧情画布。</MissingContext>;
+  }
+  return (
+    <InteractiveStoryPage
+      projectId={projectId}
+      api={api}
+      renderScriptAgent={(onBusyChange, selectedNodeId) => (
+        <ScriptAgentPanel
+          projectId={projectId}
+          apiClient={apiClient}
+          apiBaseUrl={apiBaseUrl}
+          getToken={getToken}
+          onBusyChange={onBusyChange}
+          selectedNodeId={selectedNodeId}
+        />
+      )}
+      onOpenProduction={(scriptId) =>
+        void router.navigate({
+          to: "/projects/$projectId/production",
+          params: { projectId: String(projectId) },
+          search: { view: "workbench", episodeId: scriptId },
+        })
+      }
+    />
+  );
 }
 
 const projectsRoute = createRoute({
@@ -439,6 +479,12 @@ const projectProductionRoute = createRoute({
     episodeId: positiveInteger(search.episodeId),
   }),
   component: ProductionRoutePage,
+});
+
+const projectInteractiveStoryRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: "/projects/$projectId/interactive",
+  component: InteractiveStoryRoutePage,
 });
 
 const projectAgentsRoute = createRoute({
@@ -611,6 +657,7 @@ const routeTree = rootRoute.addChildren([
     projectAssetsRoute,
     projectStoryboardsRoute,
     projectProductionRoute,
+    projectInteractiveStoryRoute,
     projectAgentsRoute,
     projectCastingRoute,
     projectDirectorDeskRoute,

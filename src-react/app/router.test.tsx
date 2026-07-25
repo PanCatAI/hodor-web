@@ -185,6 +185,72 @@ describe("Hodor React router", () => {
     expect(screen.getByText(/项目 #7/)).toBeInTheDocument();
   });
 
+  it("mounts the interactive story canvas and project navigation", async () => {
+    authenticate();
+    openRoute("/projects/7/interactive");
+    const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const data = url.endsWith("/project/getProject")
+        ? [{ id: 7, projectType: "interactive" }]
+        : url.endsWith("/interactiveStory/graph/get")
+        ? {
+            id: "graph-7",
+            projectId: 7,
+            title: "雨夜抉择",
+            entryNodeId: "scene-1",
+            status: "draft",
+            revision: 0,
+            nodes: [
+              {
+                id: "scene-1",
+                graphId: "graph-7",
+                scriptId: 12,
+                kind: "scene",
+                title: "开场",
+                summary: "雨夜抵达",
+                position: { x: 0, y: 0 },
+                status: "ready",
+                script: { id: 12, name: "开场", content: "", createTime: 1 },
+                createdAt: 1,
+                updatedAt: 1,
+              },
+            ],
+            edges: [],
+            variables: [],
+            createdAt: 1,
+            updatedAt: 1,
+          }
+        : url.endsWith("/project/getModelDetails")
+          ? { think: false }
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    render(<HodorApp />);
+
+    expect(await screen.findByTestId("interactive-story-infinite-canvas")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "互动剧" })).toBeInTheDocument();
+    expect(screen.getByText("雨夜抵达")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "互动剧智能体" })).toBeInTheDocument();
+    expect(request.mock.calls.filter(([input]) => String(input).endsWith("/project/getProject"))).toHaveLength(1);
+  });
+
+  it("blocks a linear project from the interactive route before graph initialization", async () => {
+    authenticate();
+    openRoute("/projects/7/interactive");
+    const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const data = url.endsWith("/project/getProject") ? [{ id: 7, projectType: "novel" }] : [];
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    render(<HodorApp />);
+
+    expect(await screen.findByText("当前项目使用线性流程，只有互动剧项目可以进入互动剧情画布。")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "互动剧" })).not.toBeInTheDocument();
+    expect(request.mock.calls.some(([input]) => String(input).includes("/interactiveStory/graph/"))).toBe(false);
+  });
+
   it("asks for a script before mounting the storyboard page", async () => {
     authenticate();
     openRoute("/projects/7/storyboards");
