@@ -96,9 +96,11 @@ export async function readImportFile(file: File): Promise<string> {
     reader.onload = () => resolve(reader.result as ArrayBuffer);
     reader.readAsArrayBuffer(file);
   });
-  if (extension === "txt" || file.type === "text/plain") return new TextDecoder().decode(buffer);
+  if (extension === "txt" || extension === "md" || file.type === "text/plain" || file.type === "text/markdown") {
+    return new TextDecoder().decode(buffer);
+  }
   if (extension !== "docx" && file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-    throw new Error("仅支持 TXT 和 DOCX 文件");
+    throw new Error("仅支持 TXT、DOCX 和 MD 文件");
   }
   const result = await mammoth.extractRawText({ arrayBuffer: buffer });
   return result.value;

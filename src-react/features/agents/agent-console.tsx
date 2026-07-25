@@ -6,6 +6,7 @@ import {
   CircleStop,
   FileText,
   LoaderCircle,
+  Paperclip,
   RotateCcw,
   Send,
   Settings,
@@ -23,6 +24,17 @@ interface AgentConsoleProps {
   confirmClear?: (type: MemoryType) => boolean;
   display?: "page" | "panel";
   showThink?: boolean;
+  onImportSource?: (source: SourceImportRequest) => Promise<SourceImportResult>;
+}
+
+interface SourceImportRequest {
+  file?: File;
+  text?: string;
+}
+
+interface SourceImportResult {
+  sourceName: string;
+  chapterCount: number;
 }
 
 const connectionLabels = {
@@ -319,10 +331,24 @@ function ContentBlock({
   return <div className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-200">{text}</div>;
 }
 
-export function AgentConsole({ client, title, description, confirmClear, display = "page", showThink = false }: AgentConsoleProps) {
+export function AgentConsole({
+  client,
+  title,
+  description,
+  confirmClear,
+  display = "page",
+  showThink = false,
+  onImportSource,
+}: AgentConsoleProps) {
   const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const [input, setInput] = useState("");
   const [openMenu, setOpenMenu] = useState<"settings" | "think" | null>(null);
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [sourceText, setSourceText] = useState("");
+  const [sourceImporting, setSourceImporting] = useState(false);
+  const [sourceError, setSourceError] = useState("");
+  const [sourceNotice, setSourceNotice] = useState("");
   const transcriptRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
   const busy = snapshot.activity === "pending" || snapshot.activity === "streaming";
@@ -381,9 +407,37 @@ export function AgentConsole({ client, title, description, confirmClear, display
     client.updateThinkLevel(level);
   }
 
+  function closeSourceDialog() {
+    if (sourceImporting) return;
+    setSourceDialogOpen(false);
+    setSourceFile(null);
+    setSourceText("");
+    setSourceError("");
+  }
+
+  async function importSource() {
+    if (!onImportSource || (!sourceFile && !sourceText.trim())) return;
+    setSourceImporting(true);
+    setSourceError("");
+    try {
+      const result = await onImportSource(sourceFile ? { file: sourceFile } : { text: sourceText.trim() });
+      const agentInstruction = `已导入原文“${result.sourceName}”，共 ${result.chapterCount} 章。请读取刚导入的原文，判断内容类型和结构，并继续完成互动剧情分析。`;
+      const sent = !busy && connected && client.send(agentInstruction);
+      if (!sent) setInput(agentInstruction);
+      setSourceNotice(`已导入 ${result.chapterCount} 章${sent ? "，智能体正在读取" : "，请发送给智能体"}`);
+      setSourceDialogOpen(false);
+      setSourceFile(null);
+      setSourceText("");
+    } catch (reason) {
+      setSourceError(reason instanceof Error ? reason.message : "原文导入失败");
+    } finally {
+      setSourceImporting(false);
+    }
+  }
+
   return (
     <section
-      className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#242424] text-white/90 ${
+      className={`relative flex h-full min-h-0 flex-col overflow-hidden bg-[#242424] text-white/90 ${
         display === "panel" ? "" : "min-h-[680px] rounded-[10px] border border-[#393939] shadow-2xl shadow-black/20"
       }`}>
       <header className={`flex h-10 shrink-0 items-center border-b border-[#393939] pl-2.5 ${display === "panel" ? "pr-12" : "pr-2.5"}`}>
@@ -450,7 +504,88 @@ export function AgentConsole({ client, title, description, confirmClear, display
         })}
       </div>
 
+      {sourceDialogOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="source-import-title"
+          className="absolute inset-x-2 bottom-16 z-[90] rounded-xl border border-slate-600 bg-[#171a20] p-4 shadow-2xl shadow-black/60">
+          <header className="flex items-start justify-between gap-3">
+            <div>
+              <h2 id="source-import-title" className="font-medium text-white">导入原文</h2>
+              <p className="mt-1 text-xs text-slate-400">支持 TXT、DOCX、MD，最大 10MB</p>
+            </div>
+            <button
+              type="button"
+              aria-label="关闭原文导入"
+              disabled={sourceImporting}
+              onClick={closeSourceDialog}
+              className="grid size-7 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-40">
+              <X className="size-4" />
+            </button>
+          </header>
+
+          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-600 px-3 py-3 text-sm text-slate-300 hover:border-blue-500 hover:bg-blue-500/5">
+            <FileText className="size-5 shrink-0 text-blue-400" />
+            <span className="min-w-0 flex-1 truncate">{sourceFile?.name ?? "选择原文文件"}</span>
+            <span className="text-xs text-slate-500">选择</span>
+            <input
+              aria-label="选择原文文件"
+              className="sr-only"
+              type="file"
+              accept=".txt,.docx,.md,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(event) => {
+                setSourceFile(event.target.files?.[0] ?? null);
+                setSourceError("");
+              }}
+            />
+          </label>
+
+          <div className="my-3 flex items-center gap-3 text-[11px] text-slate-500">
+            <span className="h-px flex-1 bg-slate-700" />
+            或直接粘贴
+            <span className="h-px flex-1 bg-slate-700" />
+          </div>
+
+          <textarea
+            aria-label="粘贴原文"
+            rows={6}
+            value={sourceText}
+            disabled={sourceImporting}
+            onChange={(event) => {
+              setSourceText(event.target.value);
+              if (event.target.value) setSourceFile(null);
+              setSourceError("");
+            }}
+            placeholder="把原文粘贴到这里，智能体会在导入后判断内容和结构…"
+            className="block max-h-48 min-h-28 w-full resize-y rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 focus:border-blue-500 disabled:opacity-50"
+          />
+
+          {sourceError ? <p role="alert" className="mt-2 text-xs text-red-300">{sourceError}</p> : null}
+          <footer className="mt-3 flex items-center justify-end gap-2">
+            <button type="button" disabled={sourceImporting} onClick={closeSourceDialog} className="rounded-md px-3 py-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white disabled:opacity-40">
+              取消
+            </button>
+            <button
+              type="button"
+              aria-label="确认导入"
+              disabled={sourceImporting || (!sourceFile && !sourceText.trim())}
+              onClick={() => void importSource()}
+              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
+              {sourceImporting ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
+              {sourceImporting ? "导入中…" : "导入并交给智能体"}
+            </button>
+          </footer>
+        </div>
+      ) : null}
+
       <footer ref={footerRef} className="shrink-0 px-2 pb-2">
+        {sourceNotice ? (
+          <div role="status" aria-label="原文导入成功" className="mb-2 flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+            <CheckCircle2 className="size-3.5 shrink-0" />
+            {sourceNotice}
+          </div>
+        ) : null}
         <form onSubmit={handleSubmit} className="rounded-lg border border-slate-700 bg-slate-900 focus-within:border-blue-500">
           <textarea
             aria-label="发送指令"
@@ -469,6 +604,20 @@ export function AgentConsole({ client, title, description, confirmClear, display
           />
           <div className="flex min-h-10 items-center justify-between gap-2 px-2 pb-2">
             <div className="flex items-center gap-1.5">
+              {onImportSource ? (
+                <button
+                  type="button"
+                  aria-label="导入原文"
+                  aria-expanded={sourceDialogOpen}
+                  onClick={() => {
+                    setSourceDialogOpen((current) => !current);
+                    setSourceError("");
+                    setSourceNotice("");
+                  }}
+                  className="grid size-8 place-items-center rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800">
+                  <Paperclip className="size-4" />
+                </button>
+              ) : null}
               <div className="relative">
                 <button
                   type="button"
@@ -569,4 +718,4 @@ export function AgentConsole({ client, title, description, confirmClear, display
   );
 }
 
-export type { AgentConsoleProps };
+export type { AgentConsoleProps, SourceImportRequest, SourceImportResult };

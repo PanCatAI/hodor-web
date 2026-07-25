@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { HodorApiClient } from "@react/lib/api/client";
@@ -165,6 +165,49 @@ describe("agent pages", () => {
       />,
     ));
     expect(socketFactory).toHaveBeenCalledTimes(1);
+    await act(async () => view.unmount());
+  });
+
+  it("writes markdown source imports from the interactive agent panel into the current project", async () => {
+    const socket = new PageSocket();
+    const request = vi.fn(async (path: string) => {
+      if (path === "/agents/getMemory") return [];
+      if (path === "/project/getModelDetails") return { think: false };
+      if (path === "/novel/addNovel") return {};
+      throw new Error(`未预期接口 ${path}`);
+    });
+
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(
+        <ScriptAgentPanel
+          projectId={7}
+          apiClient={{ request } as unknown as HodorApiClient}
+          apiBaseUrl="/api"
+          getToken={() => "session-token"}
+          socketFactory={() => socket}
+        />,
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "导入原文" }));
+    fireEvent.change(screen.getByLabelText("选择原文文件"), {
+      target: { files: [new File(["第一章 雨夜\n她推开门。"], "locked-room.md", { type: "text/markdown" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "确认导入" }));
+
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        "/novel/addNovel",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            projectId: 7,
+            data: [{ index: 1, reel: "正文卷", chapter: "雨夜", chapterData: "她推开门。" }],
+          }),
+        }),
+      ),
+    );
     await act(async () => view.unmount());
   });
 });

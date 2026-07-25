@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { HodorApiClient } from "@react/lib/api/client";
+import { createStoryApi } from "../story/story-api";
+import { parseNovelText, readImportFile } from "../story/import-parser";
 import { AgentConsole } from "./agent-console";
+import type { SourceImportRequest, SourceImportResult } from "./agent-console";
 import { createAgentChatClient } from "./agent-chat-client";
 import { createAgentServerHandlers } from "./agent-server-handlers";
 import type { AgentServerHandlers, AgentSocketFactory } from "./types";
@@ -113,10 +116,29 @@ function useEpisodeTitle(apiClient: HodorApiClient, projectId: number, episodeId
   return title;
 }
 
+function useSourceImporter(apiClient: HodorApiClient, projectId: number) {
+  const storyApi = useMemo(() => createStoryApi(apiClient), [apiClient]);
+  return useCallback(
+    async (source: SourceImportRequest): Promise<SourceImportResult> => {
+      const rawText = source.file ? await readImportFile(source.file) : source.text?.trim() ?? "";
+      if (!rawText) throw new Error("原文内容不能为空");
+      const chapters = parseNovelText(rawText);
+      if (!chapters.length) throw new Error("没有解析到可导入的原文");
+      await storyApi.importNovels(projectId, chapters);
+      return {
+        sourceName: source.file?.name.replace(/\.[^.]+$/, "") || "粘贴原文",
+        chapterCount: chapters.length,
+      };
+    },
+    [projectId, storyApi],
+  );
+}
+
 export function ScriptAgentPage({ projectId, apiClient, apiBaseUrl, getToken, socketFactory, handlers }: AgentPageProps) {
   const showThink = useThinkCapability(apiClient, "scriptAgent");
   const defaultHandlers = useMemo(() => createAgentServerHandlers({ agentType: "scriptAgent", projectId, apiClient }), [apiClient, projectId]);
   const activeHandlers = handlers ?? defaultHandlers;
+  const importSource = useSourceImporter(apiClient, projectId);
   const client = useMemo(
     () =>
       createAgentChatClient({
@@ -131,7 +153,15 @@ export function ScriptAgentPage({ projectId, apiClient, apiBaseUrl, getToken, so
     [activeHandlers, apiBaseUrl, apiClient, getToken, projectId, socketFactory],
   );
 
-  return <AgentConsole client={client} title="剧本智能体" description="拆分原文、整理故事骨架并形成可生产的剧本。" showThink={showThink} />;
+  return (
+    <AgentConsole
+      client={client}
+      title="剧本智能体"
+      description="拆分原文、整理故事骨架并形成可生产的剧本。"
+      showThink={showThink}
+      onImportSource={importSource}
+    />
+  );
 }
 
 export function ScriptAgentPanel({
@@ -153,6 +183,7 @@ export function ScriptAgentPanel({
   const showThink = useThinkCapability(apiClient, "scriptAgent");
   const defaultHandlers = useMemo(() => createAgentServerHandlers({ agentType: "scriptAgent", projectId, apiClient }), [apiClient, projectId]);
   const activeHandlers = handlers ?? defaultHandlers;
+  const importSource = useSourceImporter(apiClient, projectId);
   const client = useMemo(
     () =>
       createAgentChatClient({
@@ -171,7 +202,7 @@ export function ScriptAgentPanel({
   return (
     <>
       <AgentBusyReporter client={client} onBusyChange={onBusyChange} />
-      <AgentConsole client={client} title="互动剧智能体" showThink={showThink} display="panel" />
+      <AgentConsole client={client} title="互动剧智能体" showThink={showThink} display="panel" onImportSource={importSource} />
     </>
   );
 }

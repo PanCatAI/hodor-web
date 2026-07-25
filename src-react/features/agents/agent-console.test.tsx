@@ -164,4 +164,40 @@ describe("AgentConsole", () => {
     expect(screen.getByLabelText("发送指令")).toBeDisabled();
     expect(screen.getByRole("button", { name: "发送" })).toBeDisabled();
   });
+
+  it("imports pasted source material and tells the current agent to read it", async () => {
+    const client = createClient();
+    const onImportSource = vi.fn(async () => ({ sourceName: "粘贴原文", chapterCount: 2 }));
+    render(<AgentConsole client={client} title="互动剧智能体" display="panel" onImportSource={onImportSource} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "导入原文" }));
+    fireEvent.change(screen.getByLabelText("粘贴原文"), {
+      target: { value: "第一章 雨夜\n她推开门。\n第二章 追踪\n脚步声逼近。" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "确认导入" }));
+
+    await waitFor(() =>
+      expect(onImportSource).toHaveBeenCalledWith({
+        text: "第一章 雨夜\n她推开门。\n第二章 追踪\n脚步声逼近。",
+      }),
+    );
+    expect(client.send).toHaveBeenCalledWith(expect.stringContaining("已导入原文“粘贴原文”，共 2 章"));
+    expect(await screen.findByRole("status", { name: "原文导入成功" })).toHaveTextContent("已导入 2 章");
+  });
+
+  it("lets the user choose txt, docx, or markdown from the chat composer", () => {
+    const client = createClient();
+    render(
+      <AgentConsole
+        client={client}
+        title="互动剧智能体"
+        display="panel"
+        onImportSource={vi.fn(async () => ({ sourceName: "原文", chapterCount: 1 }))}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "导入原文" }));
+    expect(screen.getByLabelText("选择原文文件")).toHaveAttribute("accept", expect.stringContaining(".md"));
+    expect(screen.getByText("支持 TXT、DOCX、MD，最大 10MB")).toBeInTheDocument();
+  });
 });

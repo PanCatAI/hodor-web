@@ -17,8 +17,9 @@ describe("story import parser", () => {
     ]);
   });
 
-  it("reads txt files and rejects unsupported formats", async () => {
+  it("reads txt and markdown files, then rejects unsupported formats", async () => {
     await expect(readImportFile(new File(["正文"], "novel.txt", { type: "text/plain" }))).resolves.toBe("正文");
-    await expect(readImportFile(new File(["x"], "novel.pdf", { type: "application/pdf" }))).rejects.toThrow("仅支持 TXT 和 DOCX");
+    await expect(readImportFile(new File(["# 第一章\n正文"], "novel.md", { type: "text/markdown" }))).resolves.toBe("# 第一章\n正文");
+    await expect(readImportFile(new File(["x"], "novel.pdf", { type: "application/pdf" }))).rejects.toThrow("仅支持 TXT、DOCX 和 MD");
   });
 });
