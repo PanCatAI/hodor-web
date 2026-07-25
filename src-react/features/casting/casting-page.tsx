@@ -111,7 +111,7 @@ function EditCastingAssetDialog({
           <div className="space-y-5">
             <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
               {asset.filePath ? (
-                <img src={asset.filePath} alt={asset.name} className="aspect-video w-full object-cover" />
+                <img src={asset.filePath} alt={asset.name} className="aspect-video w-full bg-black object-contain" />
               ) : (
                 <div className="grid aspect-video place-items-center text-slate-700"><ImageIcon className="size-10" /></div>
               )}
@@ -497,7 +497,7 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
                   <article key={asset.id} className={`overflow-hidden rounded-xl border bg-[#10131a] ${selected ? "border-blue-500" : "border-slate-800"}`}>
                     <div className="relative aspect-video bg-slate-950">
                       {asset.filePath ? (
-                        <img className="size-full object-cover" src={asset.filePath} alt={asset.name} />
+                        <img className="size-full bg-black object-contain" src={asset.filePath} alt={asset.name} />
                       ) : (
                         <div className="grid size-full place-items-center text-slate-700"><ImageIcon className="size-9" /></div>
                       )}
@@ -558,7 +558,7 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
           )}
         </section>
       </div>
-      {historyAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${historyAsset.name}历史图片`}><section className="w-full max-w-3xl rounded-xl border border-slate-800 bg-[#10131a] p-6"><div className="mb-4 flex justify-between"><h2 className="text-lg font-semibold">{historyAsset.name} · 历史图片</h2><button aria-label="关闭历史图片" onClick={() => setHistoryAsset(null)}><X /></button></div><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{historyAsset.historyImages?.map((image) => <figure key={image.id} className="rounded-lg border border-slate-800 p-2"><img src={image.filePath} alt={`历史图片 ${image.id}`} className="aspect-video w-full rounded object-cover" /><div className="mt-2 flex justify-between"><button type="button" aria-label={`使用历史图片 ${image.id}`} className="text-xs text-blue-300" onClick={() => void useHistoryImage(historyAsset, image.id)}>替换</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-rose-400" onClick={() => void deleteHistoryImage(image.id)}><Trash2 className="size-3.5" /></button></div></figure>)}</div></section></div> : null}
+      {historyAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${historyAsset.name}历史图片`}><section className="w-full max-w-3xl rounded-xl border border-slate-800 bg-[#10131a] p-6"><div className="mb-4 flex justify-between"><h2 className="text-lg font-semibold">{historyAsset.name} · 历史图片</h2><button aria-label="关闭历史图片" onClick={() => setHistoryAsset(null)}><X /></button></div><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{historyAsset.historyImages?.map((image) => <figure key={image.id} className="rounded-lg border border-slate-800 p-2"><img src={image.filePath} alt={`历史图片 ${image.id}`} className="aspect-video w-full rounded bg-black object-contain" /><div className="mt-2 flex justify-between"><button type="button" aria-label={`使用历史图片 ${image.id}`} className="text-xs text-blue-300" onClick={() => void useHistoryImage(historyAsset, image.id)}>替换</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-rose-400" onClick={() => void deleteHistoryImage(image.id)}><Trash2 className="size-3.5" /></button></div></figure>)}</div></section></div> : null}
       {audioAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${audioAsset.name}更新音频`}><section className="w-full max-w-md space-y-4 rounded-xl border border-slate-800 bg-[#10131a] p-6"><h2 className="text-lg font-semibold">更新单项音频</h2><p className="text-sm text-slate-400">从资产中心已上传的音频中选择；选“解除绑定”可清空。</p><select aria-label="选择音频资产" disabled={audioOptionsLoading} className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2" value={audioIdDraft} onChange={(event) => setAudioIdDraft(event.target.value)}><option value="">解除绑定</option>{audioOptions.map((audio) => <option key={audio.id} value={audio.id}>{audio.name}</option>)}</select><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setAudioAsset(null)}>取消</Button><Button onClick={() => void saveAudio()}>保存音频</Button></div></section></div> : null}
       {editingAsset ? (
         <EditCastingAssetDialog
