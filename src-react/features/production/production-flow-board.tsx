@@ -6,7 +6,13 @@ import { Download, X } from "lucide-react";
 import { InfiniteCanvas, readCanvasWheelEvent } from "@react/features/canvas";
 import { ImageFlowEditor } from "./image-flow-editor";
 import type { ProductionApi } from "./production-api";
-import type { DerivedAsset, ProductionFlowData, StoryboardItem } from "./types";
+import type {
+  DerivedAsset,
+  ProductionFlowData,
+  ProductionStageTarget,
+  ProductionWorkbenchView,
+  StoryboardItem,
+} from "./types";
 import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
 import { applyProductionLayout, mergeProductionLayout, productionAutoLayout, productionEdges, productionNodeOrder } from "./production-flow-layout";
@@ -24,7 +30,8 @@ export interface ProductionFlowBoardProps {
   leadingControls?: ReactNode;
   trailingControls?: ReactNode;
   onChange?: (data: ProductionFlowData, baseRevision: number) => void;
-  onOpenWorkbench?: () => void;
+  onOpenStage?: (stage: ProductionStageTarget) => void;
+  onOpenWorkbench?: (view: ProductionWorkbenchView) => void;
 }
 
 type ProductionNode = Node<ProductionNodeData, "production">;
@@ -159,6 +166,7 @@ export function ProductionFlowBoard({
   leadingControls,
   trailingControls,
   onChange,
+  onOpenStage,
   onOpenWorkbench,
 }: ProductionFlowBoardProps) {
   const [data, setData] = useState(initialData);
@@ -224,8 +232,12 @@ export function ProductionFlowBoard({
     [api, projectId],
   );
 
-  const openWorkbench = useCallback(() => {
-    onOpenWorkbench?.();
+  const openStage = useCallback((stage: ProductionStageTarget) => {
+    onOpenStage?.(stage);
+  }, [onOpenStage]);
+
+  const openWorkbench = useCallback((view: ProductionWorkbenchView) => {
+    onOpenWorkbench?.(view);
   }, [onOpenWorkbench]);
 
   const toggleStoryboard = useCallback((id: number) => {
@@ -347,6 +359,7 @@ export function ProductionFlowBoard({
       onDeleteStoryboards: (ids) => void deleteStoryboards(ids),
       onInsertStoryboard: (id, placement) => void insertStoryboard(id, placement),
       onPreviewStoryboards: () => void previewStoryboards(),
+      onOpenStage: openStage,
       onOpenWorkbench: openWorkbench,
     }),
     [
@@ -357,6 +370,7 @@ export function ProductionFlowBoard({
       generateStoryboards,
       generatingStoryboards,
       insertStoryboard,
+      openStage,
       openWorkbench,
       previewStoryboards,
       remove,
@@ -522,7 +536,11 @@ export function ProductionFlowBoard({
   }
 
   return (
-    <section className="relative h-full min-h-0" aria-label="生产流图">
+    <section
+      className="relative h-full min-h-0"
+      aria-label="生产流图"
+      data-production-flow-contract="source-to-final-v1"
+    >
       {notice ? (
         <div
           role="status"

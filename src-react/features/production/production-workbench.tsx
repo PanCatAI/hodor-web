@@ -69,7 +69,34 @@ export interface ProductionWorkbenchProps {
   renderProductionAgent?: (scriptId: number, onFlowDataChange: () => void, onBusyChange: (busy: boolean) => void) => ReactNode;
 }
 
-const emptyFlow: ProductionFlowData = { script: "", scriptPlan: "", assets: [], storyboardTable: "", storyboard: [] };
+const emptyFlow: ProductionFlowData = {
+  source: { chapters: [], state: "idle" },
+  script: "",
+  scriptPlan: "",
+  assets: [],
+  storyboardTable: "",
+  storyboard: [],
+  videoTracks: [],
+  timeline: { id: null, revision: 0, status: "idle", clips: [], errorReason: "", updatedAt: null },
+  finalOutputs: [],
+};
+
+function normalizeFlowData(flow: ProductionFlowData): ProductionFlowData {
+  return {
+    ...emptyFlow,
+    ...flow,
+    source: {
+      ...emptyFlow.source,
+      ...(flow.source ?? {}),
+      chapters: flow.source?.chapters ?? [],
+    },
+    assets: flow.assets ?? [],
+    storyboard: flow.storyboard ?? [],
+    videoTracks: flow.videoTracks ?? [],
+    timeline: { ...emptyFlow.timeline, ...(flow.timeline ?? {}) },
+    finalOutputs: flow.finalOutputs ?? [],
+  };
+}
 type WorkbenchMenu = "preview" | "generate" | "editVideo";
 const statusContent: Record<ProductionState, { label: string; className: string }> = {
   idle: { label: "未生成", className: "border-slate-700 bg-slate-900 text-slate-400" },
@@ -1310,6 +1337,8 @@ export function ProductionWorkbench({
   const [workbenchOpen, setWorkbenchOpen] = useState(initialView !== "flow");
   const [activeWorkbenchMenu, setActiveWorkbenchMenu] = useState<WorkbenchMenu>(initialView === "editor" ? "editVideo" : "generate");
   const [editorActivated, setEditorActivated] = useState(initialView === "editor");
+  const [editorSessionKey, setEditorSessionKey] = useState(0);
+  const [renderingFinalOutput, setRenderingFinalOutput] = useState(false);
   const [loading, setLoading] = useState(true);
   const [switchingScript, setSwitchingScript] = useState(false);
   const [error, setError] = useState("");
@@ -1320,6 +1349,10 @@ export function ProductionWorkbench({
   const [flowRevision, setFlowRevision] = useState(0);
   const flowRevisionRef = useRef(0);
   const loadSequence = useRef(0);
+  const activeScriptIdRef = useRef<number | null>(null);
+  const timelineRevisionRef = useRef(0);
+  const timelineVersionRef = useRef(0);
+  const timelineMutationQueueRef = useRef<Promise<void>>(Promise.resolve());
   const storyboards = flowData.storyboard;
   const bumpFlowRevision = useCallback(() => {
     flowRevisionRef.current += 1;
@@ -1354,6 +1387,10 @@ export function ProductionWorkbench({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [tab, workbenchOpen]);
+
+  useEffect(() => {
+    activeScriptIdRef.current = scriptId;
+  }, [scriptId]);
 
   useEffect(() => {
     let active = true;
@@ -1397,15 +1434,27 @@ export function ProductionWorkbench({
           if (loadSequence.current === sequence) setMediaError(`剪辑素材库加载失败：${messageOf(cause)}`);
         });
       try {
-        const [flow, generation] = await Promise.all([api.getFlowData(project.id, nextScriptId), api.getGenerationData(project.id, nextScriptId)]);
+        const [loadedFlow, generation] = await Promise.all([
+          api.getFlowData(project.id, nextScriptId),
+          api.getGenerationData(project.id, nextScriptId),
+        ]);
         if (loadSequence.current !== sequence) return;
-        setFlowData({ ...flow, storyboard: flow.storyboard.length ? flow.storyboard : generation.storyboardList });
+        const flow = normalizeFlowData(loadedFlow);
+        timelineRevisionRef.current = flow.timeline.revision;
+        timelineVersionRef.current = 0;
+        timelineMutationQueueRef.current = Promise.resolve();
+        setFlowData({
+          ...flow,
+          storyboard: flow.storyboard.length ? flow.storyboard : generation.storyboardList,
+          videoTracks: generation.trackList,
+        });
         setTracks(
           generation.trackList.map((track) => ({
             ...track,
             medias: track.medias.map((media) => ({ ...media, selected: media.selected !== false })),
           })),
         );
+        setEditorSessionKey((current) => current + 1);
         bumpFlowRevision();
         return true;
       } catch (cause) {
@@ -1459,8 +1508,14 @@ export function ProductionWorkbench({
     }
   }
 
-  function openCanvasWorkbench() {
-    setActiveWorkbenchMenu("preview");
+  function openProjectStage(stage: "source" | "script" | "assets" | "storyboard") {
+    const path = stage === "source" ? "novels" : stage === "script" ? "scripts" : stage === "assets" ? "assets" : "storyboards";
+    window.location.hash = `#/projects/${project.id}/${path}`;
+  }
+
+  function openCanvasWorkbench(view: WorkbenchMenu) {
+    if (view === "editVideo") setEditorActivated(true);
+    setActiveWorkbenchMenu(view);
     setWorkbenchOpen(true);
   }
 
@@ -1468,6 +1523,75 @@ export function ProductionWorkbench({
     if (nextMenu === "editVideo") setEditorActivated(true);
     setActiveWorkbenchMenu(nextMenu);
   }
+
+  const saveTimeline = useCallback(
+    (clips: WebAvEditorClip[]) => {
+      if (scriptId == null) return;
+      const targetScriptId = scriptId;
+      timelineVersionRef.current += 1;
+      const version = timelineVersionRef.current;
+      setFlowData((current) => ({
+        ...current,
+        timeline: { ...current.timeline, clips, status: "running", errorReason: "" },
+      }));
+      timelineMutationQueueRef.current = timelineMutationQueueRef.current.then(async () => {
+        try {
+          const snapshot = await api.saveEditTimeline(project.id, targetScriptId, timelineRevisionRef.current, clips);
+          if (activeScriptIdRef.current !== targetScriptId) return;
+          timelineRevisionRef.current = snapshot.revision;
+          setFlowData((current) => ({
+            ...current,
+            timeline:
+              timelineVersionRef.current === version
+                ? snapshot
+                : { ...snapshot, clips: current.timeline.clips, status: "running", errorReason: "" },
+          }));
+        } catch (cause) {
+          if (activeScriptIdRef.current !== targetScriptId) return;
+          const message = messageOf(cause);
+          setError(`剪辑时间线保存失败：${message}`);
+          if (timelineVersionRef.current === version) {
+            setFlowData((current) => ({
+              ...current,
+              timeline: { ...current.timeline, status: "failed", errorReason: message },
+            }));
+          }
+        }
+      });
+    },
+    [api, project.id, scriptId],
+  );
+
+  const uploadFinalOutput = useCallback(
+    async (blob: Blob) => {
+      if (scriptId == null) throw new Error("当前剧本不可用");
+      const output = await api.uploadFinalVideo(project.id, scriptId, timelineRevisionRef.current, blob);
+      setFlowData((current) => ({
+        ...current,
+        finalOutputs: [...current.finalOutputs.filter((item) => item.id !== output.id), output],
+      }));
+    },
+    [api, project.id, scriptId],
+  );
+
+  const renderFinalOutput = useCallback(async () => {
+    if (scriptId == null) return;
+    setRenderingFinalOutput(true);
+    setError("");
+    try {
+      await timelineMutationQueueRef.current;
+      const output = await api.renderTimeline(project.id, scriptId, timelineRevisionRef.current);
+      setFlowData((current) => ({
+        ...current,
+        finalOutputs: [...current.finalOutputs.filter((item) => item.id !== output.id), output],
+      }));
+      bumpFlowRevision();
+    } catch (cause) {
+      setError(`云端成片生成失败：${messageOf(cause)}`);
+    } finally {
+      setRenderingFinalOutput(false);
+    }
+  }, [api, bumpFlowRevision, project.id, scriptId]);
 
   const runningStoryboardIds = useMemo(() => storyboards.filter((item) => item.state === "running").map((item) => item.id), [storyboards]);
   const runningVideoIds = useMemo(
@@ -1588,6 +1712,11 @@ export function ProductionWorkbench({
       .filter((video) => video.state === "completed" && video.src)
       .map((video) => ({ ...video, duration: video.duration ?? track.duration })),
   );
+  const latestFinalOutput = flowData.finalOutputs.at(-1);
+
+  useEffect(() => {
+    setFlowData((current) => (current.videoTracks === tracks ? current : { ...current, videoTracks: tracks }));
+  }, [tracks]);
 
   useEffect(() => {
     if (tab !== "flow" || agentPanelOpen) return;
@@ -1656,6 +1785,7 @@ export function ProductionWorkbench({
                   imageModel={project.imageModel || "pancat:pancat-image"}
                   pollIntervalMs={pollIntervalMs}
                   onChange={acceptCanvasFlowData}
+                  onOpenStage={openProjectStage}
                   onOpenWorkbench={openCanvasWorkbench}
                 />
               ) : loading ? (
@@ -1836,8 +1966,32 @@ export function ProductionWorkbench({
               ) : null}
               {!loading && scripts.length && editorActivated ? (
                 <div
-                  className={activeWorkbenchMenu === "editVideo" ? "h-full space-y-3 overflow-hidden" : "hidden"}
+                  className={activeWorkbenchMenu === "editVideo" ? "flex h-full min-h-0 flex-col gap-3 overflow-hidden" : "hidden"}
                   aria-hidden={activeWorkbenchMenu === "editVideo" ? undefined : true}>
+                  <div className="flex shrink-0 items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2">
+                    <div className="min-w-0 text-xs text-slate-400">
+                      <div className="font-medium text-slate-200">云端合成</div>
+                      <div>按已保存的时间线版本 {flowData.timeline.revision} 生成最终成片</div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="生成云端成片"
+                      disabled={renderingFinalOutput || scriptId == null}
+                      onClick={() => void renderFinalOutput()}
+                      className="flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50">
+                      {renderingFinalOutput ? <LoaderCircle className="size-4 animate-spin" /> : <Film className="size-4" />}
+                      {renderingFinalOutput ? "云端合成中" : "生成云端成片"}
+                    </button>
+                  </div>
+                  {latestFinalOutput?.src ? (
+                    <video
+                      aria-label="最新最终成片"
+                      src={latestFinalOutput.src}
+                      controls
+                      preload="metadata"
+                      className="max-h-40 w-full shrink-0 rounded-lg bg-black object-contain"
+                    />
+                  ) : null}
                   {mediaError ? (
                     <div
                       role="alert"
@@ -1853,10 +2007,13 @@ export function ProductionWorkbench({
                     </div>
                   ) : null}
                   <WebAvVideoEditor
-                    key={`${project.id}:${scriptId}`}
+                    key={`${project.id}:${scriptId}:${editorSessionKey}`}
                     clips={completedVideos}
+                    initialTimeline={flowData.timeline.clips}
                     mediaLibrary={mediaLibrary.map(toEditorMedia)}
                     videoRatio={project.videoRatio}
+                    onTimelineChange={saveTimeline}
+                    onExport={uploadFinalOutput}
                   />
                 </div>
               ) : null}

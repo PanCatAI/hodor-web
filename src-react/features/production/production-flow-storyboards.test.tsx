@@ -30,11 +30,15 @@ function storyboards(): StoryboardItem[] {
 
 function flowData(): ProductionFlowData {
   return {
+    source: { chapters: [], state: "completed" },
     script: "雨夜，角色推门。",
     scriptPlan: "先远后近",
     storyboardTable: "| 镜头 | 景别 |",
     assets: [],
     storyboard: storyboards(),
+    videoTracks: [],
+    timeline: { id: null, revision: 0, status: "idle", clips: [], errorReason: "", updatedAt: null },
+    finalOutputs: [],
   };
 }
 

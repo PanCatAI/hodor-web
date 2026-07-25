@@ -46,10 +46,12 @@ export interface WebAvEditorClip {
 export interface WebAvVideoEditorProps {
   clips: VideoItem[];
   videoRatio?: string;
+  initialTimeline?: WebAvEditorClip[];
   initialOverlays?: WebAvEditorClip[];
   mediaLibrary?: WebAvEditorClip[];
   onClipsChange?: (clips: VideoItem[]) => void;
   onTimelineChange?: (clips: WebAvEditorClip[]) => void;
+  onExport?: (blob: Blob) => void | Promise<void>;
 }
 
 interface TimelineEntry {
@@ -455,17 +457,20 @@ function applyEffect(
 export function WebAvVideoEditor({
   clips,
   videoRatio = "16:9",
+  initialTimeline,
   initialOverlays = [],
   mediaLibrary = [],
   onClipsChange,
   onTimelineChange,
+  onExport,
 }: WebAvVideoEditorProps) {
   const { width: canvasWidth, height: canvasHeight } = resolveWebAvCanvasSize(videoRatio);
   const usableVideos = useMemo(() => clips.filter((clip) => clip.state === "completed" && clip.src), [clips]);
-  const [timelineClips, setTimelineClips] = useState<WebAvEditorClip[]>(() => [
-    ...usableVideos.map(videoToEditorClip),
-    ...initialOverlays.map(normalizeOverlay),
-  ]);
+  const [timelineClips, setTimelineClips] = useState<WebAvEditorClip[]>(() =>
+    initialTimeline?.length
+      ? initialTimeline.map(normalizeOverlay)
+      : [...usableVideos.map(videoToEditorClip), ...initialOverlays.map(normalizeOverlay)],
+  );
   const [selectedId, setSelectedId] = useState<string | null>(() => timelineClips[0]?.id ?? null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [runtimeState, setRuntimeState] = useState<"loading" | "webav" | "native">("loading");
@@ -939,6 +944,7 @@ export function WebAvVideoEditor({
       ) => void);
       const blob = await readWebAvOutput(combinator.output({ maxTime: timeline.duration * 1e6 }), { signal: abort.signal });
       if (abort.signal.aborted) throw abortError();
+      await onExport?.(blob);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;

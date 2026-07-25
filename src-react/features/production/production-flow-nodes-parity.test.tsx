@@ -45,11 +45,15 @@ function storyboard(index: number): StoryboardItem {
 
 function flowData(assetCount = 13, storyboardCount = 25): ProductionFlowData {
   return {
+    source: { chapters: [], state: "completed" },
     script: "# 原文",
     scriptPlan: "# 拍摄计划",
     storyboardTable: "| 镜头 | 景别 |\n| --- | --- |\n| 1 | 远景 |",
     assets: Array.from({ length: assetCount }, (_, index) => asset(index + 1)),
     storyboard: Array.from({ length: storyboardCount }, (_, index) => storyboard(index)),
+    videoTracks: [],
+    timeline: { id: null, revision: 0, status: "idle", clips: [], errorReason: "", updatedAt: null },
+    finalOutputs: [],
     workbench: { cover: "https://example.test/workbench.jpg", gradient: "linear-gradient(#111,#333)" },
   };
 }
@@ -130,7 +134,7 @@ describe("upstream production node parity", () => {
     const onOpenWorkbench = vi.fn();
     render(<ProductionFlowBoard api={api()} projectId={7} scriptId={12} initialData={flowData(0, 1)} onOpenWorkbench={onOpenWorkbench} />);
 
-    const workbench = screen.getByTestId("flow-node-workbench");
+    const workbench = screen.getByTestId("flow-node-videoTracks");
     expect(workbench).toHaveClass("min-w-[280px]");
     expect(within(workbench).queryByText("进入生成与合成工作台")).not.toBeInTheDocument();
     expect(within(workbench).queryByRole("button", { name: "打开工作台" })).not.toBeInTheDocument();

@@ -362,12 +362,14 @@ describe("WebAV video editor contracts", () => {
       .slice(1)
       .map((clip) => (clip.type === "audio" ? { ...clip, startAt: 1 } : clip));
     const onTimelineChange = vi.fn();
+    const onExport = vi.fn(async (_blob: Blob) => undefined);
     const { unmount } = render(
       <WebAvVideoEditor
         clips={[{ id: 1, src: "https://example.test/video.mp4", state: "completed", errorReason: "", duration: 5 }]}
         videoRatio="9:16"
         initialOverlays={overlays}
         onTimelineChange={onTimelineChange}
+        onExport={onExport}
       />,
     );
 
@@ -383,7 +385,9 @@ describe("WebAV video editor contracts", () => {
     fireEvent.click(exportButton);
 
     await waitFor(() => expect(webAvMocks.createCombinator).toHaveBeenCalled());
+    await waitFor(() => expect(onExport).toHaveBeenCalledWith(expect.objectContaining({ type: "video/mp4", size: 4 })));
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledWith(expect.objectContaining({ type: "video/mp4", size: 4 })));
+    expect(onExport.mock.invocationCallOrder[0]).toBeLessThan(anchorClick.mock.invocationCallOrder[0]);
     expect(webAvMocks.combinatorDestroy).toHaveBeenCalled();
 
     const imageSprite = webAvMocks.addedSprites.find((sprite) => sprite.kind === "image");

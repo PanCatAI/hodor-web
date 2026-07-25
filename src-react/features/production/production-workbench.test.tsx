@@ -8,6 +8,7 @@ import type { ProductionFlowData, ProductionGenerationData, ProductionVideoModel
 function createApi(scriptItems?: ScriptSummary[]): ProductionApi {
   const scripts: ScriptSummary[] = scriptItems ?? [{ id: 12, name: "第一幕", content: "", state: "completed", errorReason: "" }];
   const flow: ProductionFlowData = {
+    source: { chapters: [], state: "completed" },
     script: "雨夜",
     scriptPlan: "",
     assets: [
@@ -38,6 +39,9 @@ function createApi(scriptItems?: ScriptSummary[]): ProductionApi {
         associateAssetsIds: [9],
       },
     ],
+    videoTracks: [],
+    timeline: { id: 71, revision: 2, status: "completed", clips: [], errorReason: "", updatedAt: "2026-07-25T12:00:00.000Z" },
+    finalOutputs: [],
   };
   const generation: ProductionGenerationData = {
     storyboardList: [],
@@ -115,6 +119,32 @@ function createApi(scriptItems?: ScriptSummary[]): ProductionApi {
     updateStoryboardImage: vi.fn(async () => undefined),
     addStoryboard: vi.fn(async () => 77),
     updateAssetImage: vi.fn(async () => undefined),
+    getEditTimeline: vi.fn(async () => flow.timeline),
+    saveEditTimeline: vi.fn(async (_projectId, _scriptId, expectedRevision, clips) => ({
+      ...flow.timeline,
+      revision: expectedRevision + 1,
+      clips,
+    })),
+    uploadFinalVideo: vi.fn(async () => ({
+      id: 81,
+      state: "completed" as const,
+      src: "https://example.test/final.mp4",
+      duration: 42,
+      size: 4,
+      checksum: "sha256:final",
+      errorReason: "",
+      createdAt: "2026-07-25T12:30:00.000Z",
+    })),
+    renderTimeline: vi.fn(async () => ({
+      id: 82,
+      state: "completed" as const,
+      src: "https://example.test/cloud-final.mp4",
+      duration: 43,
+      size: 9_216,
+      checksum: "sha256:cloud",
+      errorReason: "",
+      createdAt: "2026-07-25T12:40:00.000Z",
+    })),
   };
 }
 
@@ -247,6 +277,7 @@ describe("ProductionWorkbench", () => {
   it("synchronizes storyboard updates into the mounted flow board without saving in a loop", async () => {
     const api = createApi();
     vi.mocked(api.getFlowData).mockResolvedValue({
+      source: { chapters: [], state: "completed" },
       script: "雨夜",
       scriptPlan: "",
       assets: [],
@@ -262,6 +293,9 @@ describe("ProductionWorkbench", () => {
           errorReason: "",
         },
       ],
+      videoTracks: [],
+      timeline: { id: 71, revision: 2, status: "completed", clips: [], errorReason: "", updatedAt: "2026-07-25T12:00:00.000Z" },
+      finalOutputs: [],
     });
     vi.mocked(api.pollStoryboards).mockResolvedValue([
       {
@@ -330,7 +364,7 @@ describe("ProductionWorkbench", () => {
     );
 
     const flowBoard = await screen.findByRole("region", { name: "生产流图" });
-    fireEvent.click(screen.getByTestId("flow-node-workbench"));
+    fireEvent.click(screen.getByTestId("flow-node-videoTracks"));
     const workbench = screen.getByRole("dialog", { name: "视频工作台" });
     expect(screen.getByRole("region", { name: "生产流图" })).toBe(flowBoard);
     expect(
@@ -396,6 +430,14 @@ describe("ProductionWorkbench", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "视频编辑" }));
     fireEvent.click(screen.getByRole("button", { name: "添加文字轨道" }));
+    await waitFor(() =>
+      expect(api.saveEditTimeline).toHaveBeenCalledWith(
+        7,
+        12,
+        2,
+        expect.arrayContaining([expect.objectContaining({ type: "text" })]),
+      ),
+    );
     const textTrack = screen.getByRole("button", { name: /选择轨道 文字/ });
     fireEvent.click(screen.getByRole("button", { name: "视频生成" }));
     fireEvent.click(screen.getByRole("button", { name: "视频编辑" }));
@@ -403,6 +445,23 @@ describe("ProductionWorkbench", () => {
 
     fireEvent.change(screen.getByLabelText("当前剧本"), { target: { value: "13" } });
     await waitFor(() => expect(screen.queryByRole("button", { name: /选择轨道 文字/ })).not.toBeInTheDocument());
+  });
+
+  it("renders the saved timeline through the cloud path and exposes the returned final video", async () => {
+    const api = createApi();
+    render(
+      <ProductionWorkbench
+        api={api}
+        project={{ id: 7, name: "雨夜", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+        initialView="editor"
+      />,
+    );
+
+    await screen.findByRole("button", { name: "生成云端成片" });
+    fireEvent.click(screen.getByRole("button", { name: "生成云端成片" }));
+
+    await waitFor(() => expect(api.renderTimeline).toHaveBeenCalledWith(7, 12, 2));
+    expect(await screen.findByLabelText("最新最终成片")).toHaveAttribute("src", "https://example.test/cloud-final.mp4");
   });
 
   it("keeps the workbench usable when the edit media library fails and offers retry", async () => {
@@ -446,11 +505,15 @@ describe("ProductionWorkbench", () => {
 
     expect(screen.getByRole("complementary", { name: "生产智能体侧栏" })).toBeInTheDocument();
     vi.mocked(api.getFlowData).mockResolvedValueOnce({
+      source: { chapters: [], state: "completed" },
       script: "雨夜",
       scriptPlan: "智能体刚写入的新拍摄计划",
       assets: [],
       storyboardTable: "",
       storyboard: [],
+      videoTracks: [],
+      timeline: { id: 71, revision: 2, status: "completed", clips: [], errorReason: "", updatedAt: "2026-07-25T12:00:00.000Z" },
+      finalOutputs: [],
     });
     fireEvent.click(screen.getByRole("button", { name: "同步产线图" }));
     expect(await screen.findByText("智能体刚写入的新拍摄计划")).toBeInTheDocument();

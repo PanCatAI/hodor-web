@@ -1,8 +1,10 @@
 import type { HodorApiClient } from "@react/lib/api/client";
 import type {
   ProductionFlowData,
+  ProductionFinalOutput,
   ProductionGenerationData,
   ProductionMediaItem,
+  ProductionTimelineData,
   DerivedAsset,
   ImageFlowData,
   ProductionState,
@@ -15,6 +17,7 @@ import type {
   VideoItem,
   VideoTrack,
 } from "./types";
+import type { WebAvEditorClip } from "./webav-video-editor";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -83,6 +86,15 @@ export interface ProductionApi {
   addStoryboard(projectId: number, scriptId: number, input: AddStoryboardInput): Promise<number>;
   updateAssetImage(id: number, url: string, flowId: number): Promise<void>;
   getMediaLibrary(projectId: number, scriptId: number): Promise<ProductionMediaItem[]>;
+  getEditTimeline(projectId: number, scriptId: number): Promise<ProductionTimelineData>;
+  saveEditTimeline(
+    projectId: number,
+    scriptId: number,
+    expectedRevision: number,
+    clips: WebAvEditorClip[],
+  ): Promise<ProductionTimelineData>;
+  uploadFinalVideo(projectId: number, scriptId: number, timelineRevision: number, blob: Blob): Promise<ProductionFinalOutput>;
+  renderTimeline(projectId: number, scriptId: number, timelineRevision: number): Promise<ProductionFinalOutput>;
 }
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -271,6 +283,32 @@ function mapTrack(value: unknown): VideoTrack {
   };
 }
 
+function mapTimeline(value: unknown): ProductionTimelineData {
+  const record = asRecord(value);
+  return {
+    id: asNumber(record.id) > 0 ? asNumber(record.id) : null,
+    revision: asNumber(record.revision),
+    status: normalizeProductionStatus(record.status),
+    clips: asArray(record.clips).filter(isRecord) as unknown as WebAvEditorClip[],
+    errorReason: asString(record.errorReason),
+    updatedAt: asString(record.updatedAt) || null,
+  };
+}
+
+function mapFinalOutput(value: unknown): ProductionFinalOutput {
+  const record = asRecord(value);
+  return {
+    id: asNumber(record.id),
+    state: normalizeProductionStatus(record.state),
+    src: asString(record.src) || asString(record.filePath),
+    duration: asNumber(record.duration),
+    size: asNumber(record.size),
+    checksum: asString(record.checksum),
+    errorReason: asString(record.errorReason),
+    createdAt: asString(record.createdAt),
+  };
+}
+
 function mediaType(record: UnknownRecord, src: string): ProductionMediaItem["type"] | null {
   const declaredType = asString(record.fileType) || asString(record.mediaType);
   if (["video", "audio", "image"].includes(declaredType)) return declaredType as ProductionMediaItem["type"];
@@ -391,8 +429,24 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
 
     async getFlowData(projectId, scriptId) {
       const data = asRecord(await post<unknown>(client, "/production/getFlowData", { projectId, episodesId: scriptId }));
+      const source = asRecord(data.source);
       return {
         ...data,
+        source: {
+          chapters: asArray(source.chapters).map((value) => {
+            const chapter = asRecord(value);
+            return {
+              id: asNumber(chapter.id),
+              chapterIndex: asNumber(chapter.chapterIndex),
+              chapter: asString(chapter.chapter),
+              contentPreview: asString(chapter.contentPreview),
+              charCount: asNumber(chapter.charCount),
+              eventState: asNumber(chapter.eventState),
+              errorReason: asString(chapter.errorReason),
+            };
+          }),
+          state: normalizeProductionStatus(source.state),
+        },
         script: asString(data.script),
         scriptPlan: asString(data.scriptPlan),
         assets: asArray(data.assets).map((value) => {
@@ -401,6 +455,9 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
         }),
         storyboardTable: asString(data.storyboardTable),
         storyboard: asArray(data.storyboard).map(mapStoryboard),
+        videoTracks: asArray(data.videoTracks).map(mapTrack),
+        timeline: mapTimeline(data.timeline),
+        finalOutputs: asArray(data.finalOutputs).map(mapFinalOutput),
         ...(isRecord(data.workbench) ? { workbench: data.workbench } : {}),
         ...(isRecord(data.layout)
           ? {
@@ -419,6 +476,46 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
         storyboardList: asArray(data.storyboardList).map(mapStoryboard),
         trackList: asArray(data.trackList).map(mapTrack),
       };
+    },
+
+    async getEditTimeline(projectId, scriptId) {
+      return mapTimeline(await post<unknown>(client, "/production/workbench/getEditTimeline", { projectId, scriptId }));
+    },
+
+    async saveEditTimeline(projectId, scriptId, expectedRevision, clips) {
+      return mapTimeline(
+        await post<unknown>(client, "/production/workbench/saveEditTimeline", {
+          projectId,
+          scriptId,
+          expectedRevision,
+          clips,
+        }),
+      );
+    },
+
+    async uploadFinalVideo(projectId, scriptId, timelineRevision, blob) {
+      return mapFinalOutput(
+        await client.request<unknown>("/production/workbench/uploadFinalVideo", {
+          method: "POST",
+          headers: {
+            "Content-Type": "video/mp4",
+            "X-Hodor-Project-Id": String(projectId),
+            "X-Hodor-Script-Id": String(scriptId),
+            "X-Hodor-Timeline-Revision": String(timelineRevision),
+          },
+          body: blob,
+        }),
+      );
+    },
+
+    async renderTimeline(projectId, scriptId, timelineRevision) {
+      return mapFinalOutput(
+        await post<unknown>(client, "/production/workbench/renderTimeline", {
+          projectId,
+          scriptId,
+          timelineRevision,
+        }),
+      );
     },
 
     async generateStoryboards({ projectId, scriptId, storyboardIds }) {

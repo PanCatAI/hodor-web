@@ -1,5 +1,7 @@
 export type ProductionState = "idle" | "running" | "completed" | "failed";
 export type ProductionVideoRatio = "16:9" | "1:1" | "9:16";
+export type ProductionStageTarget = "source" | "script" | "assets" | "storyboard";
+export type ProductionWorkbenchView = "preview" | "generate" | "editVideo";
 
 export interface ProductionProject {
   id: number;
@@ -109,13 +111,52 @@ export interface VideoTrack {
   selectVideoId?: number | null;
 }
 
+export interface ProductionSourceChapter {
+  id: number;
+  chapterIndex: number;
+  chapter: string;
+  contentPreview?: string;
+  charCount?: number;
+  eventState: number;
+  errorReason: string;
+}
+
+export interface ProductionSourceData {
+  chapters: ProductionSourceChapter[];
+  state: ProductionState;
+}
+
+export interface ProductionTimelineData {
+  id: number | null;
+  revision: number;
+  status: ProductionState;
+  clips: import("./webav-video-editor").WebAvEditorClip[];
+  errorReason: string;
+  updatedAt: string | null;
+}
+
+export interface ProductionFinalOutput {
+  id: number;
+  state: ProductionState;
+  src: string;
+  duration: number;
+  size: number;
+  checksum: string;
+  errorReason: string;
+  createdAt: string;
+}
+
 export interface ProductionFlowData {
   [key: string]: unknown;
+  source: ProductionSourceData;
   script: string;
   scriptPlan: string;
   assets: ProductionAsset[];
   storyboardTable: string;
   storyboard: StoryboardItem[];
+  videoTracks: VideoTrack[];
+  timeline: ProductionTimelineData;
+  finalOutputs: ProductionFinalOutput[];
   workbench?: Record<string, unknown>;
   layout?: Record<string, FlowNodePosition>;
 }

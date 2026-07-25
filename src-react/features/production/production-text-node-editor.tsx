@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MdEditor, MdPreview } from "md-editor-rt";
 import type { Themes, ToolbarNames } from "md-editor-rt";
@@ -10,6 +10,11 @@ export interface ProductionTextNodeEditorProps {
   placeholder: string;
   tall?: boolean;
   onSave: (value: string) => void;
+  status?: ReactNode;
+  openAction?: {
+    label: string;
+    onOpen: () => void;
+  };
 }
 
 const toolbars: ToolbarNames[] = [
@@ -56,7 +61,7 @@ function containsMedia(transfer: DataTransfer | null): boolean {
   return Array.from(transfer?.items ?? []).some((item) => item.type.startsWith("image/") || item.type.startsWith("video/"));
 }
 
-export function ProductionTextNodeEditor({ label, value, placeholder, onSave }: ProductionTextNodeEditorProps) {
+export function ProductionTextNodeEditor({ label, value, placeholder, onSave, status, openAction }: ProductionTextNodeEditorProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const theme = useEditorTheme();
@@ -158,14 +163,26 @@ export function ProductionTextNodeEditor({ label, value, placeholder, onSave }: 
     <div>
       <header className="production-node-drag-handle relative flex cursor-grab select-none items-center justify-between gap-6 active:cursor-grabbing">
         <div className="w-fit rounded-bl-none rounded-br-lg rounded-tl-lg rounded-tr-none bg-black px-2.5 py-[5px] text-base text-white">{label}</div>
-        <button type="button" aria-label={`编辑${label}`} onClick={beginEdit} className="nodrag px-2 py-1 text-sm text-blue-400 hover:text-blue-300">
-          编辑
-        </button>
+        <div className="nodrag flex items-center gap-2">
+          {status}
+          {openAction ? (
+            <button
+              type="button"
+              aria-label={openAction.label}
+              onClick={openAction.onOpen}
+              className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:border-blue-500 hover:text-blue-300">
+              打开
+            </button>
+          ) : null}
+          <button type="button" aria-label={`编辑${label}`} onClick={beginEdit} className="px-2 py-1 text-sm text-blue-400 hover:text-blue-300">
+            编辑
+          </button>
+        </div>
       </header>
       <div
         aria-label={`${label}预览`}
         onPointerDown={(event) => event.stopPropagation()}
-        className="nodrag nowheel mt-2 select-text overflow-visible [&_.md-editor]:!border-0 [&_.md-editor]:!bg-transparent [&_.md-editor-preview-wrapper]:!p-0">
+        className="nodrag nowheel mt-2 max-h-[560px] select-text overflow-y-auto pr-2 [&_.md-editor]:!border-0 [&_.md-editor]:!bg-transparent [&_.md-editor-preview-wrapper]:!p-0">
         {value ? (
           <MdPreview editorId={`${editorId}-preview`} value={value} theme={theme} language="zh-CN" />
         ) : (

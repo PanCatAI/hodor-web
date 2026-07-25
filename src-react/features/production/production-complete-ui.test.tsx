@@ -24,6 +24,7 @@ beforeAll(() => {
 
 function flowData(): ProductionFlowData {
   return {
+    source: { chapters: [], state: "completed" },
     script: "雨夜，角色推门。",
     scriptPlan: "先远后近",
     storyboardTable: "| 镜头 | 景别 |",
@@ -53,6 +54,9 @@ function flowData(): ProductionFlowData {
       },
     ],
     storyboard: [{ id: 31, index: 0, prompt: "医院远景", videoDesc: "推进", src: "", state: "idle", errorReason: "" }],
+    videoTracks: [],
+    timeline: { id: null, revision: 0, status: "idle", clips: [], errorReason: "", updatedAt: null },
+    finalOutputs: [],
   };
 }
 
@@ -62,7 +66,8 @@ describe("complete production UI", () => {
     const api = { saveFlowData: vi.fn(async () => undefined) } as unknown as ProductionApi;
     render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={flowData()} />);
 
-    expect(screen.getByTestId("flow-node-script")).toHaveAttribute("data-x", "0");
+    expect(screen.getByTestId("flow-node-source")).toHaveAttribute("data-x", "0");
+    expect(screen.getByTestId("flow-node-script")).toHaveAttribute("data-x", "900");
     fireEvent.click(screen.getByRole("button", { name: "编辑导演计划" }));
     const editor = screen.getByRole("dialog", { name: "编辑导演计划" });
     const textbox = within(editor).getByRole("textbox");
@@ -97,7 +102,7 @@ describe("complete production UI", () => {
     } as unknown as ProductionApi;
     render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={flowData()} pollIntervalMs={5} />);
 
-    expect(screen.getByText("生成失败")).toHaveAttribute("title", "审核失败");
+    expect(screen.getByTitle("审核失败")).toHaveTextContent("生成失败");
     fireEvent.click(screen.getByRole("button", { name: "编辑衍生资产 雨衣造型" }));
     expect(screen.getByRole("dialog", { name: "图片工作流" })).toBeInTheDocument();
   });

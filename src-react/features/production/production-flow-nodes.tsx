@@ -4,7 +4,15 @@ import type { NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
 import { ArrowRight, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Play, Plus, Trash2, X } from "lucide-react";
 
-import type { DerivedAsset, ProductionAsset, ProductionFlowData, StoryboardItem } from "./types";
+import type {
+  DerivedAsset,
+  ProductionAsset,
+  ProductionFlowData,
+  ProductionStageTarget,
+  ProductionState,
+  ProductionWorkbenchView,
+  StoryboardItem,
+} from "./types";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
 import { ProductionTextNodeEditor } from "./production-text-node-editor";
 
@@ -24,7 +32,8 @@ export interface ProductionNodeHandlers {
   onDeleteStoryboards: (ids: number[]) => void;
   onInsertStoryboard: (referenceId: number, placement: "before" | "after") => void;
   onPreviewStoryboards: () => void;
-  onOpenWorkbench: () => void;
+  onOpenStage: (stage: ProductionStageTarget) => void;
+  onOpenWorkbench: (view: ProductionWorkbenchView) => void;
 }
 
 export interface ProductionNodeData extends Record<string, unknown>, ProductionNodeHandlers {
@@ -38,6 +47,47 @@ function stateLabel(state: DerivedAsset["state"] | StoryboardItem["state"]) {
   if (state === "completed") return "已完成";
   if (state === "failed") return "生成失败";
   return "未生成";
+}
+
+const stageStatusContent: Record<ProductionState, { label: string; className: string }> = {
+  idle: { label: "未生成", className: "border-slate-600 bg-slate-900 text-slate-400" },
+  running: { label: "生成中", className: "border-blue-500/40 bg-blue-500/10 text-blue-300" },
+  completed: { label: "已完成", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+  failed: { label: "生成失败", className: "border-red-500/40 bg-red-500/10 text-red-300" },
+};
+
+function aggregateState(states: ProductionState[]): ProductionState {
+  if (states.includes("failed")) return "failed";
+  if (states.includes("running")) return "running";
+  if (states.length > 0 && states.every((state) => state === "completed")) return "completed";
+  return "idle";
+}
+
+function stageState(flow: ProductionFlowData, id: ProductionFlowNodeId): ProductionState {
+  if (id === "source") return flow.source.state;
+  if (id === "script") return flow.script.trim() ? "completed" : "idle";
+  if (id === "scriptPlan") return flow.scriptPlan.trim() ? "completed" : "idle";
+  if (id === "assets") {
+    return aggregateState(flow.assets.flatMap((asset) => [asset.state, ...asset.derive.map((derived) => derived.state)]));
+  }
+  if (id === "storyboardTable") return flow.storyboardTable.trim() ? "completed" : "idle";
+  if (id === "storyboard") return aggregateState(flow.storyboard.map((storyboard) => storyboard.state));
+  if (id === "videoTracks") {
+    return aggregateState(
+      flow.videoTracks.flatMap((track) => [track.state, ...track.videoList.map((video) => video.state)]),
+    );
+  }
+  if (id === "timeline") return flow.timeline.status;
+  return aggregateState(flow.finalOutputs.map((output) => output.state));
+}
+
+function StageStatus({ id, flow }: { id: ProductionFlowNodeId; flow: ProductionFlowData }) {
+  const content = stageStatusContent[stageState(flow, id)];
+  return (
+    <span data-testid={`stage-status-${id}`} className={`rounded-full border px-2 py-1 text-[11px] font-medium ${content.className}`}>
+      {content.label}
+    </span>
+  );
 }
 
 function NodeCard({
@@ -69,15 +119,38 @@ function NodeCard({
   );
 }
 
-function NodeTitle({ label }: { label: string }) {
+function NodeTitle({
+  label,
+  status,
+  openAction,
+}: {
+  label: string;
+  status?: React.ReactNode;
+  openAction?: { label: string; onOpen: () => void };
+}) {
   return (
     <header className="production-node-drag-handle relative flex cursor-grab select-none items-center justify-between active:cursor-grabbing">
       <div className="w-fit rounded-bl-none rounded-br-lg rounded-tl-lg rounded-tr-none bg-black px-2.5 py-[5px] text-base text-white">{label}</div>
+      <div className="nodrag ml-4 flex items-center gap-2">
+        {status}
+        {openAction ? (
+          <button
+            type="button"
+            aria-label={openAction.label}
+            onClick={(event) => {
+              event.stopPropagation();
+              openAction.onOpen();
+            }}
+            className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:border-blue-500 hover:text-blue-300">
+            打开
+          </button>
+        ) : null}
+      </div>
     </header>
   );
 }
 
-function MainChainHandles({ id, source = true }: { id: Exclude<ProductionFlowNodeId, "script" | "assets">; source?: boolean }) {
+function MainChainHandles({ id, source = true }: { id: Exclude<ProductionFlowNodeId, "source" | "script" | "assets">; source?: boolean }) {
   return (
     <>
       <Handle id={`${id}-target`} type="target" position={Position.Left} />
@@ -101,16 +174,68 @@ function TextNode({
     <NodeCard
       id={id}
       position={data.position}
-      className={`w-fit max-w-[100vw] cursor-default select-text ${id === "storyboardTable" ? "min-w-[100px]" : "min-w-[200px]"}`}>
+      className={`cursor-default select-text ${
+        id === "script" ? "w-[680px] max-w-[80vw]" : "w-[560px] max-w-[72vw]"
+      }`}>
       {id === "script" ? (
         <>
+          <Handle id="script-target" type="target" position={Position.Left} />
           <Handle id="script-main" type="source" position={Position.Right} />
           <Handle id="script-assets" type="source" position={Position.Bottom} />
         </>
       ) : (
         <MainChainHandles id={id} />
       )}
-      <ProductionTextNodeEditor label={label} value={data.flow[id]} placeholder={placeholder} onSave={(value) => data.onTextChange(id, value)} />
+      <ProductionTextNodeEditor
+        label={label}
+        value={data.flow[id]}
+        placeholder={placeholder}
+        onSave={(value) => data.onTextChange(id, value)}
+        status={<StageStatus id={id} flow={data.flow} />}
+        openAction={
+          id === "script"
+            ? {
+                label: "打开剧本",
+                onOpen: () => data.onOpenStage("script"),
+              }
+            : undefined
+        }
+      />
+    </NodeCard>
+  );
+}
+
+function SourceNode({ data }: NodeProps) {
+  const nodeData = data as ProductionNodeData;
+  const chapters = nodeData.flow.source.chapters;
+  return (
+    <NodeCard id="source" position={nodeData.position} className="w-[360px] cursor-default select-text">
+      <Handle id="source-source" type="source" position={Position.Right} />
+      <NodeTitle
+        label="原文"
+        status={<StageStatus id="source" flow={nodeData.flow} />}
+        openAction={{ label: "打开原文", onOpen: () => nodeData.onOpenStage("source") }}
+      />
+      <div className="nodrag mt-3 space-y-2">
+        <p className="text-xs text-slate-400">
+          共 {chapters.length} 章 · 已分析 {chapters.filter((chapter) => chapter.eventState > 0).length} 章
+        </p>
+        {chapters.length ? (
+          <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+            {chapters.slice(0, 6).map((chapter) => (
+              <article key={chapter.id} className="rounded border border-slate-700/70 bg-slate-950/40 px-3 py-2">
+                <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500">
+                  <span className="truncate">{chapter.chapter || `第 ${chapter.chapterIndex + 1} 章`}</span>
+                  {chapter.charCount ? <span className="shrink-0">{chapter.charCount.toLocaleString()} 字</span> : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-300">{chapter.contentPreview || "暂无正文摘要"}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="py-6 text-center text-sm text-slate-500">暂无原文</p>
+        )}
+      </div>
     </NodeCard>
   );
 }
@@ -333,8 +458,12 @@ function AssetsNode({ data }: NodeProps) {
   return (
     <NodeCard id="assets" position={nodeData.position} className="w-fit cursor-default select-text">
       <Handle id="assets-target" type="target" position={Position.Top} />
-      <NodeTitle label="衍生资产" />
-      <div className="mt-2 flex flex-col">
+      <NodeTitle
+        label="衍生资产"
+        status={<StageStatus id="assets" flow={nodeData.flow} />}
+        openAction={{ label: "打开资产", onOpen: () => nodeData.onOpenStage("assets") }}
+      />
+      <div className="nodrag nowheel mt-2 flex max-h-[720px] flex-col overflow-y-auto pr-2">
         {nodeData.flow.assets.length
           ? nodeData.flow.assets.map((asset, index) => (
               <div key={asset.id} data-testid="asset-row" className={`flex items-stretch gap-3 p-2.5 ${index ? "mt-2" : ""}`}>
@@ -379,7 +508,11 @@ function StoryboardNode({ data }: NodeProps) {
   return (
     <NodeCard id="storyboard" position={nodeData.position} className="min-w-[500px] max-w-[100vw] cursor-default select-text">
       <MainChainHandles id="storyboard" />
-      <NodeTitle label="分镜面板" />
+      <NodeTitle
+        label="分镜面板"
+        status={<StageStatus id="storyboard" flow={nodeData.flow} />}
+        openAction={{ label: "打开分镜", onOpen: () => nodeData.onOpenStage("storyboard") }}
+      />
       <div className="mt-3">
         {nodeData.flow.storyboard.length ? (
           <div className="flex flex-wrap items-start gap-0">
@@ -540,32 +673,62 @@ function StoryboardNode({ data }: NodeProps) {
   );
 }
 
-function WorkbenchNode({ data }: NodeProps) {
+function WorkbenchStageNode({ data }: NodeProps) {
   const nodeData = data as ProductionNodeData;
+  const id = nodeData.id;
+  if (id !== "videoTracks" && id !== "timeline" && id !== "finalOutput") return null;
+  const view: ProductionWorkbenchView | null = id === "videoTracks" ? "generate" : id === "timeline" ? "editVideo" : null;
+  const label = id === "videoTracks" ? "视频轨道" : id === "timeline" ? "剪辑时间线" : "最终成片";
   const cover = typeof nodeData.flow.workbench?.cover === "string" ? nodeData.flow.workbench.cover : "";
   const gradient =
     typeof nodeData.flow.workbench?.gradient === "string" ? nodeData.flow.workbench.gradient : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+  const completedVideos = nodeData.flow.videoTracks.flatMap((track) => track.videoList).filter((video) => video.state === "completed" && video.src);
+  const latestOutput = nodeData.flow.finalOutputs.at(0);
+  const summary =
+    id === "videoTracks"
+      ? `${nodeData.flow.videoTracks.length} 条轨道 · ${completedVideos.length} 个可用视频`
+      : id === "timeline"
+        ? `${nodeData.flow.timeline.clips.length} 个片段 · 版本 ${nodeData.flow.timeline.revision}`
+        : latestOutput
+          ? `${Math.round(latestOutput.duration)} 秒 · ${(latestOutput.size / 1024 / 1024).toFixed(1)} MB`
+          : "尚未生成最终成片";
   return (
     <NodeCard
-      id="workbench"
+      id={id}
       position={nodeData.position}
-      className="min-w-[280px] cursor-pointer select-text transition-[filter] duration-100 active:brightness-90"
-      onClick={nodeData.onOpenWorkbench}
+      className={`min-w-[280px] select-text ${view ? "cursor-pointer transition-[filter] duration-100 active:brightness-90" : "cursor-default"}`}
+      onClick={view ? () => nodeData.onOpenWorkbench(view) : undefined}
       onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
+        if (view && (event.key === "Enter" || event.key === " ")) {
           event.preventDefault();
-          nodeData.onOpenWorkbench();
+          nodeData.onOpenWorkbench(view);
         }
       }}>
-      <MainChainHandles id="workbench" source={false} />
-      <NodeTitle label="视频工作台" />
+      <MainChainHandles id={id} source={id !== "finalOutput"} />
+      <NodeTitle label={label} status={<StageStatus id={id} flow={nodeData.flow} />} />
       <div className="mb-3 mt-3">
         <div
           className="group relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg"
           style={{ background: gradient }}>
-          {cover ? <img src={cover} alt="视频工作台封面" className="size-full object-cover" /> : null}
-          <Play className="absolute size-12 text-white/90 transition-transform duration-200 group-hover:scale-110" />
+          {id === "videoTracks" && cover ? <img src={cover} alt="视频工作台封面" className="size-full object-cover" /> : null}
+          {id === "finalOutput" && latestOutput?.src ? (
+            <video
+              src={latestOutput.src}
+              aria-label="最终成片预览"
+              className="nodrag size-full object-cover"
+              preload="metadata"
+              controls
+              onClick={(event) => event.stopPropagation()}
+            />
+          ) : null}
+          {id !== "finalOutput" || !latestOutput?.src ? (
+            <Play className="absolute size-12 text-white/90 transition-transform duration-200 group-hover:scale-110" />
+          ) : null}
         </div>
+        <p className="mt-3 text-xs text-slate-400">{summary}</p>
+        {id === "timeline" && nodeData.flow.timeline.errorReason ? (
+          <p className="mt-2 line-clamp-2 text-xs text-red-300">{nodeData.flow.timeline.errorReason}</p>
+        ) : null}
       </div>
     </NodeCard>
   );
@@ -573,12 +736,13 @@ function WorkbenchNode({ data }: NodeProps) {
 
 function ProductionNodeComponent(props: NodeProps) {
   const data = props.data as ProductionNodeData;
+  if (data.id === "source") return <SourceNode {...props} />;
   if (data.id === "script") return <TextNode id="script" data={data} label="剧本" placeholder="暂无数据" />;
   if (data.id === "scriptPlan") return <TextNode id="scriptPlan" data={data} label="导演计划" placeholder="暂无数据" />;
   if (data.id === "storyboardTable") return <TextNode id="storyboardTable" data={data} label="分镜表" placeholder="暂无数据" />;
   if (data.id === "assets") return <AssetsNode {...props} />;
   if (data.id === "storyboard") return <StoryboardNode {...props} />;
-  return <WorkbenchNode {...props} />;
+  return <WorkbenchStageNode {...props} />;
 }
 
 export const ProductionFlowNode = memo(ProductionNodeComponent);

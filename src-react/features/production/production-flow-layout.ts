@@ -3,7 +3,17 @@ import type { Edge, Node } from "@xyflow/react";
 import { topologyLevelLayout } from "@react/features/canvas";
 import type { FlowNodePosition } from "./types";
 
-export const productionNodeOrder = ["script", "scriptPlan", "assets", "storyboardTable", "storyboard", "workbench"] as const;
+export const productionNodeOrder = [
+  "source",
+  "script",
+  "scriptPlan",
+  "assets",
+  "storyboardTable",
+  "storyboard",
+  "videoTracks",
+  "timeline",
+  "finalOutput",
+] as const;
 
 export type ProductionFlowNodeId = (typeof productionNodeOrder)[number];
 
@@ -18,12 +28,15 @@ export interface ProductionLayoutOptions {
 }
 
 export const productionNodeLabels: Record<ProductionFlowNodeId, string> = {
-  script: "原文 / 剧本",
+  source: "原文",
+  script: "剧本",
   scriptPlan: "拍摄计划",
   assets: "资产工厂",
   storyboardTable: "分镜表",
   storyboard: "分镜图",
-  workbench: "视频工作台",
+  videoTracks: "视频轨道",
+  timeline: "剪辑时间线",
+  finalOutput: "最终成片",
 };
 
 /**
@@ -32,6 +45,7 @@ export const productionNodeLabels: Record<ProductionFlowNodeId, string> = {
  * misleading linear pipeline.
  */
 export const productionConnections = [
+  { id: "source-script", source: "source", target: "script", sourceHandle: "source-source", targetHandle: "script-target" },
   { id: "script-assets", source: "script", target: "assets", sourceHandle: "script-assets", targetHandle: "assets-target" },
   { id: "script-scriptPlan", source: "script", target: "scriptPlan", sourceHandle: "script-main", targetHandle: "scriptPlan-target" },
   {
@@ -49,11 +63,25 @@ export const productionConnections = [
     targetHandle: "storyboard-target",
   },
   {
-    id: "storyboard-workbench",
+    id: "storyboard-videoTracks",
     source: "storyboard",
-    target: "workbench",
+    target: "videoTracks",
     sourceHandle: "storyboard-source",
-    targetHandle: "workbench-target",
+    targetHandle: "videoTracks-target",
+  },
+  {
+    id: "videoTracks-timeline",
+    source: "videoTracks",
+    target: "timeline",
+    sourceHandle: "videoTracks-source",
+    targetHandle: "timeline-target",
+  },
+  {
+    id: "timeline-finalOutput",
+    source: "timeline",
+    target: "finalOutput",
+    sourceHandle: "timeline-source",
+    targetHandle: "finalOutput-target",
   },
 ] as const;
 
@@ -61,12 +89,15 @@ const fallbackNodeSize: ProductionNodeSize = { width: 150, height: 50 };
 const productionLayoutGap = 80;
 
 const initialProductionLayout: Record<ProductionFlowNodeId, FlowNodePosition> = {
-  script: { x: 0, y: 0 },
-  scriptPlan: { x: 900, y: 0 },
-  assets: { x: 1_200, y: 4_000 },
-  storyboardTable: { x: 1_800, y: 0 },
-  storyboard: { x: 2_500, y: 0 },
-  workbench: { x: 3_000, y: 0 },
+  source: { x: 0, y: 0 },
+  script: { x: 900, y: 0 },
+  scriptPlan: { x: 1_800, y: 0 },
+  assets: { x: 2_100, y: 4_000 },
+  storyboardTable: { x: 2_700, y: 0 },
+  storyboard: { x: 3_400, y: 0 },
+  videoTracks: { x: 3_900, y: 0 },
+  timeline: { x: 4_300, y: 0 },
+  finalOutput: { x: 4_700, y: 0 },
 };
 
 function finitePositive(value: unknown, fallback: number): number {

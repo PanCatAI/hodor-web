@@ -13,11 +13,15 @@ describe("complete production API adapter", () => {
     vi.mocked(client.request).mockResolvedValue(null);
     const api = createProductionApi(client);
     const data = {
+      source: { chapters: [], state: "completed" as const },
       script: "第一幕",
       scriptPlan: "夜戏",
       assets: [],
       storyboardTable: "| 镜头 | 内容 |",
       storyboard: [],
+      videoTracks: [],
+      timeline: { id: null, revision: 0, status: "idle" as const, clips: [], errorReason: "", updatedAt: null },
+      finalOutputs: [],
       layout: { script: { x: 10, y: 20 } },
     };
 
