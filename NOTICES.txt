@@ -16,6 +16,12 @@ Repository: https://github.com/pmndrs/react-three-fiber
 
 -----------------------------
 
+Name: @sparkjsdev/spark
+License: MIT
+Repository: https://github.com/sparkjs-dev/spark
+
+-----------------------------
+
 Name: @tanstack/react-router
 License: MIT
 Repository: https://github.com/TanStack/router
@@ -139,6 +145,12 @@ Repository: https://github.com/lucide-icons/lucide
 Name: mammoth
 License: BSD-2-Clause
 Repository: https://github.com/mwilliamson/mammoth.js
+
+-----------------------------
+
+Name: md-editor-rt
+License: MIT
+Repository: https://github.com/imzbf/md-editor-rt
 
 -----------------------------
 

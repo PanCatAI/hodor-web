@@ -146,12 +146,39 @@ export interface ProductionFinalOutput {
   createdAt: string;
 }
 
+export interface ProductionSceneWorldAsset {
+  id: number;
+  projectId: number;
+  sourceSceneAssetId: number;
+  storyboardId: number;
+  provider: "worldlabs-marble";
+  providerWorldId: string;
+  model: string;
+  status: "submitting" | "running" | "succeeded" | "failed";
+  prompt: string;
+  displayName: string;
+  worldJobId: string;
+  panoramaUrl: string;
+  colliderMeshUrl: string;
+  spzUrls: Record<string, string>;
+  thumbnailUrl: string;
+  caption: string;
+  semantics: {
+    metricScaleFactor: number;
+    groundPlaneOffset: number;
+  };
+  error: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProductionFlowData {
   [key: string]: unknown;
   source: ProductionSourceData;
   script: string;
   scriptPlan: string;
   assets: ProductionAsset[];
+  worldAssets?: ProductionSceneWorldAsset[];
   storyboardTable: string;
   storyboard: StoryboardItem[];
   videoTracks: VideoTrack[];

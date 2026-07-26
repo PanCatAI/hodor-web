@@ -9,6 +9,7 @@ export interface ProductionDirectorTransform {
 export interface ProductionDirectorProject {
   version: 1;
   worldPrompt: string;
+  sceneWorldSourceAssetId?: number;
   scene: {
     scale: number;
     position: [number, number, number];
@@ -61,6 +62,18 @@ export interface ProductionDirectorProject {
   }>;
   activeCameraId: string;
   panoramaAssetId: string | null;
+  sceneWorld?: {
+    provider: "worldlabs-marble";
+    worldId: string;
+    displayName: string;
+    panoramaUrl: string;
+    colliderMeshUrl: string;
+    spzUrls: Record<string, string>;
+    thumbnailUrl: string;
+    caption: string;
+    semantics: { metricScaleFactor: number; groundPlaneOffset: number };
+    renderQuality: "editing";
+  };
 }
 
 const roleColors = ["#4F8EF7", "#E0524D", "#E91E63", "#F2A900", "#9C4DCC", "#12B886"];
@@ -174,10 +187,16 @@ export function createProductionDirectorProject(flow: ProductionFlowData, storyb
       ].filter((value): value is string => typeof value === "string" && value.trim().length > 0),
     ),
   ).join("\n");
+  const sceneWorld = scenes
+    .map((scene) => (flow.worldAssets ?? []).find(
+      (world) => world.sourceSceneAssetId === scene.id && world.status === "succeeded",
+    ))
+    .find((world) => Boolean(world));
 
   return {
     version: 1,
     worldPrompt,
+    sceneWorldSourceAssetId: scenes[0]?.id,
     scene: {
       scale: 1,
       position: [0, 0, 0],
@@ -219,5 +238,19 @@ export function createProductionDirectorProject(flow: ProductionFlowData, storyb
     ],
     activeCameraId: cameraId,
     panoramaAssetId: scenes[0] ? `asset-scene-${scenes[0].id}` : storyboard.src ? `asset-storyboard-${storyboard.id}` : null,
+    ...(sceneWorld ? {
+      sceneWorld: {
+        provider: sceneWorld.provider,
+        worldId: sceneWorld.providerWorldId,
+        displayName: sceneWorld.displayName,
+        panoramaUrl: sceneWorld.panoramaUrl,
+        colliderMeshUrl: sceneWorld.colliderMeshUrl,
+        spzUrls: sceneWorld.spzUrls,
+        thumbnailUrl: sceneWorld.thumbnailUrl,
+        caption: sceneWorld.caption,
+        semantics: sceneWorld.semantics,
+        renderQuality: "editing" as const,
+      },
+    } : {}),
   };
 }

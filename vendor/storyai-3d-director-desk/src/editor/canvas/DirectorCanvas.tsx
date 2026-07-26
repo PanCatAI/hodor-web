@@ -666,7 +666,7 @@ export function DirectorCanvas() {
       <div className="director-canvas" data-testid="director-canvas">
         <Canvas
           camera={{ position: DEFAULT_DIRECTOR_VIEW_SNAPSHOT.position, fov: DEFAULT_DIRECTOR_VIEW_SNAPSHOT.fov }}
-          gl={{ antialias: true, preserveDrawingBuffer: true }}
+          gl={{ antialias: false, preserveDrawingBuffer: true }}
           onPointerMissed={openSceneInspector}
           onCreated={({ camera }) => {
             const perspectiveCamera = camera as ThreePerspectiveCamera;

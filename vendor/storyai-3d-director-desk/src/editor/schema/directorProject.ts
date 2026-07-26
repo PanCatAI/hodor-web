@@ -97,6 +97,22 @@ export interface DirectorCameraShot {
   captures?: DirectorCameraCapture[];
 }
 
+export interface DirectorSceneWorld {
+  provider: "worldlabs-marble";
+  worldId: string;
+  displayName?: string;
+  panoramaUrl: string;
+  colliderMeshUrl: string;
+  spzUrls: Record<string, string>;
+  thumbnailUrl?: string;
+  caption?: string;
+  semantics: {
+    metricScaleFactor: number;
+    groundPlaneOffset: number;
+  };
+  renderQuality?: "preview" | "editing" | "full";
+}
+
 export interface DirectorProject {
   version: 1;
   scene: SceneSettings;
@@ -105,4 +121,5 @@ export interface DirectorProject {
   cameras: DirectorCameraShot[];
   activeCameraId: string | null;
   panoramaAssetId: string | null;
+  sceneWorld?: DirectorSceneWorld | null;
 }

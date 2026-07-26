@@ -14,6 +14,7 @@ const initialPositions = {
   script: { x: 900, y: 0 },
   scriptPlan: { x: 1_800, y: 0 },
   assets: { x: 2_100, y: 4_000 },
+  worldAssets: { x: 2_700, y: 4_000 },
   storyboardTable: { x: 2_700, y: 0 },
   storyboard: { x: 3_400, y: 0 },
   videoTracks: { x: 3_900, y: 0 },
@@ -35,11 +36,13 @@ function rectanglesOverlap(
 }
 
 describe("production flow contract", () => {
-  it("keeps assets as a script branch and preserves the main production chain", () => {
+  it("keeps assets and reusable 3D worlds as a script branch while preserving the main production chain", () => {
     const connections: readonly string[] = productionConnections.map(({ source, target }) => `${source}->${target}`);
     expect(connections).toEqual([
       "source->script",
       "script->assets",
+      "assets->worldAssets",
+      "worldAssets->storyboard",
       "script->scriptPlan",
       "scriptPlan->storyboardTable",
       "storyboardTable->storyboard",
@@ -82,6 +85,7 @@ describe("production flow contract", () => {
       script: { width: 731, height: 517 },
       scriptPlan: { width: 642, height: 498 },
       assets: { width: 300, height: 260 },
+      worldAssets: { width: 440, height: 300 },
       storyboardTable: { width: 413, height: 451 },
       storyboard: { width: 804, height: 650 },
       videoTracks: { width: 500, height: 540 },
@@ -99,6 +103,7 @@ describe("production flow contract", () => {
       timeline: { x: 3_970, y: 0 },
       finalOutput: { x: 4_550, y: 0 },
       assets: { x: 480, y: 597 },
+      worldAssets: { x: 860, y: 597 },
     });
   });
 
@@ -120,6 +125,7 @@ describe("production flow contract", () => {
       timeline: { x: 1_630, y: 0 },
       finalOutput: { x: 1_860, y: 0 },
       assets: { x: 230, y: 380 },
+      worldAssets: { x: 460, y: 380 },
     });
   });
 
@@ -133,6 +139,7 @@ describe("production flow contract", () => {
 
     expect(layout.scriptPlan).toEqual({ x: 742, y: 0 });
     expect(layout.assets).toEqual({ x: 246, y: 396 });
+    expect(layout.worldAssets).toEqual({ x: 492, y: 396 });
   });
 
   it("moves the colliding main-chain node and every following node to the right", () => {
@@ -141,6 +148,7 @@ describe("production flow contract", () => {
       script: { width: 100, height: 100 },
       scriptPlan: { width: 100, height: 400 },
       assets: { width: 500, height: 200 },
+      worldAssets: { width: 440, height: 300 },
       storyboardTable: { width: 100, height: 400 },
       storyboard: { width: 100, height: 400 },
       videoTracks: { width: 100, height: 400 },
@@ -162,6 +170,7 @@ describe("production flow contract", () => {
       timeline: { x: 1_480, y: 0 },
       finalOutput: { x: 1_660, y: 0 },
       assets: { x: 180, y: 180 },
+      worldAssets: { x: 760, y: 180 },
     });
     expect(rectanglesOverlap("assets", "scriptPlan", first, nodeSizes)).toBe(false);
   });

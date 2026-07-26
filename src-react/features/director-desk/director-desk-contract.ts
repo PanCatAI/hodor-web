@@ -95,6 +95,7 @@ export interface DirectorWorldJob {
   storyboardId: number;
   provider: "worldlabs-marble";
   model: string;
+  sourceSceneAssetId?: number;
   status: "submitting" | "running" | "succeeded" | "failed";
   progress: number | null;
   progressDescription: string;
@@ -109,6 +110,7 @@ export interface DirectorWorldStartInput {
   prompt: string;
   displayName?: string;
   model: string;
+  sourceSceneAssetId?: number;
   sourceImageUrl?: string;
   sourceIsPanorama?: boolean;
 }

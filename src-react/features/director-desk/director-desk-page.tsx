@@ -66,6 +66,11 @@ function projectWorldPrompt(projectJson: DirectorDeskProjectJson) {
   return typeof projectJson.worldPrompt === "string" ? projectJson.worldPrompt : "";
 }
 
+function projectSourceSceneAssetId(projectJson: DirectorDeskProjectJson): number | undefined {
+  const value = projectJson.sceneWorldSourceAssetId;
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
 function worldErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   return "Marble 场景任务失败";
@@ -180,6 +185,7 @@ export function DirectorDeskPage({
         prompt: worldPrompt.trim(),
         displayName: worldPrompt.trim().split(/\r?\n/, 1)[0]?.slice(0, 64),
         model: worldModel,
+        sourceSceneAssetId: projectSourceSceneAssetId(session.read().projectJson),
         ...(reference ?? {}),
       });
       await persistWorldJob(job);

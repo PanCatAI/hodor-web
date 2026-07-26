@@ -503,6 +503,7 @@ export function createDefaultDirectorProject({
     cameras: [camera],
     activeCameraId: camera.id,
     panoramaAssetId: null,
+    sceneWorld: null,
   };
 }
 

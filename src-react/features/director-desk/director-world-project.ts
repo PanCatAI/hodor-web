@@ -58,6 +58,7 @@ export function applyDirectorWorldJob(
       thumbnailUrl: sceneAsset.thumbnailUrl,
       caption: sceneAsset.caption,
       semantics: sceneAsset.semantics,
+      renderQuality: "editing",
     },
   };
 }

@@ -137,6 +137,7 @@ export function createHodorDirectorDeskAdapter(
           prompt: input.prompt,
           displayName: input.displayName,
           model: input.model,
+          sourceSceneAssetId: input.sourceSceneAssetId,
           sourceImageUrl: input.sourceImageUrl,
           sourceIsPanorama: input.sourceIsPanorama ?? false,
         }),

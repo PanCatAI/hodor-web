@@ -25,6 +25,7 @@ import { getGroundedLabelY } from "../runtime/mannequin/bodyTypes";
 import { getUE4GroundedLabelY } from "../runtime/ue4Mannequin/ue4MannequinRig";
 import { getEffectiveGroundOpacity } from "./panoramaMath";
 import { getCrowdAnchorTransform } from "../store/directorStore";
+import { MarbleWorldScene } from "./MarbleWorldScene";
 
 export { getEffectiveGroundOpacity, getPanoramaRotationRadians } from "./panoramaMath";
 
@@ -754,6 +755,7 @@ export function SceneRoot() {
   const objects = useDirectorStore((state) => state.project.objects);
   const cameras = useDirectorStore((state) => state.project.cameras);
   const panoramaAssetId = useDirectorStore((state) => state.project.panoramaAssetId);
+  const sceneWorld = useDirectorStore((state) => state.project.sceneWorld);
   const viewMode = useDirectorStore((state) => state.viewMode);
   const selectedObjectId = useDirectorStore((state) => state.selectedObjectId);
   const selectedCrowdId = useDirectorStore((state) => state.selectedCrowdId);
@@ -810,6 +812,7 @@ export function SceneRoot() {
           />
         </mesh>
       ) : null}
+      {sceneWorld ? <MarbleWorldScene world={sceneWorld} /> : null}
       {objects
         .filter((item) => item.visible && item.kind !== "camera")
         .map((item) => {

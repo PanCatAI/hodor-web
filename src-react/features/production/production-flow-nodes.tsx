@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
-import { ArrowRight, Box, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Play, Plus, Trash2, X } from "lucide-react";
+import { ArrowRight, Box, BoxIcon, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Play, Plus, Trash2, X } from "lucide-react";
 
 import type {
   DerivedAsset,
@@ -70,6 +70,14 @@ function stageState(flow: ProductionFlowData, id: ProductionFlowNodeId): Product
   if (id === "scriptPlan") return flow.scriptPlan.trim() ? "completed" : "idle";
   if (id === "assets") {
     return aggregateState(flow.assets.flatMap((asset) => [asset.state, ...asset.derive.map((derived) => derived.state)]));
+  }
+  if (id === "worldAssets") {
+    const states = (flow.worldAssets ?? []).map((asset): ProductionState => {
+      if (asset.status === "succeeded") return "completed";
+      if (asset.status === "submitting" || asset.status === "running") return "running";
+      return asset.status === "failed" ? "failed" : "idle";
+    });
+    return aggregateState(states);
   }
   if (id === "storyboardTable") return flow.storyboardTable.trim() ? "completed" : "idle";
   if (id === "storyboard") return aggregateState(flow.storyboard.map((storyboard) => storyboard.state));
@@ -459,6 +467,7 @@ function AssetsNode({ data }: NodeProps) {
   return (
     <NodeCard id="assets" position={nodeData.position} className="w-fit cursor-default select-text">
       <Handle id="assets-target" type="target" position={Position.Top} />
+      <Handle id="assets-source" type="source" position={Position.Right} />
       <NodeTitle
         label="衍生资产"
         status={<StageStatus id="assets" flow={nodeData.flow} />}
@@ -484,6 +493,77 @@ function AssetsNode({ data }: NodeProps) {
               </div>
             ))
           : null}
+      </div>
+    </NodeCard>
+  );
+}
+
+function WorldAssetsNode({ data }: NodeProps) {
+  const nodeData = data as ProductionNodeData;
+  const worldAssets = nodeData.flow.worldAssets ?? [];
+  const scenes = nodeData.flow.assets
+    .flatMap((asset) => [asset, ...asset.derive])
+    .filter((asset) => asset.type === "scene");
+  const worldsBySource = new Map(worldAssets.map((asset) => [asset.sourceSceneAssetId, asset]));
+
+  return (
+    <NodeCard id="worldAssets" position={nodeData.position} className="w-[440px] cursor-default select-text">
+      <Handle id="worldAssets-target" type="target" position={Position.Left} />
+      <Handle id="worldAssets-source" type="source" position={Position.Right} />
+      <NodeTitle label="三维场景资产" status={<StageStatus id="worldAssets" flow={nodeData.flow} />} />
+      <div className="nodrag nowheel mt-3 max-h-[640px] space-y-3 overflow-y-auto pr-1">
+        {scenes.length ? scenes.map((scene) => {
+          const world = worldsBySource.get(scene.id);
+          const splatKeys = world ? Object.keys(world.spzUrls) : [];
+          const storyboardId =
+            world?.storyboardId ??
+            nodeData.flow.storyboard.find((storyboard) => storyboard.associateAssetsIds?.includes(scene.id))?.id;
+          return (
+            <article key={scene.id} className="overflow-hidden rounded-lg border border-slate-700 bg-[#292b2b]">
+              <div className="flex gap-3 p-3">
+                <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded bg-slate-900 text-slate-500">
+                  {world?.thumbnailUrl || world?.panoramaUrl || scene.src ? (
+                    <img
+                      src={world?.thumbnailUrl || world?.panoramaUrl || scene.src}
+                      alt={scene.name}
+                      className="size-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : <BoxIcon className="size-7" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <strong className="truncate text-sm">{scene.name}</strong>
+                    <span className="text-[11px] text-slate-400">
+                      {world?.status === "succeeded" ? "可复用" : world?.status === "failed" ? "生成失败" : world ? "生成中" : "未生成"}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-400">{world?.caption || scene.desc}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                    {splatKeys.length ? (
+                      <span className="rounded bg-violet-500/15 px-2 py-1 text-violet-300">
+                        SPZ {splatKeys.map((key) => key === "full_res" || key === "full" ? "完整精度" : key).join(" · ")}
+                      </span>
+                    ) : <span className="rounded bg-slate-800 px-2 py-1 text-slate-400">SPZ 待生成</span>}
+                    {world?.colliderMeshUrl ? (
+                      <span className="rounded bg-emerald-500/15 px-2 py-1 text-emerald-300">碰撞网格可用</span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label={`在导演台打开三维场景 ${scene.name}`}
+                disabled={!storyboardId}
+                onClick={() => storyboardId && nodeData.onOpenDirectorDesk(storyboardId)}
+                className="w-full border-t border-slate-700 px-3 py-2 text-left text-xs text-blue-300 hover:bg-blue-500/10 disabled:text-slate-600">
+                {world ? "打开三维场景" : "进入导演台生成"}
+              </button>
+            </article>
+          );
+        }) : (
+          <div className="flex min-h-24 items-center justify-center text-sm text-slate-500">暂无场景资产</div>
+        )}
       </div>
     </NodeCard>
   );
@@ -751,6 +831,7 @@ function ProductionNodeComponent(props: NodeProps) {
   if (data.id === "scriptPlan") return <TextNode id="scriptPlan" data={data} label="导演计划" placeholder="暂无数据" />;
   if (data.id === "storyboardTable") return <TextNode id="storyboardTable" data={data} label="分镜表" placeholder="暂无数据" />;
   if (data.id === "assets") return <AssetsNode {...props} />;
+  if (data.id === "worldAssets") return <WorldAssetsNode {...props} />;
   if (data.id === "storyboard") return <StoryboardNode {...props} />;
   return <WorkbenchStageNode {...props} />;
 }

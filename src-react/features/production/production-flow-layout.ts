@@ -8,6 +8,7 @@ export const productionNodeOrder = [
   "script",
   "scriptPlan",
   "assets",
+  "worldAssets",
   "storyboardTable",
   "storyboard",
   "videoTracks",
@@ -32,6 +33,7 @@ export const productionNodeLabels: Record<ProductionFlowNodeId, string> = {
   script: "剧本",
   scriptPlan: "拍摄计划",
   assets: "资产工厂",
+  worldAssets: "三维场景资产",
   storyboardTable: "分镜表",
   storyboard: "分镜图",
   videoTracks: "视频轨道",
@@ -47,6 +49,14 @@ export const productionNodeLabels: Record<ProductionFlowNodeId, string> = {
 export const productionConnections = [
   { id: "source-script", source: "source", target: "script", sourceHandle: "source-source", targetHandle: "script-target" },
   { id: "script-assets", source: "script", target: "assets", sourceHandle: "script-assets", targetHandle: "assets-target" },
+  { id: "assets-worldAssets", source: "assets", target: "worldAssets", sourceHandle: "assets-source", targetHandle: "worldAssets-target" },
+  {
+    id: "worldAssets-storyboard",
+    source: "worldAssets",
+    target: "storyboard",
+    sourceHandle: "worldAssets-source",
+    targetHandle: "storyboard-world-target",
+  },
   { id: "script-scriptPlan", source: "script", target: "scriptPlan", sourceHandle: "script-main", targetHandle: "scriptPlan-target" },
   {
     id: "scriptPlan-storyboardTable",
@@ -93,6 +103,7 @@ const initialProductionLayout: Record<ProductionFlowNodeId, FlowNodePosition> = 
   script: { x: 900, y: 0 },
   scriptPlan: { x: 1_800, y: 0 },
   assets: { x: 2_100, y: 4_000 },
+  worldAssets: { x: 2_700, y: 4_000 },
   storyboardTable: { x: 2_700, y: 0 },
   storyboard: { x: 3_400, y: 0 },
   videoTracks: { x: 3_900, y: 0 },
@@ -130,13 +141,18 @@ function measuredNodeSizes(
 export function productionAutoLayout(options?: ProductionLayoutOptions): Record<ProductionFlowNodeId, FlowNodePosition> {
   const sizes = measuredNodeSizes(options?.nodeSizes);
   const gap = finitePositive(options?.gap, productionLayoutGap);
-  return topologyLevelLayout({
-    nodeIds: [...productionNodeOrder],
-    edges: productionConnections,
+  const layout = topologyLevelLayout({
+    nodeIds: productionNodeOrder.filter((id) => id !== "worldAssets"),
+    edges: productionConnections.filter(({ source, target }) => source !== "worldAssets" && target !== "worldAssets"),
     nodeSizes: sizes,
     underSourceNodeIds: ["assets"],
     gap,
-  }) as Record<ProductionFlowNodeId, FlowNodePosition>;
+  }) as Omit<Record<ProductionFlowNodeId, FlowNodePosition>, "worldAssets"> & Partial<Record<"worldAssets", FlowNodePosition>>;
+  layout.worldAssets = {
+    x: layout.assets.x + sizes.assets.width + gap,
+    y: layout.assets.y,
+  };
+  return layout as Record<ProductionFlowNodeId, FlowNodePosition>;
 }
 
 export function mergeProductionLayout(layout?: Record<string, FlowNodePosition>): Record<ProductionFlowNodeId, FlowNodePosition> {
