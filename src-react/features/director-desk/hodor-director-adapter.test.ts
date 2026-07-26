@@ -133,4 +133,70 @@ describe("createHodorDirectorDeskAdapter", () => {
       }),
     ).rejects.toThrow("没有返回可用 URL");
   });
+
+  it("starts, reads, and refreshes provider-neutral scene world jobs", async () => {
+    const running = {
+      jobId: "world-job-1",
+      projectId: 7,
+      storyboardId: 9,
+      provider: "worldlabs-marble",
+      model: "marble-1.1",
+      status: "running",
+      progress: 8,
+      progressDescription: "queued",
+      prompt: "An abandoned hospital corridor",
+      sceneAsset: null,
+      error: null,
+    };
+    const request = vi.fn().mockResolvedValue(running);
+    const adapter = createHodorDirectorDeskAdapter(
+      { request },
+      {
+        loadProject: "/custom/load",
+        saveProject: "/custom/save",
+        uploadCapture: "/custom/upload",
+        startWorld: "/custom/world/start",
+        getWorld: "/custom/world/get",
+        refreshWorld: "/custom/world/refresh",
+      },
+    );
+
+    await adapter.startWorldGeneration({
+      scope: { projectId: 7, storyboardId: 9 },
+      requestId: "world-request-1",
+      prompt: "An abandoned hospital corridor",
+      displayName: "Hospital",
+      model: "marble-1.1",
+    });
+    await adapter.getWorldGeneration({
+      scope: { projectId: 7, storyboardId: 9 },
+      jobId: "world-job-1",
+    });
+    await adapter.refreshWorldGeneration({
+      scope: { projectId: 7, storyboardId: 9 },
+      jobId: "world-job-1",
+    });
+
+    expect(request).toHaveBeenNthCalledWith(1, "/custom/world/start", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: 7,
+        storyboardId: 9,
+        requestId: "world-request-1",
+        prompt: "An abandoned hospital corridor",
+        displayName: "Hospital",
+        model: "marble-1.1",
+        sourceImageUrl: undefined,
+        sourceIsPanorama: false,
+      }),
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "/custom/world/get", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, storyboardId: 9, jobId: "world-job-1" }),
+    });
+    expect(request).toHaveBeenNthCalledWith(3, "/custom/world/refresh", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, storyboardId: 9, jobId: "world-job-1" }),
+    });
+  });
 });

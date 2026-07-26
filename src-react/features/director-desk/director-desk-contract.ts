@@ -73,10 +73,58 @@ export interface DirectorDeskCaptureUploadReceipt extends DirectorDeskAssetRecei
   url: string;
 }
 
+export interface DirectorSceneAsset {
+  provider: "worldlabs-marble";
+  worldId: string;
+  displayName: string;
+  worldMarbleUrl: string;
+  panoramaUrl: string;
+  colliderMeshUrl: string;
+  spzUrls: Record<string, string>;
+  thumbnailUrl: string;
+  caption: string;
+  semantics: {
+    groundPlaneOffset: number;
+    metricScaleFactor: number;
+  };
+}
+
+export interface DirectorWorldJob {
+  jobId: string;
+  projectId: number;
+  storyboardId: number;
+  provider: "worldlabs-marble";
+  model: string;
+  status: "submitting" | "running" | "succeeded" | "failed";
+  progress: number | null;
+  progressDescription: string;
+  prompt: string;
+  sceneAsset: DirectorSceneAsset | null;
+  error: string | null;
+}
+
+export interface DirectorWorldStartInput {
+  scope: DirectorDeskScope;
+  requestId: string;
+  prompt: string;
+  displayName?: string;
+  model: string;
+  sourceImageUrl?: string;
+  sourceIsPanorama?: boolean;
+}
+
+export interface DirectorWorldJobInput {
+  scope: DirectorDeskScope;
+  jobId: string;
+}
+
 export interface DirectorDeskAdapter {
   loadProject(scope: DirectorDeskScope): Promise<DirectorDeskLoadReceipt | null>;
   saveProject(input: DirectorDeskSaveInput): Promise<DirectorDeskSaveReceipt>;
   uploadCapture(input: DirectorDeskCaptureUploadInput): Promise<DirectorDeskCaptureUploadReceipt>;
+  startWorldGeneration?(input: DirectorWorldStartInput): Promise<DirectorWorldJob>;
+  getWorldGeneration?(input: DirectorWorldJobInput): Promise<DirectorWorldJob>;
+  refreshWorldGeneration?(input: DirectorWorldJobInput): Promise<DirectorWorldJob>;
 }
 
 export interface DirectorDeskCaptureInput {

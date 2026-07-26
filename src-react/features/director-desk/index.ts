@@ -16,8 +16,12 @@ export {
   type DirectorDeskScope,
   type DirectorDeskScopeId,
   type DirectorDeskSession,
+  type DirectorSceneAsset,
+  type DirectorWorldJob,
+  type DirectorWorldJobInput,
+  type DirectorWorldStartInput,
 } from "./director-desk-contract";
 
 export { DirectorDeskPage, type DirectorDeskEditorModule, type DirectorDeskEditorProps, type DirectorDeskPageProps } from "./director-desk-page";
 
-export { createHodorDirectorDeskAdapter } from "./hodor-director-adapter";
+export { createHodorDirectorDeskAdapter, type HodorDirectorDeskAdapter } from "./hodor-director-adapter";

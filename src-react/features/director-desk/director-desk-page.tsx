@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType } from "react";
-import { Box, Camera, CloudUpload, RotateCcw, Save } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
+import { Box, Camera, CloudUpload, Globe2, RotateCcw, Save } from "lucide-react";
 
 import { Button } from "@react/components/ui/button";
 
@@ -10,7 +10,10 @@ import {
   type DirectorDeskDraft,
   type DirectorDeskProjectJson,
   type DirectorDeskScopeId,
+  type DirectorWorldJob,
 } from "./director-desk-contract";
+import { DirectorWorldPanel } from "./director-world-panel";
+import { applyDirectorWorldJob, readDirectorWorldJob } from "./director-world-project";
 
 export interface DirectorDeskEditorProps {
   projectId: DirectorDeskScopeId;
@@ -59,6 +62,28 @@ function statusLabel(draft: DirectorDeskDraft) {
   return "本地草稿";
 }
 
+function projectWorldPrompt(projectJson: DirectorDeskProjectJson) {
+  return typeof projectJson.worldPrompt === "string" ? projectJson.worldPrompt : "";
+}
+
+function worldErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  return "Marble 场景任务失败";
+}
+
+function currentPublicReference(projectJson: DirectorDeskProjectJson) {
+  if (!Array.isArray(projectJson.assets) || typeof projectJson.panoramaAssetId !== "string") return null;
+  const asset = projectJson.assets.find(
+    (value): value is Record<string, unknown> =>
+      Boolean(value) && typeof value === "object" && !Array.isArray(value) && value.id === projectJson.panoramaAssetId,
+  );
+  if (!asset || typeof asset.url !== "string" || !asset.url.startsWith("https://")) return null;
+  return {
+    sourceImageUrl: asset.url,
+    sourceIsPanorama: asset.projectionMode === "equirectangular",
+  };
+}
+
 export function DirectorDeskPage({
   projectId,
   storyboardId,
@@ -81,8 +106,15 @@ export function DirectorDeskPage({
     [adapter, projectId, startingProjectJson, storage, storyboardId],
   );
   const [draft, setDraft] = useState(() => session.read());
+  const [showWorldPanel, setShowWorldPanel] = useState(false);
+  const [worldPrompt, setWorldPrompt] = useState(() => projectWorldPrompt(startingProjectJson));
+  const [worldModel, setWorldModel] = useState("marble-1.1");
+  const [worldJob, setWorldJob] = useState<DirectorWorldJob | null>(() => readDirectorWorldJob(startingProjectJson));
+  const [worldBusy, setWorldBusy] = useState(false);
+  const [worldError, setWorldError] = useState("");
   const LazyEditor = useMemo(() => (loadEditor ? lazy(loadEditor) : null), [loadEditor]);
   const ActiveEditor = EditorComponent ?? LazyEditor;
+  const canGenerateWorld = Boolean(adapter.startWorldGeneration && adapter.refreshWorldGeneration);
 
   useEffect(() => {
     setDraft(session.read());
@@ -92,6 +124,71 @@ export function DirectorDeskPage({
     });
     return unsubscribe;
   }, [session]);
+
+  useEffect(() => {
+    const storedJob = readDirectorWorldJob(draft.projectJson);
+    if (storedJob) {
+      setWorldJob(storedJob);
+      setWorldModel(storedJob.model || "marble-1.1");
+    }
+    const storedPrompt = projectWorldPrompt(draft.projectJson);
+    if (storedPrompt) setWorldPrompt((current) => current || storedPrompt);
+  }, [draft.projectJson]);
+
+  const persistWorldJob = useCallback(
+    async (job: DirectorWorldJob) => {
+      const nextProjectJson = applyDirectorWorldJob(session.read().projectJson, job);
+      setWorldJob(job);
+      session.updateProject(nextProjectJson);
+      await session.saveProject(nextProjectJson);
+    },
+    [session],
+  );
+
+  const refreshWorld = useCallback(async () => {
+    if (!adapter.refreshWorldGeneration || !worldJob || worldBusy) return;
+    setWorldBusy(true);
+    setWorldError("");
+    try {
+      const nextJob = await adapter.refreshWorldGeneration({
+        scope: { projectId, storyboardId },
+        jobId: worldJob.jobId,
+      });
+      await persistWorldJob(nextJob);
+    } catch (error) {
+      setWorldError(worldErrorMessage(error));
+    } finally {
+      setWorldBusy(false);
+    }
+  }, [adapter, persistWorldJob, projectId, storyboardId, worldBusy, worldJob]);
+
+  useEffect(() => {
+    if (worldBusy || (worldJob?.status !== "submitting" && worldJob?.status !== "running")) return;
+    const timer = window.setTimeout(() => void refreshWorld(), 5_000);
+    return () => window.clearTimeout(timer);
+  }, [refreshWorld, worldBusy, worldJob?.status]);
+
+  async function startWorld() {
+    if (!adapter.startWorldGeneration || worldBusy || !worldPrompt.trim()) return;
+    setWorldBusy(true);
+    setWorldError("");
+    try {
+      const reference = currentPublicReference(session.read().projectJson);
+      const job = await adapter.startWorldGeneration({
+        scope: { projectId, storyboardId },
+        requestId: `hodor-marble-${projectId}-${storyboardId}-${Date.now()}`,
+        prompt: worldPrompt.trim(),
+        displayName: worldPrompt.trim().split(/\r?\n/, 1)[0]?.slice(0, 64),
+        model: worldModel,
+        ...(reference ?? {}),
+      });
+      await persistWorldJob(job);
+    } catch (error) {
+      setWorldError(worldErrorMessage(error));
+    } finally {
+      setWorldBusy(false);
+    }
+  }
 
   async function save() {
     try {
@@ -126,7 +223,7 @@ export function DirectorDeskPage({
   }
 
   return (
-    <section className="flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#17181b] text-white shadow-2xl shadow-black/30">
+    <section className="relative flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#17181b] text-white shadow-2xl shadow-black/30">
       <header className="flex min-h-16 items-center justify-between gap-4 border-b border-white/10 bg-[#202126] px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#ffb649] text-[#181818]">
@@ -143,6 +240,17 @@ export function DirectorDeskPage({
           <span role="status" className="hidden text-xs text-white/55 sm:inline">
             {statusLabel(draft)}
           </span>
+          {canGenerateWorld ? (
+            <Button
+              type="button"
+              variant="ghost"
+              aria-label="生成 Marble 场景"
+              onClick={() => setShowWorldPanel((current) => !current)}
+              className="text-white/75 hover:text-white">
+              <Globe2 className="mr-2 h-4 w-4 text-[#ffb649]" aria-hidden="true" />
+              Marble 场景
+            </Button>
+          ) : null}
           <Button type="button" onClick={save} disabled={draft.saveState === "saving"} className="bg-[#ffb649] text-[#171717] hover:bg-[#ffc66f]">
             <Save className="mr-2 h-4 w-4" aria-hidden="true" />
             保存工程
@@ -186,6 +294,21 @@ export function DirectorDeskPage({
             </Button>
           </div>
         </div>
+      ) : null}
+
+      {showWorldPanel && canGenerateWorld ? (
+        <DirectorWorldPanel
+          prompt={worldPrompt}
+          model={worldModel}
+          job={worldJob}
+          busy={worldBusy}
+          error={worldError}
+          onPromptChange={setWorldPrompt}
+          onModelChange={setWorldModel}
+          onStart={() => void startWorld()}
+          onRefresh={() => void refreshWorld()}
+          onClose={() => setShowWorldPanel(false)}
+        />
       ) : null}
 
       <div className="min-h-0 flex-1">

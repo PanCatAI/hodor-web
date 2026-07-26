@@ -7,6 +7,7 @@ function Editor({ projectJson, onProjectChange, onCapture }: DirectorDeskEditorP
   return (
     <div>
       <span>镜头数：{Array.isArray(projectJson.cameras) ? projectJson.cameras.length : 0}</span>
+      <span>当前全景：{String(projectJson.panoramaAssetId ?? "无")}</span>
       <button type="button" onClick={() => onProjectChange({ cameras: [{ id: "camera-1" }] })}>
         调整机位
       </button>
@@ -22,6 +23,9 @@ function createAdapter(): DirectorDeskAdapter {
     loadProject: vi.fn().mockResolvedValue(null),
     saveProject: vi.fn().mockResolvedValue({ revision: "revision-1" }),
     uploadCapture: vi.fn().mockResolvedValue({ url: "https://assets.pancat.ai/shot.png", assetId: "asset-1" }),
+    startWorldGeneration: vi.fn(),
+    getWorldGeneration: vi.fn(),
+    refreshWorldGeneration: vi.fn(),
   };
 }
 
@@ -112,5 +116,76 @@ describe("DirectorDeskPage", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("素材服务繁忙");
     expect(screen.getByText("shot.png · 上传失败，可重试")).toBeInTheDocument();
+  });
+
+  it("generates a Marble world, refreshes the recoverable job, and applies its panorama", async () => {
+    const adapter = createAdapter();
+    adapter.startWorldGeneration = vi.fn().mockResolvedValue({
+      jobId: "world-job-1",
+      projectId: 7,
+      storyboardId: 31,
+      provider: "worldlabs-marble",
+      model: "marble-1.1",
+      status: "running",
+      progress: 4,
+      progressDescription: "queued",
+      prompt: "Abandoned hospital corridor",
+      sceneAsset: null,
+      error: null,
+    });
+    adapter.refreshWorldGeneration = vi.fn().mockResolvedValue({
+      jobId: "world-job-1",
+      projectId: 7,
+      storyboardId: 31,
+      provider: "worldlabs-marble",
+      model: "marble-1.1",
+      status: "succeeded",
+      progress: 100,
+      progressDescription: "completed",
+      prompt: "Abandoned hospital corridor",
+      sceneAsset: {
+        provider: "worldlabs-marble",
+        worldId: "world-1",
+        displayName: "Hospital",
+        worldMarbleUrl: "https://marble.worldlabs.ai/world-1",
+        panoramaUrl: "https://cdn.worldlabs.ai/pano.jpg",
+        colliderMeshUrl: "https://cdn.worldlabs.ai/collider.glb",
+        spzUrls: {},
+        thumbnailUrl: "",
+        caption: "Hospital",
+        semantics: { groundPlaneOffset: 0, metricScaleFactor: 1 },
+      },
+      error: null,
+    });
+
+    render(
+      <DirectorDeskPage
+        projectId={7}
+        storyboardId={31}
+        adapter={adapter}
+        EditorComponent={Editor}
+        initialProjectJson={{ cameras: [], assets: [], objects: [], panoramaAssetId: null, worldPrompt: "Abandoned hospital corridor" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "生成 Marble 场景" }));
+    expect(screen.getByLabelText("Marble 场景提示词")).toHaveValue("Abandoned hospital corridor");
+    fireEvent.click(screen.getByRole("button", { name: "开始生成 3D 场景" }));
+
+    await waitFor(() => expect(adapter.startWorldGeneration).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { projectId: 7, storyboardId: 31 },
+      prompt: "Abandoned hospital corridor",
+      model: "marble-1.1",
+    })));
+    expect(await screen.findByText(/任务已提交/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "刷新 Marble 任务" }));
+    expect(await screen.findByText("当前全景：marble-panorama-world-1")).toBeInTheDocument();
+    await waitFor(() => expect(adapter.saveProject).toHaveBeenCalledWith(expect.objectContaining({
+      projectJson: expect.objectContaining({
+        panoramaAssetId: "marble-panorama-world-1",
+        sceneWorld: expect.objectContaining({ worldId: "world-1" }),
+      }),
+    })));
   });
 });

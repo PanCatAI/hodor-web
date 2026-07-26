@@ -59,6 +59,7 @@ describe("createProductionDirectorProject", () => {
       version: 1,
       activeCameraId: "camera-storyboard-31",
       panoramaAssetId: "asset-scene-10",
+      worldPrompt: "雨夜医院大厅\n低机位缓慢推进\nRachel 进入医院大厅",
     });
     expect(project.objects).toEqual(
       expect.arrayContaining([

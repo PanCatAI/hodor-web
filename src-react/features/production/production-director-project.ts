@@ -8,6 +8,7 @@ export interface ProductionDirectorTransform {
 
 export interface ProductionDirectorProject {
   version: 1;
+  worldPrompt: string;
   scene: {
     scale: number;
     position: [number, number, number];
@@ -164,9 +165,19 @@ export function createProductionDirectorProject(flow: ProductionFlowData, storyb
   }));
   const cameraTransform = transform([0, 1.65, 5.2]);
   const cameraName = `S${String(storyboard.index + 1).padStart(2, "0")} · ${storyboard.videoDesc || storyboard.prompt || "默认机位"}`;
+  const worldPrompt = Array.from(
+    new Set(
+      [
+        ...scenes.map((scene) => scene.prompt || scene.desc),
+        storyboard.videoDesc,
+        storyboard.prompt,
+      ].filter((value): value is string => typeof value === "string" && value.trim().length > 0),
+    ),
+  ).join("\n");
 
   return {
     version: 1,
+    worldPrompt,
     scene: {
       scale: 1,
       position: [0, 0, 0],
