@@ -137,4 +137,20 @@ describe("production flow storyboard node", () => {
     expect(screen.getByAltText("画布分镜合并预览")).toHaveAttribute("src", "data:image/jpeg;base64,preview");
     expect(screen.getByRole("link", { name: "下载合并预览" })).toHaveAttribute("download", "storyboard-preview.jpg");
   });
+
+  it("opens the selected storyboard in the embedded 3D director desk", () => {
+    const onOpenDirectorDesk = vi.fn();
+    render(
+      <ProductionFlowBoard
+        api={createApi()}
+        projectId={7}
+        scriptId={12}
+        initialData={flowData()}
+        onOpenDirectorDesk={onOpenDirectorDesk}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "在 3D 导演台打开分镜 S01" }));
+    expect(onOpenDirectorDesk).toHaveBeenCalledWith(31);
+  });
 });

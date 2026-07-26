@@ -15,7 +15,14 @@ import type {
 } from "./types";
 import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
-import { applyProductionLayout, mergeProductionLayout, productionAutoLayout, productionEdges, productionNodeOrder } from "./production-flow-layout";
+import {
+  applyProductionLayout,
+  mergeProductionLayout,
+  productionAutoLayout,
+  productionEdges,
+  productionNodeLabels,
+  productionNodeOrder,
+} from "./production-flow-layout";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
 
 export interface ProductionFlowBoardProps {
@@ -32,9 +39,11 @@ export interface ProductionFlowBoardProps {
   onChange?: (data: ProductionFlowData, baseRevision: number) => void;
   onOpenStage?: (stage: ProductionStageTarget) => void;
   onOpenWorkbench?: (view: ProductionWorkbenchView) => void;
+  onOpenDirectorDesk?: (storyboardId: number) => void;
 }
 
 type ProductionNode = Node<ProductionNodeData, "production">;
+type PositionSnapshot = Record<ProductionFlowNodeId, { x: number; y: number }>;
 
 interface MeasuredLayoutNode {
   id: string;
@@ -168,6 +177,7 @@ export function ProductionFlowBoard({
   onChange,
   onOpenStage,
   onOpenWorkbench,
+  onOpenDirectorDesk,
 }: ProductionFlowBoardProps) {
   const [data, setData] = useState(initialData);
   const [notice, setNotice] = useState("");
@@ -239,6 +249,10 @@ export function ProductionFlowBoard({
   const openWorkbench = useCallback((view: ProductionWorkbenchView) => {
     onOpenWorkbench?.(view);
   }, [onOpenWorkbench]);
+
+  const openDirectorDesk = useCallback((storyboardId: number) => {
+    onOpenDirectorDesk?.(storyboardId);
+  }, [onOpenDirectorDesk]);
 
   const toggleStoryboard = useCallback((id: number) => {
     setSelectedStoryboardIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -359,6 +373,7 @@ export function ProductionFlowBoard({
       onDeleteStoryboards: (ids) => void deleteStoryboards(ids),
       onInsertStoryboard: (id, placement) => void insertStoryboard(id, placement),
       onPreviewStoryboards: () => void previewStoryboards(),
+      onOpenDirectorDesk: openDirectorDesk,
       onOpenStage: openStage,
       onOpenWorkbench: openWorkbench,
     }),
@@ -371,6 +386,7 @@ export function ProductionFlowBoard({
       generatingStoryboards,
       insertStoryboard,
       openStage,
+      openDirectorDesk,
       openWorkbench,
       previewStoryboards,
       remove,
@@ -381,6 +397,11 @@ export function ProductionFlowBoard({
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState<ProductionNode>(createNodes(initialData, handlers));
+  const [positionHistory, setPositionHistory] = useState<{ past: PositionSnapshot[]; future: PositionSnapshot[] }>({
+    past: [],
+    future: [],
+  });
+  const dragStartSnapshotRef = useRef<PositionSnapshot | null>(null);
   const edges = useMemo(() => productionEdges(), []);
   const nodeTypes = useMemo(() => ({ production: ProductionFlowNode as (props: NodeProps) => React.ReactNode }), []);
 
@@ -399,6 +420,7 @@ export function ProductionFlowBoard({
     if (identityChanged) {
       setSelectedStoryboardIds([]);
       setStoryboardPreview("");
+      setPositionHistory({ past: [], future: [] });
     }
     setNodes(createNodes(initialData, handlers));
   }, [externalRevision, handlers, initialData, projectId, scriptId, setNodes]);
@@ -460,7 +482,64 @@ export function ProductionFlowBoard({
     setData((current) => ({ ...current, layout: { ...mergeProductionLayout(current.layout), [id]: position } }));
   }
 
-  function applyAutoLayout(instance = flowInstance, measuredNodes = instance?.getNodes() ?? nodes) {
+  function readPositionSnapshot(sourceNodes = nodes): PositionSnapshot {
+    return Object.fromEntries(
+      productionNodeOrder.map((id) => {
+        const node = sourceNodes.find((candidate) => candidate.id === id);
+        const position = node?.position ?? mergeProductionLayout(data.layout)[id];
+        return [id, { x: Math.round(position.x), y: Math.round(position.y) }];
+      }),
+    ) as PositionSnapshot;
+  }
+
+  function samePositionSnapshot(left: PositionSnapshot, right: PositionSnapshot) {
+    return productionNodeOrder.every((id) => left[id].x === right[id].x && left[id].y === right[id].y);
+  }
+
+  function rememberPositionSnapshot(snapshot: PositionSnapshot | null, current = readPositionSnapshot()) {
+    if (!snapshot) return;
+    if (samePositionSnapshot(snapshot, current)) return;
+    setPositionHistory((history) => ({
+      past: [...history.past, snapshot].slice(-80),
+      future: [],
+    }));
+  }
+
+  function applyPositionSnapshot(snapshot: PositionSnapshot) {
+    setNodes((current) =>
+      applyProductionLayout(current, snapshot).map((node) => ({
+        ...node,
+        data: { ...node.data, position: snapshot[node.id as ProductionFlowNodeId] },
+      })),
+    );
+    setData((current) => ({ ...current, layout: snapshot }));
+    window.requestAnimationFrame(() => void flowInstance?.fitView({ duration: 250, padding: 0.12 }));
+  }
+
+  function undoPosition() {
+    const previous = positionHistory.past.at(-1);
+    if (!previous) return;
+    const current = readPositionSnapshot();
+    setPositionHistory((history) => ({
+      past: history.past.slice(0, -1),
+      future: [current, ...history.future].slice(0, 80),
+    }));
+    applyPositionSnapshot(previous);
+  }
+
+  function redoPosition() {
+    const next = positionHistory.future[0];
+    if (!next) return;
+    const current = readPositionSnapshot();
+    setPositionHistory((history) => ({
+      past: [...history.past, current].slice(-80),
+      future: history.future.slice(1),
+    }));
+    applyPositionSnapshot(next);
+  }
+
+  function applyAutoLayout(instance = flowInstance, measuredNodes = instance?.getNodes() ?? nodes, remember = true) {
+    const before = remember ? readPositionSnapshot(measuredNodes) : null;
     const nodeSizes = Object.fromEntries(
       measuredNodes.map((node) => [
         node.id,
@@ -475,10 +554,11 @@ export function ProductionFlowBoard({
       applyProductionLayout(current, layout).map((node) => ({ ...node, data: { ...node.data, position: layout[node.id as ProductionFlowNodeId] } })),
     );
     setData((current) => ({ ...current, layout }));
+    rememberPositionSnapshot(before, layout);
     window.requestAnimationFrame(() => void instance?.fitView({ duration: 300 }));
   }
 
-  async function runAutoLayout(instance = flowInstance) {
+  async function runAutoLayout(instance = flowInstance, remember = true) {
     if (!instance) return false;
     const run = ++layoutRunRef.current;
     const nodeIds = instance.getNodes().map((node) => node.id);
@@ -488,7 +568,7 @@ export function ProductionFlowBoard({
       getNodes: () => instance.getNodes(),
     });
     if (run !== layoutRunRef.current) return false;
-    applyAutoLayout(instance, measuredNodes);
+    applyAutoLayout(instance, measuredNodes, remember);
     return true;
   }
 
@@ -506,7 +586,7 @@ export function ProductionFlowBoard({
   async function layoutWhenNodesAreStable(instance = flowInstance) {
     const layoutKey = `${projectId}:${scriptId}:${externalRevision}`;
     if (layoutCompletedRef.current === layoutKey) return;
-    if (await runAutoLayout(instance)) layoutCompletedRef.current = layoutKey;
+    if (await runAutoLayout(instance, false)) layoutCompletedRef.current = layoutKey;
   }
 
   async function adoptAsset(url: string, flowId: number) {
@@ -557,12 +637,25 @@ export function ProductionFlowBoard({
         trailingControls={trailingControls}
         ariaLabel="可拖动生产流程"
         testId="production-infinite-canvas"
-        onNodeDragStop={updateNodePosition}
+        getNodeLabel={(node) => productionNodeLabels[node.id as ProductionFlowNodeId]}
+        showMiniMap
+        canUndo={positionHistory.past.length > 0}
+        canRedo={positionHistory.future.length > 0}
+        onUndo={undoPosition}
+        onRedo={redoPosition}
+        onNodeDragStart={() => {
+          dragStartSnapshotRef.current = readPositionSnapshot();
+        }}
+        onNodeDragStop={(node) => {
+          updateNodePosition(node);
+          rememberPositionSnapshot(dragStartSnapshotRef.current);
+          dragStartSnapshotRef.current = null;
+        }}
         onInit={(instance) => {
           setFlowInstance(instance);
           void initializeLayout(instance);
         }}
-        onAutoLayout={(instance) => void runAutoLayout(instance)}>
+        onAutoLayout={(instance) => void runAutoLayout(instance, true)}>
         <NodeInternalsBridge updateRef={updateNodeInternalsRef} />
       </InfiniteCanvas>
       {editingAsset ? (

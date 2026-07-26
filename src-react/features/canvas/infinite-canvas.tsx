@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Background,
   Controls,
+  MiniMap,
   ReactFlow,
   type Edge,
   type Node,
@@ -10,7 +11,7 @@ import {
   type OnNodesChange,
   type ReactFlowInstance,
 } from "@xyflow/react";
-import { Workflow } from "lucide-react";
+import { Maximize2, Redo2, Search, Undo2, Workflow, X } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 
 export type CanvasWheelEvent = "zoom" | "scroll";
@@ -27,9 +28,16 @@ export interface InfiniteCanvasProps<TNode extends Node = Node> {
   testId: string;
   onNodeClick?: (node: TNode) => void;
   onNodeDoubleClick?: (node: TNode) => void;
+  onNodeDragStart?: (node: TNode) => void;
   onNodeDragStop?: (node: TNode) => void;
   onInit?: (instance: ReactFlowInstance<TNode>) => void;
   onAutoLayout?: (instance: ReactFlowInstance<TNode> | null) => void | Promise<void>;
+  getNodeLabel?: (node: TNode) => string;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  showMiniMap?: boolean;
 }
 
 if (typeof globalThis.ResizeObserver === "undefined") {
@@ -72,16 +80,31 @@ export function InfiniteCanvas<TNode extends Node>({
   testId,
   onNodeClick,
   onNodeDoubleClick,
+  onNodeDragStart,
   onNodeDragStop,
   onInit,
   onAutoLayout,
+  getNodeLabel,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
+  showMiniMap = false,
 }: InfiniteCanvasProps<TNode>) {
   const [spacePressed, setSpacePressed] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
   const [canvasWheelEvent, setCanvasWheelEvent] = useState<CanvasWheelEvent>(() => readCanvasWheelEvent());
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<TNode> | null>(null);
+  const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
+  const [nodeQuery, setNodeQuery] = useState("");
   const interactionTimerRef = useRef(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const spacePanRef = useRef<{ startX: number; startY: number; viewportX: number; viewportY: number; zoom: number } | null>(null);
+  const matchingNodes = useMemo(() => {
+    const query = nodeQuery.trim().toLocaleLowerCase();
+    if (!query || !getNodeLabel) return nodes;
+    return nodes.filter((node) => getNodeLabel(node).toLocaleLowerCase().includes(query));
+  }, [getNodeLabel, nodeQuery, nodes]);
 
   useEffect(() => {
     function syncCanvasWheelEvent(event: StorageEvent) {
@@ -91,6 +114,39 @@ export function InfiniteCanvas<TNode extends Node>({
     window.addEventListener("storage", syncCanvasWheelEvent);
     return () => window.removeEventListener("storage", syncCanvasWheelEvent);
   }, []);
+
+  useEffect(() => {
+    function isEditableTarget(target: EventTarget | null) {
+      return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+    }
+    function handleCanvasShortcut(event: KeyboardEvent) {
+      if (isEditableTarget(event.target)) return;
+      const modifier = event.metaKey || event.ctrlKey;
+      if (modifier && event.key.toLocaleLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) onRedo?.();
+        else onUndo?.();
+        return;
+      }
+      if (modifier && event.key.toLocaleLowerCase() === "y") {
+        event.preventDefault();
+        onRedo?.();
+        return;
+      }
+      if (event.key === "/") {
+        event.preventDefault();
+        setNodeSearchOpen(true);
+        window.requestAnimationFrame(() => searchInputRef.current?.focus());
+        return;
+      }
+      if (event.key.toLocaleLowerCase() === "f") {
+        event.preventDefault();
+        void flowInstance?.fitView({ duration: 250, padding: 0.12 });
+      }
+    }
+    document.addEventListener("keydown", handleCanvasShortcut);
+    return () => document.removeEventListener("keydown", handleCanvasShortcut);
+  }, [flowInstance, onRedo, onUndo]);
 
   useEffect(() => {
     function isEditableTarget(target: EventTarget | null) {
@@ -168,6 +224,12 @@ export function InfiniteCanvas<TNode extends Node>({
     document.addEventListener("mouseup", endSpacePan, { once: true });
   }
 
+  function locateNode(node: TNode) {
+    void flowInstance?.fitView({ nodes: [node], duration: 280, padding: 1.4, maxZoom: 1.25 });
+    setNodeSearchOpen(false);
+    setNodeQuery("");
+  }
+
   return (
     <section className="relative h-full min-h-0">
       <div className="absolute left-0 top-[10px] z-30 flex items-center gap-2">
@@ -183,6 +245,88 @@ export function InfiniteCanvas<TNode extends Node>({
         </button>
         {trailingControls}
       </div>
+      <div className="absolute left-1/2 top-[10px] z-40 flex -translate-x-1/2 items-center gap-2">
+        <button
+          type="button"
+          title="撤销位置（⌘/Ctrl+Z）"
+          aria-label="撤销位置"
+          disabled={!canUndo}
+          onClick={onUndo}
+          className="grid size-10 place-items-center rounded-lg border border-slate-700 bg-slate-950/95 text-slate-300 shadow-lg hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-35">
+          <Undo2 className="size-4" />
+        </button>
+        <button
+          type="button"
+          title="重做位置（⇧⌘/Ctrl+Z）"
+          aria-label="重做位置"
+          disabled={!canRedo}
+          onClick={onRedo}
+          className="grid size-10 place-items-center rounded-lg border border-slate-700 bg-slate-950/95 text-slate-300 shadow-lg hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-35">
+          <Redo2 className="size-4" />
+        </button>
+        <button
+          type="button"
+          title="查找节点（/）"
+          aria-label="查找节点"
+          onClick={() => {
+            setNodeSearchOpen((current) => !current);
+            window.requestAnimationFrame(() => searchInputRef.current?.focus());
+          }}
+          className="grid size-10 place-items-center rounded-lg border border-slate-700 bg-slate-950/95 text-slate-300 shadow-lg hover:bg-slate-900">
+          <Search className="size-4" />
+        </button>
+        <button
+          type="button"
+          title="概览全图（F）"
+          aria-label="概览全图"
+          onClick={() => void flowInstance?.fitView({ duration: 250, padding: 0.12 })}
+          className="grid size-10 place-items-center rounded-lg border border-slate-700 bg-slate-950/95 text-slate-300 shadow-lg hover:bg-slate-900">
+          <Maximize2 className="size-4" />
+        </button>
+      </div>
+      {nodeSearchOpen ? (
+        <div className="absolute left-1/2 top-14 z-50 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-slate-700 bg-slate-950/98 shadow-2xl">
+          <div className="flex items-center gap-2 border-b border-slate-800 p-2">
+            <Search className="size-4 shrink-0 text-slate-500" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              aria-label="查找画布节点"
+              value={nodeQuery}
+              onChange={(event) => setNodeQuery(event.target.value)}
+              placeholder="输入节点名称"
+              className="min-w-0 flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-600"
+            />
+            <button
+              type="button"
+              aria-label="关闭节点查找"
+              onClick={() => setNodeSearchOpen(false)}
+              className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-200">
+              <X className="size-4" />
+            </button>
+          </div>
+          <div className="max-h-72 overflow-y-auto p-1.5">
+            {matchingNodes.length ? (
+              matchingNodes.map((node) => {
+                const label = getNodeLabel?.(node) || node.id;
+                return (
+                  <button
+                    key={node.id}
+                    type="button"
+                    aria-label={`定位到 ${label}`}
+                    onClick={() => locateNode(node)}
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-800">
+                    <span>{label}</span>
+                    <span className="font-mono text-[10px] text-slate-600">{node.id}</span>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-3 py-5 text-center text-xs text-slate-500">没有匹配节点</div>
+            )}
+          </div>
+        </div>
+      ) : null}
       <div
         data-testid={testId}
         data-interacting={isInteracting ? "true" : "false"}
@@ -196,7 +340,10 @@ export function InfiniteCanvas<TNode extends Node>({
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick ? (_event, node) => onNodeClick(node) : undefined}
           onNodeDoubleClick={onNodeDoubleClick ? (_event, node) => onNodeDoubleClick(node) : undefined}
-          onNodeDragStart={beginInteraction}
+          onNodeDragStart={(_event, node) => {
+            beginInteraction();
+            onNodeDragStart?.(node);
+          }}
           onNodeDragStop={(_event, node) => {
             onNodeDragStop?.(node);
             endInteraction();
@@ -237,6 +384,18 @@ export function InfiniteCanvas<TNode extends Node>({
         >
           {children}
           <Background />
+          {showMiniMap ? (
+            <div data-testid="canvas-minimap">
+              <MiniMap
+                pannable
+                zoomable
+                position="bottom-right"
+                className="!rounded-xl !border !border-slate-700 !bg-slate-950/90"
+                nodeColor="#334155"
+                maskColor="rgba(2, 6, 23, 0.72)"
+              />
+            </div>
+          ) : null}
           <Controls />
         </ReactFlow>
       </div>

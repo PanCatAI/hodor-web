@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
-import { ArrowRight, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Play, Plus, Trash2, X } from "lucide-react";
+import { ArrowRight, Box, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Play, Plus, Trash2, X } from "lucide-react";
 
 import type {
   DerivedAsset,
@@ -32,6 +32,7 @@ export interface ProductionNodeHandlers {
   onDeleteStoryboards: (ids: number[]) => void;
   onInsertStoryboard: (referenceId: number, placement: "before" | "after") => void;
   onPreviewStoryboards: () => void;
+  onOpenDirectorDesk: (storyboardId: number) => void;
   onOpenStage: (stage: ProductionStageTarget) => void;
   onOpenWorkbench: (view: ProductionWorkbenchView) => void;
 }
@@ -587,6 +588,15 @@ function StoryboardNode({ data }: NodeProps) {
                       style={{ transform: `scale(${overlayScale})`, transformOrigin: "bottom left" }}
                       className="production-node-hover-tools nodrag absolute bottom-[3px] left-[3px] z-10 grid size-7 place-items-center rounded-lg bg-blue-500/80 text-white opacity-0 transition-opacity hover:bg-blue-500 group-hover:opacity-100 focus:opacity-100">
                       <Pencil className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`在 3D 导演台打开分镜 S${String(index + 1).padStart(2, "0")}`}
+                      title="3D 导演台"
+                      onClick={() => nodeData.onOpenDirectorDesk(storyboard.id)}
+                      style={{ transform: `scale(${overlayScale})`, transformOrigin: "bottom left" }}
+                      className="production-node-hover-tools nodrag absolute bottom-[3px] left-9 z-10 grid size-7 place-items-center rounded-lg bg-amber-500/85 text-slate-950 opacity-0 transition-opacity hover:bg-amber-400 group-hover:opacity-100 focus:opacity-100">
+                      <Box className="size-4" />
                     </button>
                   </div>
                 </div>

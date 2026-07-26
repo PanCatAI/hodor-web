@@ -290,6 +290,7 @@ function ProductionWorkbenchRoutePage({ projectId, initialScriptId }: { projectI
   const { apiClient, apiBaseUrl, getToken } = projectProductionRoute.useRouteContext();
   const router = useRouter();
   const api = useMemo(() => createProductionApi(apiClient), [apiClient]);
+  const directorAdapter = useMemo(() => createHodorDirectorDeskAdapter(apiClient), [apiClient]);
   const [project, setProject] = useState<ProductionProject | null>(null);
   const [error, setError] = useState("");
 
@@ -336,6 +337,16 @@ function ProductionWorkbenchRoutePage({ projectId, initialScriptId }: { projectI
           getToken={getToken}
           onFlowDataChange={onFlowDataChange}
           onBusyChange={onBusyChange}
+        />
+      )}
+      renderDirectorDesk={(storyboardId, initialProjectJson, onClose) => (
+        <DirectorDeskPage
+          projectId={projectId}
+          storyboardId={storyboardId}
+          adapter={directorAdapter}
+          loadEditor={loadDirectorDeskEditor}
+          initialProjectJson={initialProjectJson}
+          onClose={onClose}
         />
       )}
     />

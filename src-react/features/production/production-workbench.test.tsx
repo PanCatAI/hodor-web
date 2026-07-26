@@ -155,6 +155,32 @@ describe("ProductionWorkbench", () => {
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
   });
 
+  it("keeps the 3D director desk inside the production workspace and closes back to the canvas", async () => {
+    const renderDirectorDesk = vi.fn((_storyboardId: number, _initialProjectJson: Record<string, unknown>, onClose: () => void) => (
+      <div data-testid="embedded-director-desk">
+        <button type="button" onClick={onClose}>
+          关闭导演台
+        </button>
+      </div>
+    ));
+    render(
+      <ProductionWorkbench
+        api={createApi()}
+        project={{ id: 7, name: "雨夜", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+        initialView="flow"
+        renderDirectorDesk={renderDirectorDesk}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "在 3D 导演台打开分镜 S01" }));
+    expect(await screen.findByRole("dialog", { name: "生产画布 3D 导演台" })).toBeInTheDocument();
+    expect(renderDirectorDesk).toHaveBeenCalledWith(31, expect.objectContaining({ version: 1 }), expect.any(Function));
+
+    fireEvent.click(screen.getByRole("button", { name: "关闭导演台" }));
+    expect(screen.queryByRole("dialog", { name: "生产画布 3D 导演台" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("production-infinite-canvas")).toBeInTheDocument();
+  });
+
   it("restores the complete upstream quick preview controls and asset information", async () => {
     const api = createApi();
     render(<ProductionWorkbench api={api} project={{ id: 7, name: "雨夜", videoModel: "pancat:pancat-video", videoMode: "singleImage" }} />);

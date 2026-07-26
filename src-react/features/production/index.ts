@@ -4,6 +4,8 @@ export { ProductionWorkbench } from "./production-workbench";
 export type { ProductionWorkbenchProps } from "./production-workbench";
 export { ProductionFlowBoard } from "./production-flow-board";
 export type { ProductionFlowBoardProps } from "./production-flow-board";
+export { createProductionDirectorProject } from "./production-director-project";
+export type { ProductionDirectorProject } from "./production-director-project";
 export { ImageFlowEditor } from "./image-flow-editor";
 export type { ImageFlowEditorProps } from "./image-flow-editor";
 export { WebAvVideoEditor } from "./webav-video-editor";

@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 
 import { CanvasAgentPanel } from "@react/features/canvas";
+import { createProductionDirectorProject } from "./production-director-project";
 import type { ProductionApi } from "./production-api";
 import { ProductionFlowBoard } from "./production-flow-board";
 import type {
@@ -67,6 +68,11 @@ export interface ProductionWorkbenchProps {
   initialScriptId?: number;
   onOpenAgent?: (scriptId: number) => void;
   renderProductionAgent?: (scriptId: number, onFlowDataChange: () => void, onBusyChange: (busy: boolean) => void) => ReactNode;
+  renderDirectorDesk?: (
+    storyboardId: number,
+    initialProjectJson: Record<string, unknown>,
+    onClose: () => void,
+  ) => ReactNode;
 }
 
 const emptyFlow: ProductionFlowData = {
@@ -1326,6 +1332,7 @@ export function ProductionWorkbench({
   initialScriptId,
   onOpenAgent,
   renderProductionAgent,
+  renderDirectorDesk,
 }: ProductionWorkbenchProps) {
   const [scripts, setScripts] = useState<ScriptSummary[]>([]);
   const [scriptId, setScriptId] = useState<number | null>(null);
@@ -1347,6 +1354,7 @@ export function ProductionWorkbench({
   const [agentPanelWidth, setAgentPanelWidth] = useState(400);
   const [canvasFps, setCanvasFps] = useState(0);
   const [flowRevision, setFlowRevision] = useState(0);
+  const [directorStoryboardId, setDirectorStoryboardId] = useState<number | null>(null);
   const flowRevisionRef = useRef(0);
   const loadSequence = useRef(0);
   const activeScriptIdRef = useRef<number | null>(null);
@@ -1787,6 +1795,7 @@ export function ProductionWorkbench({
                   onChange={acceptCanvasFlowData}
                   onOpenStage={openProjectStage}
                   onOpenWorkbench={openCanvasWorkbench}
+                  onOpenDirectorDesk={renderDirectorDesk ? setDirectorStoryboardId : undefined}
                 />
               ) : loading ? (
                 <div className="absolute inset-0 z-20 flex items-center justify-center gap-2 text-sm text-slate-400">
@@ -1843,6 +1852,19 @@ export function ProductionWorkbench({
   return (
     <>
       {canvasSurface}
+      {directorStoryboardId != null && renderDirectorDesk ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="生产画布 3D 导演台"
+          className="fixed inset-0 z-[140] h-screen overflow-hidden bg-[#090b10] p-2">
+          {renderDirectorDesk(
+            directorStoryboardId,
+            createProductionDirectorProject(flowData, directorStoryboardId) as unknown as Record<string, unknown>,
+            () => setDirectorStoryboardId(null),
+          )}
+        </div>
+      ) : null}
       {(tab !== "flow" || workbenchOpen) && (
         <main
           role={tab === "flow" ? "dialog" : undefined}
