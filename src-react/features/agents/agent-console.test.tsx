@@ -1,10 +1,14 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AgentConsole } from "./agent-console";
 import type { AgentChatClient, AgentChatSnapshot } from "./types";
 
-function createClient(overrides: Partial<AgentChatSnapshot> = {}): AgentChatClient {
+interface TestAgentChatClient extends AgentChatClient {
+  setSnapshot(next: Partial<AgentChatSnapshot>): void;
+}
+
+function createClient(overrides: Partial<AgentChatSnapshot> = {}): TestAgentChatClient {
   let snapshot: AgentChatSnapshot = {
     connection: "connected",
     activity: "idle",
@@ -50,6 +54,10 @@ function createClient(overrides: Partial<AgentChatSnapshot> = {}): AgentChatClie
       listeners.forEach((listener) => listener());
     }),
     updateContext: vi.fn(),
+    setSnapshot: (next) => {
+      snapshot = { ...snapshot, ...next };
+      listeners.forEach((listener) => listener());
+    },
   };
 }
 
@@ -163,6 +171,51 @@ describe("AgentConsole", () => {
     expect(screen.getByRole("status", { name: "连接状态：未连接" })).toBeInTheDocument();
     expect(screen.getByLabelText("发送指令")).toBeDisabled();
     expect(screen.getByRole("button", { name: "发送" })).toBeDisabled();
+  });
+
+  it("stops following new content after the user scrolls up and resumes on request", async () => {
+    const scrollTo = vi.fn();
+    const client = createClient();
+    render(<AgentConsole client={client} title="第一幕" display="panel" />);
+
+    const transcript = screen.getByLabelText("智能体消息");
+    Object.defineProperties(transcript, {
+      clientHeight: { configurable: true, value: 300 },
+      scrollHeight: { configurable: true, value: 1_000 },
+      scrollTop: { configurable: true, writable: true, value: 300 },
+      scrollTo: {
+        configurable: true,
+        value: (options: ScrollToOptions) => {
+          scrollTo(options);
+          if (typeof options.top === "number") transcript.scrollTop = options.top;
+        },
+      },
+    });
+
+    fireEvent.scroll(transcript);
+    expect(await screen.findByRole("button", { name: "回到底部" })).toBeInTheDocument();
+
+    scrollTo.mockClear();
+    act(() => {
+      client.setSnapshot({
+        messages: [
+          {
+            id: "assistant-1",
+            role: "assistant",
+            name: "统筹",
+            status: "streaming",
+            datetime: "2026-07-20T10:00:00.000Z",
+            content: [{ id: "content-1", type: "markdown", status: "streaming", data: "剧本已拆分，正在生成分镜" }],
+          },
+        ],
+      });
+    });
+    await waitFor(() => expect(screen.getByText("剧本已拆分，正在生成分镜")).toBeInTheDocument());
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "回到底部" }));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 1_000, behavior: "auto" });
+    expect(screen.queryByRole("button", { name: "回到底部" })).not.toBeInTheDocument();
   });
 
   it("imports pasted source material and tells the current agent to read it", async () => {

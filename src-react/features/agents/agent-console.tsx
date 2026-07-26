@@ -349,12 +349,16 @@ export function AgentConsole({
   const [sourceImporting, setSourceImporting] = useState(false);
   const [sourceError, setSourceError] = useState("");
   const [sourceNotice, setSourceNotice] = useState("");
+  const [followingLatest, setFollowingLatest] = useState(true);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const followingLatestRef = useRef(true);
   const footerRef = useRef<HTMLDivElement>(null);
   const busy = snapshot.activity === "pending" || snapshot.activity === "streaming";
   const connected = snapshot.connection === "connected";
 
   useEffect(() => {
+    followingLatestRef.current = true;
+    setFollowingLatest(true);
     client.connect();
     void client.loadHistory();
     return () => client.disconnect();
@@ -362,8 +366,25 @@ export function AgentConsole({
 
   useEffect(() => {
     const transcript = transcriptRef.current;
-    if (typeof transcript?.scrollTo === "function") transcript.scrollTo({ top: transcript.scrollHeight, behavior: "smooth" });
+    if (followingLatestRef.current && typeof transcript?.scrollTo === "function") {
+      transcript.scrollTo({ top: transcript.scrollHeight, behavior: "auto" });
+    }
   }, [snapshot.messages]);
+
+  function handleTranscriptScroll() {
+    const transcript = transcriptRef.current;
+    if (!transcript) return;
+    const nextFollowingLatest = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight <= 48;
+    followingLatestRef.current = nextFollowingLatest;
+    setFollowingLatest(nextFollowingLatest);
+  }
+
+  function scrollToLatest() {
+    const transcript = transcriptRef.current;
+    followingLatestRef.current = true;
+    setFollowingLatest(true);
+    transcript?.scrollTo({ top: transcript.scrollHeight, behavior: "auto" });
+  }
 
   useEffect(() => {
     if (!openMenu) return;
@@ -460,7 +481,11 @@ export function AgentConsole({
         </div>
       ) : null}
 
-      <div ref={transcriptRef} className="min-h-0 flex-1 overflow-y-auto px-2 pt-4" aria-label="智能体消息">
+      <div
+        ref={transcriptRef}
+        className="min-h-0 flex-1 overflow-y-auto px-2 pt-4"
+        aria-label="智能体消息"
+        onScroll={handleTranscriptScroll}>
         {snapshot.loadingHistory ? <p className="text-center text-sm text-slate-500">正在加载历史消息…</p> : null}
         {snapshot.messages.map((message) => {
           const user = message.role === "user";
@@ -503,6 +528,17 @@ export function AgentConsole({
           );
         })}
       </div>
+
+      {!followingLatest ? (
+        <button
+          type="button"
+          aria-label="回到底部"
+          onClick={scrollToLatest}
+          className="absolute bottom-28 right-4 z-[70] inline-flex items-center gap-1.5 rounded-full border border-slate-600 bg-slate-900/95 px-3 py-2 text-xs text-slate-200 shadow-lg shadow-black/40 hover:border-blue-500 hover:text-white">
+          <ChevronDown className="size-3.5" />
+          回到底部
+        </button>
+      ) : null}
 
       {sourceDialogOpen ? (
         <div
