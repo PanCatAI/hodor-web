@@ -43,6 +43,36 @@ function createNodes(
   }));
 }
 
+function sameNodeView(current: StoryNode, next: StoryNode): boolean {
+  return (
+    current.position.x === next.position.x &&
+    current.position.y === next.position.y &&
+    current.data.title === next.data.title &&
+    current.data.summary === next.data.summary &&
+    current.data.kind === next.data.kind &&
+    current.data.status === next.data.status &&
+    current.data.scriptId === next.data.scriptId &&
+    current.data.entry === next.data.entry &&
+    current.data.selected === next.data.selected &&
+    current.data.onOpenProduction === next.data.onOpenProduction
+  );
+}
+
+export function reconcileInteractiveStoryNodes(
+  currentNodes: StoryNode[],
+  graph: InteractiveStoryGraph,
+  selectedNodeId: string | null,
+  onOpenProduction: (scriptId: number) => void,
+): StoryNode[] {
+  const currentById = new Map(currentNodes.map((node) => [node.id, node]));
+  return createNodes(graph, selectedNodeId, onOpenProduction).map((nextNode) => {
+    const currentNode = currentById.get(nextNode.id);
+    if (!currentNode) return nextNode;
+    if (sameNodeView(currentNode, nextNode)) return currentNode;
+    return { ...currentNode, ...nextNode };
+  });
+}
+
 function createEdges(graph: InteractiveStoryGraph): Edge[] {
   return graph.edges.map((edge) => ({
     id: edge.id,
@@ -58,6 +88,24 @@ function createEdges(graph: InteractiveStoryGraph): Edge[] {
     labelBgPadding: [8, 5],
     labelBgBorderRadius: 6,
   }));
+}
+
+function sameEdgeView(current: Edge, next: Edge): boolean {
+  return (
+    current.source === next.source &&
+    current.target === next.target &&
+    current.sourceHandle === next.sourceHandle &&
+    current.targetHandle === next.targetHandle &&
+    current.label === next.label
+  );
+}
+
+export function reconcileInteractiveStoryEdges(currentEdges: Edge[], graph: InteractiveStoryGraph): Edge[] {
+  const currentById = new Map(currentEdges.map((edge) => [edge.id, edge]));
+  return createEdges(graph).map((nextEdge) => {
+    const currentEdge = currentById.get(nextEdge.id);
+    return currentEdge && sameEdgeView(currentEdge, nextEdge) ? currentEdge : nextEdge;
+  });
 }
 
 function layoutNodes(nodes: StoryNode[], instance: ReactFlowInstance<StoryNode> | null) {
@@ -89,12 +137,18 @@ export function InteractiveStoryCanvas({
 }: InteractiveStoryCanvasProps) {
   const initialNodes = useMemo(() => createNodes(graph, selectedNodeId, onOpenProduction), [graph, onOpenProduction, selectedNodeId]);
   const [nodes, setNodes, onNodesChange] = useNodesState<StoryNode>(initialNodes);
-  const edges = useMemo(() => createEdges(graph), [graph]);
+  const [edges, setEdges] = useState(() => createEdges(graph));
   const nodeTypes = useMemo(() => ({ interactiveStory: InteractiveStoryFlowNode as (props: NodeProps) => React.ReactNode }), []);
 
   useEffect(() => {
-    setNodes(createNodes(graph, selectedNodeId, onOpenProduction));
+    setNodes((currentNodes) =>
+      reconcileInteractiveStoryNodes(currentNodes, graph, selectedNodeId, onOpenProduction),
+    );
   }, [graph, onOpenProduction, selectedNodeId, setNodes]);
+
+  useEffect(() => {
+    setEdges((currentEdges) => reconcileInteractiveStoryEdges(currentEdges, graph));
+  }, [graph]);
 
   return (
     <InfiniteCanvas<StoryNode>
