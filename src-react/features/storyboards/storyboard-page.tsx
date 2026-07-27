@@ -134,6 +134,34 @@ export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, o
     }
   }
 
+  async function retry(item: Storyboard) {
+    setWorking(true);
+    setError("");
+    setItems((current) => current.map((candidate) => (
+      candidate.id === item.id ? { ...candidate, state: "生成中", reason: "" } : candidate
+    )));
+    try {
+      const generated = await api.generateImages({
+        projectId,
+        scriptId,
+        storyboardIds: [item.id],
+        concurrentCount: 1,
+        compulsory: true,
+      });
+      setItems((current) => current.map((candidate) => (
+        generated.find((record) => record.id === candidate.id) ?? candidate
+      )));
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "分镜图片生成失败";
+      setItems((current) => current.map((candidate) => (
+        candidate.id === item.id ? { ...candidate, state: "生成失败", reason: message } : candidate
+      )));
+      setError(message);
+    } finally {
+      setWorking(false);
+    }
+  }
+
   async function removeSelected() {
     if (!selectedIds.length) return;
     setWorking(true);
@@ -226,6 +254,17 @@ export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, o
                 <div className="flex items-center justify-between border-t border-border pt-3">
                   <span className="text-xs text-slate-600">绑定资产 {item.associateAssetsIds?.length ?? 0}</span>
                   <div className="flex gap-1">
+                    {item.state === "生成失败" ? (
+                      <Button
+                        aria-label={`重试分镜 ${name}`}
+                        variant="ghost"
+                        disabled={working}
+                        className="text-blue-300 hover:bg-blue-500/10"
+                        onClick={() => void retry(item)}>
+                        <RefreshCw className="mr-1" size={15} />
+                        重试
+                      </Button>
+                    ) : null}
                     {onOpenImageEditor ? <Button aria-label={`编辑分镜图 ${name}`} variant="ghost" onClick={() => onOpenImageEditor(item)}><ImagePlus size={16} /></Button> : null}
                     {onOpenDirectorDesk ? (
                       <Button

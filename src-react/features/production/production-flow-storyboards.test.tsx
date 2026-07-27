@@ -153,4 +153,37 @@ describe("production flow storyboard node", () => {
     fireEvent.click(screen.getByRole("button", { name: "在 3D 导演台打开分镜 S01" }));
     expect(onOpenDirectorDesk).toHaveBeenCalledWith(31);
   });
+
+  it("retries one failed storyboard directly from its canvas card", async () => {
+    const api = createApi();
+    const data = flowData();
+    data.storyboard = [
+      {
+        ...data.storyboard[0]!,
+        src: "",
+        state: "failed",
+        errorReason: "软件退出导致失败",
+      },
+    ];
+    vi.mocked(api.generateStoryboards).mockResolvedValue([
+      {
+        ...data.storyboard[0]!,
+        state: "running",
+        errorReason: "",
+      },
+    ]);
+    render(<ProductionFlowBoard api={api} projectId={7} scriptId={12} initialData={data} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "重试分镜 S01" }));
+
+    await waitFor(() =>
+      expect(api.generateStoryboards).toHaveBeenCalledWith({
+        projectId: 7,
+        scriptId: 12,
+        storyboardIds: [31],
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "重试分镜 S01" })).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("storyboard-frame-image-31")).getByText("生成中")).toBeInTheDocument();
+  });
 });

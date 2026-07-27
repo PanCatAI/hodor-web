@@ -119,6 +119,35 @@ describe("StoryboardPage", () => {
     expect(api.pollImages).toHaveBeenCalledWith([23]);
   });
 
+  it("retries a failed frame without requiring batch selection", async () => {
+    const api = createApi({
+      generateImages: vi.fn(async () => [
+        {
+          id: 23,
+          index: 1,
+          duration: 4,
+          prompt: "中景，医院走廊",
+          videoDesc: "镜头向前推进",
+          state: "生成中",
+        },
+      ]),
+    });
+    render(<StoryboardPage api={api} projectId={7} scriptId={19} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "重试分镜 S01" }));
+
+    await waitFor(() =>
+      expect(api.generateImages).toHaveBeenCalledWith({
+        projectId: 7,
+        scriptId: 19,
+        storyboardIds: [23],
+        concurrentCount: 1,
+        compulsory: true,
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "重试分镜 S01" })).not.toBeInTheDocument();
+  });
+
   it("downloads the generated grid through the page action", async () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     const createObjectURL = vi.fn(() => "blob:grid");

@@ -291,6 +291,27 @@ export function ProductionFlowBoard({
     }
   }, [api, projectId, scriptId, selectedStoryboardIds]);
 
+  const retryStoryboard = useCallback(async (id: number) => {
+    setNotice("");
+    setData((current) => ({
+      ...current,
+      storyboard: current.storyboard.map((item) => (item.id === id ? { ...item, state: "running", errorReason: "" } : item)),
+    }));
+    try {
+      const updates = await api.generateStoryboards({ projectId, scriptId, storyboardIds: [id] });
+      if (updates.length) {
+        setData((current) => ({ ...current, storyboard: updateStoryboards(current.storyboard, updates) }));
+      }
+    } catch (error) {
+      const message = errorMessage(error);
+      setData((current) => ({
+        ...current,
+        storyboard: current.storyboard.map((item) => (item.id === id ? { ...item, state: "failed", errorReason: message } : item)),
+      }));
+      setNotice(message);
+    }
+  }, [api, projectId, scriptId]);
+
   const deleteStoryboards = useCallback(
     async (ids: number[]) => {
       if (!ids.length || !window.confirm(`确定删除选中的 ${ids.length} 个分镜吗？`)) return;
@@ -370,6 +391,7 @@ export function ProductionFlowBoard({
       onSelectAllStoryboards: selectAllStoryboards,
       onClearStoryboardSelection: clearStoryboardSelection,
       onGenerateStoryboards: () => void generateStoryboards(),
+      onRetryStoryboard: (id) => void retryStoryboard(id),
       onDeleteStoryboards: (ids) => void deleteStoryboards(ids),
       onInsertStoryboard: (id, placement) => void insertStoryboard(id, placement),
       onPreviewStoryboards: () => void previewStoryboards(),
@@ -390,6 +412,7 @@ export function ProductionFlowBoard({
       openWorkbench,
       previewStoryboards,
       remove,
+      retryStoryboard,
       selectAllStoryboards,
       selectedStoryboardIds,
       toggleStoryboard,

@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
-import { ArrowRight, Box, BoxIcon, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Play, Plus, Trash2, X } from "lucide-react";
+import { ArrowRight, Box, BoxIcon, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Play, Plus, RefreshCw, Trash2, X } from "lucide-react";
 
 import type {
   DerivedAsset,
@@ -29,6 +29,7 @@ export interface ProductionNodeHandlers {
   onSelectAllStoryboards: () => void;
   onClearStoryboardSelection: () => void;
   onGenerateStoryboards: () => void;
+  onRetryStoryboard: (id: number) => void;
   onDeleteStoryboards: (ids: number[]) => void;
   onInsertStoryboard: (referenceId: number, placement: "before" | "after") => void;
   onPreviewStoryboards: () => void;
@@ -643,14 +644,29 @@ function StoryboardNode({ data }: NodeProps) {
                         />
                         <ImageTools src={storyboard.src} name={`分镜 ${storyboard.id}`} scale={overlayScale} />
                       </div>
+                    ) : storyboard.state === "running" ? (
+                      <div className="flex size-full flex-col items-center justify-center gap-1.5 text-xs text-slate-400">
+                        <LoaderCircle className="size-5 animate-spin" />
+                        <span>生成中</span>
+                      </div>
+                    ) : storyboard.state === "failed" ? (
+                      <div className="flex size-full flex-col items-center justify-center gap-2 text-xs">
+                        <span className="text-red-400">生成失败</span>
+                        <button
+                          type="button"
+                          aria-label={`重试分镜 S${String(index + 1).padStart(2, "0")}`}
+                          onClick={() => nodeData.onRetryStoryboard(storyboard.id)}
+                          className="nodrag inline-flex items-center gap-1 rounded-md border border-blue-500/60 bg-blue-500/10 px-2 py-1 text-[11px] text-blue-300 hover:bg-blue-500/20">
+                          <RefreshCw className="size-3.5" />
+                          重试
+                        </button>
+                      </div>
                     ) : (
                       <button
                         type="button"
                         onClick={() => nodeData.onEditStoryboard(storyboard)}
                         className="nodrag flex size-full flex-col items-center justify-center gap-1.5 text-xs text-slate-400">
-                        {storyboard.state === "running" ? <LoaderCircle className="size-5 animate-spin" /> : null}
-                        {storyboard.state === "failed" ? <span className="text-red-400">生成失败</span> : null}
-                        {storyboard.state !== "running" && storyboard.state !== "failed" ? <span>未生成</span> : null}
+                        <span>未生成</span>
                       </button>
                     )}
                     <button
