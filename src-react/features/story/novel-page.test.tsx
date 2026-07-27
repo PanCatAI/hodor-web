@@ -82,7 +82,7 @@ describe("NovelPage", () => {
 
     fireEvent.click(screen.getByRole("checkbox", { name: "选择 雨夜" }));
     fireEvent.click(screen.getByRole("button", { name: "批量删除 (1)" }));
-    await waitFor(() => expect(api.deleteNovels).toHaveBeenCalledWith([11]));
+    await waitFor(() => expect(api.deleteNovels).toHaveBeenCalledWith(7, [11]));
   });
 
   it("imports parsed TXT chapters in one request", async () => {

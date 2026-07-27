@@ -79,8 +79,8 @@ export interface StoryApi {
   listNovels(input: NovelListInput): Promise<NovelListResult>;
   createNovel(input: CreateNovelInput): Promise<void>;
   updateNovel(input: UpdateNovelInput): Promise<void>;
-  deleteNovel(id: number): Promise<void>;
-  deleteNovels(ids: number[]): Promise<void>;
+  deleteNovel(projectId: number, id: number): Promise<void>;
+  deleteNovels(projectId: number, ids: number[]): Promise<void>;
   importNovels(projectId: number, data: ImportNovelInput[]): Promise<void>;
   analyzeNovelEvents(input: { projectId: number; novelIds: number[]; concurrentCount?: number }): Promise<void>;
   pollNovelEvents(ids: number[]): Promise<NovelEventState[]>;
@@ -139,11 +139,14 @@ export function createStoryApi(client: RequestClient, options: StoryApiOptions =
     async updateNovel(input) {
       await client.request("/novel/updateNovel", post(input));
     },
-    async deleteNovel(id) {
-      await client.request("/novel/delNovel", post({ id }));
+    async deleteNovel(projectId, id) {
+      await client.request("/novel/delNovel", post({ projectId, id }));
     },
-    async deleteNovels(ids) {
-      await client.request("/novel/batchDeleteNovel", post({ ids }));
+    async deleteNovels(projectId, ids) {
+      await client.request(
+        "/novel/batchDeleteNovel",
+        post({ projectId, ids }),
+      );
     },
     async importNovels(projectId, data) {
       await client.request("/novel/addNovel", post({ projectId, data }));

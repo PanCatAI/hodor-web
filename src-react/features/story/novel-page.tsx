@@ -130,7 +130,7 @@ export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000
   async function remove(row: OriginalText) {
     setError("");
     try {
-      await api.deleteNovel(row.id);
+      await api.deleteNovel(projectId, row.id);
       if (rows.length === 1 && page > 1) setPage((current) => current - 1);
       else await load();
     } catch (reason) {
@@ -146,7 +146,7 @@ export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000
     if (!selectedIds.length) return;
     setError("");
     try {
-      await api.deleteNovels(selectedIds);
+      await api.deleteNovels(projectId, selectedIds);
       setSelectedIds([]);
       await load();
     } catch (reason) {
