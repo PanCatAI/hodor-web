@@ -1354,13 +1354,12 @@ export function ProductionWorkbench({
   }, []);
   const setStoryboards: StoryboardSetter = useCallback(
     (update) => {
-      setFlowData((current) => ({
-        ...current,
-        storyboard: typeof update === "function" ? update(current.storyboard) : update,
-      }));
-      bumpFlowRevision();
+      setFlowData((current) => {
+        const storyboard = typeof update === "function" ? update(current.storyboard) : update;
+        return storyboard === current.storyboard ? current : { ...current, storyboard };
+      });
     },
-    [bumpFlowRevision],
+    [],
   );
   const acceptCanvasFlowData = useCallback((next: ProductionFlowData, baseRevision: number) => {
     setFlowData((current) =>
@@ -1413,7 +1412,7 @@ export function ProductionWorkbench({
   }, [api, initialScriptId, project.id]);
 
   const loadProductionData = useCallback(
-    async (nextScriptId: number) => {
+    async (nextScriptId: number, resetCanvas = false) => {
       const sequence = ++loadSequence.current;
       setLoading(true);
       setError("");
@@ -1449,7 +1448,7 @@ export function ProductionWorkbench({
           })),
         );
         setEditorSessionKey((current) => current + 1);
-        bumpFlowRevision();
+        if (resetCanvas) bumpFlowRevision();
         return true;
       } catch (cause) {
         if (loadSequence.current === sequence) setError(messageOf(cause));
@@ -1476,7 +1475,7 @@ export function ProductionWorkbench({
   }
 
   useEffect(() => {
-    if (scriptId != null) void loadProductionData(scriptId);
+    if (scriptId != null) void loadProductionData(scriptId, true);
   }, [loadProductionData, scriptId]);
 
   async function switchScript(nextScriptId: number) {
@@ -1579,13 +1578,12 @@ export function ProductionWorkbench({
         ...current,
         finalOutputs: [...current.finalOutputs.filter((item) => item.id !== output.id), output],
       }));
-      bumpFlowRevision();
     } catch (cause) {
       setError(`云端成片生成失败：${messageOf(cause)}`);
     } finally {
       setRenderingFinalOutput(false);
     }
-  }, [api, bumpFlowRevision, project.id, scriptId]);
+  }, [api, project.id, scriptId]);
 
   const runningStoryboardIds = useMemo(() => storyboards.filter((item) => item.state === "running").map((item) => item.id), [storyboards]);
   const runningVideoIds = useMemo(

@@ -4,6 +4,7 @@ import type { DerivedAsset, ProductionAsset, ProductionFlowData, StoryboardItem 
 import {
   mergePolledDerivedAssets,
   mergePolledStoryboards,
+  mergeProductionFlowSnapshot,
   productionNodeFlowChanged,
 } from "./production-poll-reconciliation";
 
@@ -104,5 +105,20 @@ describe("production polling reconciliation", () => {
     expect(productionNodeFlowChanged("storyboard", current, next)).toBe(true);
     expect(productionNodeFlowChanged("worldAssets", current, next)).toBe(true);
     expect(productionNodeFlowChanged("videoTracks", current, next)).toBe(false);
+  });
+
+  it("keeps unchanged component data stable when a full agent snapshot arrives", () => {
+    const current = flow();
+    const incoming = flow({ scriptPlan: "改写后的导演计划" });
+    const merged = mergeProductionFlowSnapshot(current, incoming);
+
+    expect(merged).not.toBe(current);
+    expect(merged.scriptPlan).toBe("改写后的导演计划");
+    expect(merged.source).toBe(current.source);
+    expect(merged.assets).toBe(current.assets);
+    expect(merged.storyboard).toBe(current.storyboard);
+    expect(merged.videoTracks).toBe(current.videoTracks);
+    expect(merged.timeline).toBe(current.timeline);
+    expect(merged.finalOutputs).toBe(current.finalOutputs);
   });
 });

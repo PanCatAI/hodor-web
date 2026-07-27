@@ -18,6 +18,7 @@ import type { ProductionNodeData, ProductionNodeHandlers } from "./production-fl
 import {
   mergePolledDerivedAssets,
   mergePolledStoryboards,
+  mergeProductionFlowSnapshot,
   productionNodeFlowChanged,
 } from "./production-poll-reconciliation";
 import {
@@ -175,6 +176,8 @@ export function ProductionFlowBoard({
   const layoutCompletedRef = useRef("");
   const mountedRef = useRef(false);
   const dataRef = useRef(initialData);
+  const incomingDataRef = useRef(initialData);
+  const suppressNextChangeRef = useRef(false);
   const updateNodeInternalsRef = useRef<ReturnType<typeof useUpdateNodeInternals> | null>(null);
 
   useEffect(() => {
@@ -424,12 +427,26 @@ export function ProductionFlowBoard({
     const identity = `${projectId}:${scriptId}`;
     const identityChanged = identityRef.current !== identity;
     const revisionChanged = revisionRef.current !== externalRevision;
-    if (!identityChanged && !revisionChanged) return;
+    const snapshotChanged = incomingDataRef.current !== initialData;
+    if (!identityChanged && !revisionChanged) {
+      if (snapshotChanged) {
+        incomingDataRef.current = initialData;
+        const merged = mergeProductionFlowSnapshot(dataRef.current, initialData);
+        if (merged !== dataRef.current) {
+          dataRef.current = merged;
+          suppressNextChangeRef.current = true;
+          setData(merged);
+        }
+      }
+      return;
+    }
     identityRef.current = identity;
     initializationRunRef.current += 1;
     layoutRunRef.current += 1;
     layoutCompletedRef.current = "";
     revisionRef.current = externalRevision;
+    incomingDataRef.current = initialData;
+    dataRef.current = initialData;
     mountedRef.current = false;
     setData(initialData);
     if (identityChanged) {
@@ -465,6 +482,10 @@ export function ProductionFlowBoard({
   useEffect(() => {
     if (!mountedRef.current) {
       mountedRef.current = true;
+      return;
+    }
+    if (suppressNextChangeRef.current) {
+      suppressNextChangeRef.current = false;
       return;
     }
     onChange?.(data, revisionRef.current);

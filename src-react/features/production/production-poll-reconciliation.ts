@@ -1,6 +1,11 @@
 import type { DerivedAsset, ProductionAsset, ProductionFlowData, StoryboardItem } from "./types";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
 
+function sameJsonValue(left: unknown, right: unknown) {
+  if (Object.is(left, right)) return true;
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function sameNumberList(left?: number[], right?: number[]) {
   if (left === right) return true;
   if (!left || !right || left.length !== right.length) return false;
@@ -80,6 +85,24 @@ export function mergePolledDerivedAssets(current: ProductionAsset[], updates: De
     return { ...asset, derive };
   });
   return assetsChanged ? merged : current;
+}
+
+export function mergeProductionFlowSnapshot(
+  current: ProductionFlowData,
+  incoming: ProductionFlowData,
+): ProductionFlowData {
+  const currentKeys = Object.keys(current);
+  const incomingKeys = Object.keys(incoming);
+  let changed = currentKeys.length !== incomingKeys.length;
+  const merged = { ...incoming };
+  for (const key of incomingKeys) {
+    if (Object.prototype.hasOwnProperty.call(current, key) && sameJsonValue(current[key], incoming[key])) {
+      merged[key] = current[key];
+    } else {
+      changed = true;
+    }
+  }
+  return changed ? merged : current;
 }
 
 export function productionNodeFlowChanged(
