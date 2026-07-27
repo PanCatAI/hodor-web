@@ -346,6 +346,7 @@ describe("ProductionWorkbench", () => {
 
     expect(await screen.findByAltText("画布分镜 1")).toHaveAttribute("src", "https://example.test/31.jpg");
     await waitFor(() => expect(api.pollStoryboards).toHaveBeenCalledWith([31]));
+    expect(api.pollStoryboards).toHaveBeenCalledTimes(1);
     expect(api.saveFlowData).not.toHaveBeenCalled();
   });
 

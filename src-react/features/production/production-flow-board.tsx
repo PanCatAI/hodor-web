@@ -16,6 +16,11 @@ import type {
 import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
 import {
+  mergePolledDerivedAssets,
+  mergePolledStoryboards,
+  productionNodeFlowChanged,
+} from "./production-poll-reconciliation";
+import {
   applyProductionLayout,
   mergeProductionLayout,
   productionAutoLayout,
@@ -111,38 +116,13 @@ function NodeInternalsBridge({ updateRef }: { updateRef: MutableRefObject<Return
 }
 
 function updateDerived(data: ProductionFlowData, updates: DerivedAsset[]) {
-  const map = new Map(updates.map((item) => [item.id, item]));
-  return {
-    ...data,
-    assets: data.assets.map((asset) => ({
-      ...asset,
-      derive: asset.derive.map((item) => {
-        const update = map.get(item.id);
-        return update ? { ...item, ...update, src: update.src || item.src } : item;
-      }),
-    })),
-  };
+  const assets = mergePolledDerivedAssets(data.assets, updates);
+  return assets === data.assets ? data : { ...data, assets };
 }
 
 function updateStoryboard(data: ProductionFlowData, update: StoryboardItem) {
-  return { ...data, storyboard: data.storyboard.map((item) => (item.id === update.id ? { ...item, ...update, src: update.src || item.src } : item)) };
-}
-
-function updateStoryboards(current: StoryboardItem[], updates: StoryboardItem[]) {
-  const map = new Map(updates.map((item) => [item.id, item]));
-  return current.map((item) => {
-    const update = map.get(item.id);
-    return update
-      ? {
-          ...item,
-          ...update,
-          index: update.index ?? item.index,
-          prompt: update.prompt || item.prompt,
-          videoDesc: update.videoDesc || item.videoDesc,
-          src: update.src || item.src,
-        }
-      : item;
-  });
+  const storyboard = mergePolledStoryboards(data.storyboard, [update]);
+  return storyboard === data.storyboard ? data : { ...data, storyboard };
 }
 
 function errorMessage(error: unknown) {
@@ -194,7 +174,12 @@ export function ProductionFlowBoard({
   const layoutRunRef = useRef(0);
   const layoutCompletedRef = useRef("");
   const mountedRef = useRef(false);
+  const dataRef = useRef(initialData);
   const updateNodeInternalsRef = useRef<ReturnType<typeof useUpdateNodeInternals> | null>(null);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const changeText = useCallback(
     (field: "script" | "scriptPlan" | "storyboardTable", value: string) => {
@@ -259,8 +244,8 @@ export function ProductionFlowBoard({
   }, []);
 
   const selectAllStoryboards = useCallback(() => {
-    setSelectedStoryboardIds(data.storyboard.map((item) => item.id));
-  }, [data.storyboard]);
+    setSelectedStoryboardIds(dataRef.current.storyboard.map((item) => item.id));
+  }, []);
 
   const clearStoryboardSelection = useCallback(() => setSelectedStoryboardIds([]), []);
 
@@ -276,7 +261,10 @@ export function ProductionFlowBoard({
     try {
       const updates = await api.generateStoryboards({ projectId, scriptId, storyboardIds: ids });
       if (updates.length) {
-        setData((current) => ({ ...current, storyboard: updateStoryboards(current.storyboard, updates) }));
+        setData((current) => {
+          const storyboard = mergePolledStoryboards(current.storyboard, updates);
+          return storyboard === current.storyboard ? current : { ...current, storyboard };
+        });
       }
       setSelectedStoryboardIds([]);
     } catch (error) {
@@ -300,7 +288,10 @@ export function ProductionFlowBoard({
     try {
       const updates = await api.generateStoryboards({ projectId, scriptId, storyboardIds: [id] });
       if (updates.length) {
-        setData((current) => ({ ...current, storyboard: updateStoryboards(current.storyboard, updates) }));
+        setData((current) => {
+          const storyboard = mergePolledStoryboards(current.storyboard, updates);
+          return storyboard === current.storyboard ? current : { ...current, storyboard };
+        });
       }
     } catch (error) {
       const message = errorMessage(error);
@@ -342,9 +333,10 @@ export function ProductionFlowBoard({
           shouldGenerateImage: 0,
           src: null,
         });
-        const referenceIndex = data.storyboard.findIndex((item) => item.id === referenceId);
+        const currentData = dataRef.current;
+        const referenceIndex = currentData.storyboard.findIndex((item) => item.id === referenceId);
         const insertionIndex = Math.max(0, referenceIndex + (placement === "after" ? 1 : 0));
-        const storyboard = [...data.storyboard];
+        const storyboard = [...currentData.storyboard];
         storyboard.splice(insertionIndex, 0, {
           id,
           index: insertionIndex,
@@ -356,18 +348,18 @@ export function ProductionFlowBoard({
           duration: 0,
           shouldGenerateImage: 0,
         });
-        const nextFlow = { ...data, storyboard: storyboard.map((item, index) => ({ ...item, index })) };
+        const nextFlow = { ...currentData, storyboard: storyboard.map((item, index) => ({ ...item, index })) };
         setData(nextFlow);
         await api.saveFlowData(projectId, scriptId, nextFlow);
       } catch (error) {
         setNotice(`新增分镜失败：${errorMessage(error)}`);
       }
     },
-    [api, data, projectId, scriptId],
+    [api, projectId, scriptId],
   );
 
   const previewStoryboards = useCallback(async () => {
-    const ids = data.storyboard.filter((item) => item.src).map((item) => item.id);
+    const ids = dataRef.current.storyboard.filter((item) => item.src).map((item) => item.id);
     if (!ids.length) return;
     setNotice("");
     try {
@@ -375,7 +367,7 @@ export function ProductionFlowBoard({
     } catch (error) {
       setNotice(errorMessage(error));
     }
-  }, [api, data.storyboard]);
+  }, [api]);
 
   const handlers = useMemo<ProductionNodeHandlers>(
     () => ({
@@ -454,10 +446,19 @@ export function ProductionFlowBoard({
 
   useEffect(() => {
     setNodes((current) =>
-      current.map((node) => ({
-        ...node,
-        data: { ...handlers, id: node.id as ProductionFlowNodeId, position: node.position, flow: data },
-      })),
+      current.map((node) => {
+        const id = node.id as ProductionFlowNodeId;
+        const flowChanged = productionNodeFlowChanged(id, node.data.flow, data);
+        const storyboardControlsChanged =
+          id === "storyboard" &&
+          (node.data.selectedStoryboardIds !== handlers.selectedStoryboardIds ||
+            node.data.generatingStoryboards !== handlers.generatingStoryboards);
+        if (!flowChanged && !storyboardControlsChanged) return node;
+        return {
+          ...node,
+          data: { ...node.data, ...handlers, id, position: node.position, flow: data },
+        };
+      }),
     );
   }, [data, handlers, setNodes]);
 
@@ -492,7 +493,12 @@ export function ProductionFlowBoard({
     const timer = window.setInterval(() => {
       void api
         .pollStoryboards(runningStoryboardIds)
-        .then((updates) => setData((current) => ({ ...current, storyboard: updateStoryboards(current.storyboard, updates) })))
+        .then((updates) =>
+          setData((current) => {
+            const storyboard = mergePolledStoryboards(current.storyboard, updates);
+            return storyboard === current.storyboard ? current : { ...current, storyboard };
+          }),
+        )
         .catch((error) => setNotice(`分镜轮询暂时失败：${errorMessage(error)}`));
     }, pollIntervalMs);
     return () => window.clearInterval(timer);

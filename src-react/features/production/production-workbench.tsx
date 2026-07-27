@@ -42,6 +42,7 @@ import { CanvasAgentPanel } from "@react/features/canvas";
 import { createProductionDirectorProject } from "./production-director-project";
 import type { ProductionApi } from "./production-api";
 import { ProductionFlowBoard } from "./production-flow-board";
+import { mergePolledStoryboards } from "./production-poll-reconciliation";
 import type {
   ProductionFlowData,
   ProductionAsset,
@@ -134,23 +135,6 @@ function messageOf(error: unknown) {
 
 export function nextPollDelay(base: number, failures: number) {
   return Math.min(base * 2 ** Math.max(0, failures), 30_000);
-}
-
-function updateStoryboards(current: StoryboardItem[], updates: StoryboardItem[]) {
-  const map = new Map(updates.map((item) => [item.id, item]));
-  return current.map((item) => {
-    const update = map.get(item.id);
-    return update
-      ? {
-          ...item,
-          ...update,
-          index: update.index ?? item.index,
-          prompt: update.prompt || item.prompt,
-          videoDesc: update.videoDesc || item.videoDesc,
-          src: update.src || item.src,
-        }
-      : item;
-  });
 }
 
 function updateVideos(current: VideoTrack[], updates: VideoItem[]) {
@@ -1610,7 +1594,7 @@ export function ProductionWorkbench({
   );
 
   useEffect(() => {
-    if (!runningStoryboardIds.length) return;
+    if (tab === "flow" || !runningStoryboardIds.length) return;
     let cancelled = false;
     let timer = 0;
     let failures = 0;
@@ -1618,7 +1602,7 @@ export function ProductionWorkbench({
       try {
         const updates = await api.pollStoryboards(runningStoryboardIds);
         if (cancelled) return;
-        setStoryboards((current) => updateStoryboards(current, updates));
+        setStoryboards((current) => mergePolledStoryboards(current, updates));
         failures = 0;
       } catch (cause) {
         if (cancelled) return;
@@ -1632,7 +1616,7 @@ export function ProductionWorkbench({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, pollIntervalMs, runningStoryboardIds.join(",")]);
+  }, [api, pollIntervalMs, runningStoryboardIds.join(","), tab]);
 
   useEffect(() => {
     if (scriptId == null || !runningVideoIds.length) return;
