@@ -175,7 +175,7 @@ describe("createAgentServerHandlers", () => {
     });
   });
 
-  it("recovers server-side unfinished generations and backs off after polling errors", async () => {
+  it("recovers server-side unfinished generations without reloading the whole canvas", async () => {
     const { client, request } = createClient();
     const delays: number[] = [];
     const onFlowDataChange = vi.fn();
@@ -226,7 +226,7 @@ describe("createAgentServerHandlers", () => {
       "/production/saveFlowData",
       expect.objectContaining({ body: expect.stringContaining("https://cdn/shot.png") }),
     );
-    expect(onFlowDataChange).toHaveBeenCalledOnce();
+    expect(onFlowDataChange).not.toHaveBeenCalled();
   });
 
   it("acknowledges generation submission before continuing server-backed recovery", async () => {

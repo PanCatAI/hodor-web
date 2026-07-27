@@ -265,7 +265,6 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
           if (latest !== data) mergeProductionRecovery(latest, assetUpdates, storyboardUpdates);
           if (episodeId === undefined) throw new Error("生产智能体缺少剧本 ID");
           await post(apiClient, "/production/saveFlowData", { projectId, episodesId: episodeId, data: latest });
-          options.onFlowDataChange?.();
         });
         delayMs = 1000;
         const remaining = runningProductionIds(data);
