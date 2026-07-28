@@ -61,6 +61,46 @@ function flowData(): ProductionFlowData {
 }
 
 describe("complete production UI", () => {
+  it("preserves the current node layout when an external data revision arrives", async () => {
+    const api = { saveFlowData: vi.fn(async () => undefined) } as unknown as ProductionApi;
+    const initial = {
+      ...flowData(),
+      layout: {
+        source: { x: 10, y: 20 },
+        script: { x: 111, y: 222 },
+        scriptPlan: { x: 300, y: 20 },
+        assets: { x: 400, y: 20 },
+        storyboard: { x: 500, y: 20 },
+        videoTracks: { x: 600, y: 20 },
+      },
+    };
+    const { rerender } = render(
+      <ProductionFlowBoard api={api} projectId={7} scriptId={12} externalRevision={0} initialData={initial} />,
+    );
+
+    expect(screen.getByTestId("flow-node-script")).toHaveAttribute("data-x", "111");
+
+    rerender(
+      <ProductionFlowBoard
+        api={api}
+        projectId={7}
+        scriptId={12}
+        externalRevision={1}
+        initialData={{
+          ...flowData(),
+          scriptPlan: "智能体写入的新导演计划",
+          layout: {
+            ...initial.layout,
+            script: { x: 900, y: 0 },
+          },
+        }}
+      />,
+    );
+
+    expect(await screen.findByText("智能体写入的新导演计划")).toBeInTheDocument();
+    expect(screen.getByTestId("flow-node-script")).toHaveAttribute("data-x", "111");
+  });
+
   it("edits and immediately saves flow text while keeping deterministic node layout", async () => {
     const user = userEvent.setup();
     const api = { saveFlowData: vi.fn(async () => undefined) } as unknown as ProductionApi;

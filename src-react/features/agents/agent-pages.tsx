@@ -21,7 +21,7 @@ interface AgentPageProps {
 interface ProductionAgentPageProps extends AgentPageProps {
   episodeId: number;
   episodeTitle?: string;
-  onFlowDataChange?: () => void;
+  onFlowDataChange?: (data: unknown) => void;
   onBusyChange?: (busy: boolean) => void;
 }
 

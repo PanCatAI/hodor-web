@@ -11,7 +11,7 @@ interface CreateAgentServerHandlersOptions {
   concurrentCount?: number;
   recoveryDelay?: (milliseconds: number) => Promise<void>;
   recoveryDelayMaxMs?: number;
-  onFlowDataChange?: () => void;
+  onFlowDataChange?: (data: unknown) => void;
 }
 
 interface ScriptItem extends UnknownRecord {
@@ -169,7 +169,7 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
     if (episodeId === undefined) throw new Error("生产智能体缺少剧本 ID");
     const data = flowData ?? (await loadFlow());
     await post(apiClient, "/production/saveFlowData", { projectId, episodesId: episodeId, data });
-    options.onFlowDataChange?.();
+    options.onFlowDataChange?.(data);
     return data;
   }
 
@@ -221,7 +221,18 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
     return { assetIds, storyboardIds };
   }
 
+  function assignRecoveryUpdate(target: UnknownRecord, update: UnknownRecord) {
+    let changed = false;
+    for (const [key, value] of Object.entries(update)) {
+      if (Object.is(target[key], value) || JSON.stringify(target[key]) === JSON.stringify(value)) continue;
+      target[key] = value;
+      changed = true;
+    }
+    return changed;
+  }
+
   function mergeProductionRecovery(data: ProductionFlowData, assetUpdates: unknown, storyboardUpdates: unknown) {
+    let changed = false;
     const assetMap = new Map(
       asArray(assetUpdates)
         .filter(isRecord)
@@ -231,7 +242,7 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
     for (const asset of data.assets) {
       for (const derived of asArray(asset.derive).filter(isRecord)) {
         const update = assetMap.get(asNumber(derived.id) ?? -1);
-        if (update) Object.assign(derived, update);
+        if (update) changed = assignRecoveryUpdate(derived, update) || changed;
       }
     }
     const storyboardMap = new Map(
@@ -242,8 +253,9 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
     );
     data.storyboard.forEach((storyboard) => {
       const update = storyboardMap.get(asNumber(storyboard.id) ?? -1);
-      if (update) Object.assign(storyboard, update);
+      if (update) changed = assignRecoveryUpdate(storyboard, update) || changed;
     });
+    return changed;
   }
 
   async function restoreProductionWorkData() {
@@ -259,14 +271,16 @@ export function createAgentServerHandlers(options: CreateAgentServerHandlersOpti
           storyboardIds.length ? post(apiClient, "/production/storyboard/pollingImage", { ids: storyboardIds }) : Promise.resolve([]),
         ]);
         if (run !== recoveryRun) return data;
+        let changed = false;
         await enqueue(async () => {
-          mergeProductionRecovery(data, assetUpdates, storyboardUpdates);
+          changed = mergeProductionRecovery(data, assetUpdates, storyboardUpdates);
           const latest = flowData ?? data;
-          if (latest !== data) mergeProductionRecovery(latest, assetUpdates, storyboardUpdates);
+          if (latest !== data) changed = mergeProductionRecovery(latest, assetUpdates, storyboardUpdates) || changed;
+          if (!changed) return;
           if (episodeId === undefined) throw new Error("生产智能体缺少剧本 ID");
           await post(apiClient, "/production/saveFlowData", { projectId, episodesId: episodeId, data: latest });
         });
-        delayMs = 1000;
+        if (changed) delayMs = 1000;
         const remaining = runningProductionIds(data);
         if (!remaining.assetIds.length && !remaining.storyboardIds.length) return data;
       } catch {

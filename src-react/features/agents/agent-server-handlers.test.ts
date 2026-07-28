@@ -229,6 +229,45 @@ describe("createAgentServerHandlers", () => {
     expect(onFlowDataChange).not.toHaveBeenCalled();
   });
 
+  it("backs off unchanged recovery polls and only persists real state changes", async () => {
+    const { client, request } = createClient();
+    const delays: number[] = [];
+    let storyboardPolls = 0;
+    request.mockImplementation(async (path: string) => {
+      if (path === "/production/getFlowData") {
+        return {
+          script: "第一幕",
+          scriptPlan: "",
+          storyboardTable: "",
+          assets: [],
+          storyboard: [{ id: 31, state: "生成中" }],
+        };
+      }
+      if (path === "/production/storyboard/pollingImage") {
+        storyboardPolls += 1;
+        return storyboardPolls < 4
+          ? [{ id: 31, state: "生成中" }]
+          : [{ id: 31, state: "已完成", src: "https://cdn/shot.png" }];
+      }
+      if (path === "/production/saveFlowData") return undefined;
+      throw new Error(`未预期接口 ${path}`);
+    });
+    const handlers = createAgentServerHandlers({
+      agentType: "productionAgent",
+      projectId: 7,
+      episodeId: 12,
+      apiClient: client,
+      recoveryDelay: async (milliseconds) => {
+        delays.push(milliseconds);
+      },
+    });
+
+    await handlers.restoreWorkData?.();
+
+    expect(delays).toEqual([1000, 2000, 4000]);
+    expect(request.mock.calls.filter(([path]) => path === "/production/saveFlowData")).toHaveLength(1);
+  });
+
   it("acknowledges generation submission before continuing server-backed recovery", async () => {
     const { client, request } = createClient();
     request.mockImplementation(async (path: string) => {
@@ -336,6 +375,12 @@ describe("createAgentServerHandlers", () => {
         data: { script: "旧原文", scriptPlan: "智能体写入的新计划", storyboardTable: "旧分镜表", assets: [], storyboard: [] },
       }),
     });
-    expect(onFlowDataChange).toHaveBeenCalledOnce();
+    expect(onFlowDataChange).toHaveBeenCalledWith({
+      script: "旧原文",
+      scriptPlan: "智能体写入的新计划",
+      storyboardTable: "旧分镜表",
+      assets: [],
+      storyboard: [],
+    });
   });
 });

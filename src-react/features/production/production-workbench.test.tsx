@@ -509,10 +509,24 @@ describe("ProductionWorkbench", () => {
       { id: 12, name: "第一幕", content: "", state: "completed", errorReason: "" },
       { id: 13, name: "第二幕", content: "", state: "completed", errorReason: "" },
     ]);
-    const renderProductionAgent = vi.fn((episodeId: number, onFlowDataChange: () => void, onBusyChange: (busy: boolean) => void) => (
+    const renderProductionAgent = vi.fn((episodeId: number, onFlowDataChange: (data: unknown) => void, onBusyChange: (busy: boolean) => void) => (
       <section aria-label="真实生产智能体">
         <span>剧本 #{episodeId}</span>
-        <button type="button" onClick={onFlowDataChange}>
+        <button
+          type="button"
+          onClick={() =>
+            onFlowDataChange({
+              source: { chapters: [], state: "completed" },
+              script: "雨夜",
+              scriptPlan: "智能体刚写入的新拍摄计划",
+              assets: [],
+              storyboardTable: "",
+              storyboard: [],
+              videoTracks: [],
+              timeline: { id: 71, revision: 2, status: "completed", clips: [], errorReason: "", updatedAt: "2026-07-25T12:00:00.000Z" },
+              finalOutputs: [],
+            })
+          }>
           同步产线图
         </button>
         <button type="button" onClick={() => onBusyChange(true)}>
@@ -531,19 +545,10 @@ describe("ProductionWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "生产智能体" }));
 
     expect(screen.getByRole("complementary", { name: "生产智能体侧栏" })).toBeInTheDocument();
-    vi.mocked(api.getFlowData).mockResolvedValueOnce({
-      source: { chapters: [], state: "completed" },
-      script: "雨夜",
-      scriptPlan: "智能体刚写入的新拍摄计划",
-      assets: [],
-      storyboardTable: "",
-      storyboard: [],
-      videoTracks: [],
-      timeline: { id: 71, revision: 2, status: "completed", clips: [], errorReason: "", updatedAt: "2026-07-25T12:00:00.000Z" },
-      finalOutputs: [],
-    });
+    const flowReadsBeforeAgentUpdate = vi.mocked(api.getFlowData).mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "同步产线图" }));
     expect(await screen.findByText("智能体刚写入的新拍摄计划")).toBeInTheDocument();
+    expect(api.getFlowData).toHaveBeenCalledTimes(flowReadsBeforeAgentUpdate);
 
     vi.mocked(window.confirm).mockReturnValueOnce(false);
     fireEvent.click(screen.getByRole("button", { name: "模拟智能体忙碌" }));

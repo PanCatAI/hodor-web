@@ -428,8 +428,9 @@ export function ProductionFlowBoard({
     const identityChanged = identityRef.current !== identity;
     const revisionChanged = revisionRef.current !== externalRevision;
     const snapshotChanged = incomingDataRef.current !== initialData;
-    if (!identityChanged && !revisionChanged) {
-      if (snapshotChanged) {
+    revisionRef.current = externalRevision;
+    if (!identityChanged) {
+      if (snapshotChanged || revisionChanged) {
         incomingDataRef.current = initialData;
         const merged = mergeProductionFlowSnapshot(dataRef.current, initialData);
         if (merged !== dataRef.current) {
@@ -444,7 +445,6 @@ export function ProductionFlowBoard({
     initializationRunRef.current += 1;
     layoutRunRef.current += 1;
     layoutCompletedRef.current = "";
-    revisionRef.current = externalRevision;
     incomingDataRef.current = initialData;
     dataRef.current = initialData;
     mountedRef.current = false;
@@ -459,7 +459,7 @@ export function ProductionFlowBoard({
 
   useEffect(() => {
     if (flowInstance) void initializeLayout(flowInstance);
-  }, [externalRevision, projectId, scriptId]);
+  }, [flowInstance, projectId, scriptId]);
 
   useEffect(() => {
     setNodes((current) =>
@@ -634,7 +634,7 @@ export function ProductionFlowBoard({
   }
 
   async function layoutWhenNodesAreStable(instance = flowInstance) {
-    const layoutKey = `${projectId}:${scriptId}:${externalRevision}`;
+    const layoutKey = `${projectId}:${scriptId}`;
     if (layoutCompletedRef.current === layoutKey) return;
     if (await runAutoLayout(instance, false)) layoutCompletedRef.current = layoutKey;
   }

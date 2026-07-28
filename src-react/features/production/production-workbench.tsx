@@ -42,7 +42,7 @@ import { CanvasAgentPanel } from "@react/features/canvas";
 import { createProductionDirectorProject } from "./production-director-project";
 import type { ProductionApi } from "./production-api";
 import { ProductionFlowBoard } from "./production-flow-board";
-import { mergePolledStoryboards } from "./production-poll-reconciliation";
+import { mergePolledStoryboards, mergeProductionFlowSnapshot } from "./production-poll-reconciliation";
 import type {
   ProductionFlowData,
   ProductionAsset,
@@ -68,7 +68,7 @@ export interface ProductionWorkbenchProps {
   initialView?: "generation" | "flow" | "editor";
   initialScriptId?: number;
   onOpenAgent?: (scriptId: number) => void;
-  renderProductionAgent?: (scriptId: number, onFlowDataChange: () => void, onBusyChange: (busy: boolean) => void) => ReactNode;
+  renderProductionAgent?: (scriptId: number, onFlowDataChange: (data: unknown) => void, onBusyChange: (busy: boolean) => void) => ReactNode;
   renderDirectorDesk?: (
     storyboardId: number,
     initialProjectJson: Record<string, unknown>,
@@ -1371,6 +1371,17 @@ export function ProductionWorkbench({
           },
     );
   }, []);
+  const acceptAgentFlowData = useCallback((snapshot: unknown) => {
+    if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return;
+    setFlowData((current) => {
+      const next = normalizeFlowData({
+        ...current,
+        ...(snapshot as Partial<ProductionFlowData>),
+        layout: current.layout,
+      } as ProductionFlowData);
+      return mergeProductionFlowSnapshot(current, next);
+    });
+  }, []);
 
   useEffect(() => {
     if (tab !== "flow" || !workbenchOpen) return;
@@ -1811,7 +1822,7 @@ export function ProductionWorkbench({
                   name="生产智能体"
                   width={agentPanelWidth}
                   onWidthChange={setAgentPanelWidth}>
-                  {renderProductionAgent(scriptId, refreshSelectedFlow, setProductionAgentBusy)}
+                  {renderProductionAgent(scriptId, acceptAgentFlowData, setProductionAgentBusy)}
                 </CanvasAgentPanel>
               ) : null}
               {!renderProductionAgent && onOpenAgent && scriptId != null ? (
