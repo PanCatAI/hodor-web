@@ -26,6 +26,7 @@ import { clearSession, getSessionToken, readSession } from "@react/lib/auth/sess
 import { applyThemePreference, readPreferences, saveThemePreference, type ThemePreference } from "@react/platform";
 
 import { createSettingsApi, type SettingsApi, type SettingsSectionId } from "./settings-api";
+import { normalizeAgentDeployments } from "./agent-deploy-view";
 
 const API_BASE_URL_KEY = "hodorApiBaseUrl";
 
@@ -91,6 +92,7 @@ interface ModelBindingGroup {
 
 interface AgentRecord {
   id: number;
+  key?: string;
   name: string;
   model: string;
   modelName: string;
@@ -349,7 +351,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
           providers?: unknown;
         };
         const deployment = data.deployments ?? {};
-        setAgents(data.useMode === "1" ? (deployment.advancedData ?? []) : (deployment.qrdinaryData ?? []));
+        setAgents(normalizeAgentDeployments(data.useMode === "1" ? (deployment.advancedData ?? []) : (deployment.qrdinaryData ?? [])));
         setAgentUseMode(typeof data.useMode === "string" ? data.useMode : "0");
         setAgentProviders(Array.isArray(data.providers) ? (data.providers as VendorRecord[]) : []);
       }
@@ -1250,9 +1252,16 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
               return (
                 <article
                   key={agent.id}
-                  className="grid gap-3 rounded-lg border border-border bg-black/20 p-4 lg:grid-cols-[minmax(180px,1fr)_minmax(220px,1fr)_100px_130px_auto] lg:items-end">
+                  className={`grid gap-3 rounded-lg border bg-black/20 p-4 lg:grid-cols-[minmax(180px,1fr)_minmax(220px,1fr)_100px_130px_auto] lg:items-end ${
+                    agent.key === "universalAi" ? "border-primary shadow-[inset_3px_0_0_hsl(var(--primary))]" : "border-border"
+                  }`}>
                   <div>
-                    <p className="font-medium">{agent.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{agent.name}</p>
+                      {agent.key === "universalAi" ? (
+                        <span className="rounded border border-primary/50 px-2 py-0.5 text-[11px] text-primary">全局必配</span>
+                      ) : null}
+                    </div>
                     <p className="mt-1 text-xs text-slate-500">{agent.desc}</p>
                   </div>
                   <label className="grid gap-2 text-sm">
