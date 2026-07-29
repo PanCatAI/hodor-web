@@ -120,6 +120,9 @@ export function productionNodeFlowChanged(
   }
   if (id === "storyboardTable") return current.storyboardTable !== next.storyboardTable;
   if (id === "storyboard") return current.storyboard !== next.storyboard;
+  if (id === "previs") {
+    return current.previsRenders !== next.previsRenders || current.storyboard !== next.storyboard;
+  }
   return (
     current.videoTracks !== next.videoTracks ||
     current.timeline !== next.timeline ||

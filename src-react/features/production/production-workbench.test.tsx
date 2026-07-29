@@ -93,6 +93,16 @@ function createApi(scriptItems?: ScriptSummary[]): ProductionApi {
     getMediaLibrary: vi.fn(async () => [
       { id: "audio-4", sourceId: 4, type: "audio" as const, name: "雨声音效", src: "https://example.test/rain.mp3", duration: 0 },
     ]),
+    submitPrevis: vi.fn(async () => {
+      throw new Error("unused");
+    }),
+    listPrevisRenders: vi.fn(async () => []),
+    getPrevisStatus: vi.fn(async () => {
+      throw new Error("unused");
+    }),
+    retryPrevis: vi.fn(async () => {
+      throw new Error("unused");
+    }),
     generateStoryboards: vi.fn(async () => generatedStoryboards),
     pollStoryboards: vi.fn(async () => []),
     generateVideo: vi.fn(async () => 89),

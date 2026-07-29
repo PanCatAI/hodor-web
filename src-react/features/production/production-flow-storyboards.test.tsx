@@ -54,6 +54,7 @@ function createApi(): ProductionApi {
     deleteStoryboards: vi.fn(async () => undefined),
     addStoryboard: vi.fn(async () => 77),
     previewStoryboards: vi.fn(async () => "data:image/jpeg;base64,preview"),
+    listPrevisRenders: vi.fn(async () => []),
   } as unknown as ProductionApi;
 }
 
@@ -185,5 +186,60 @@ describe("production flow storyboard node", () => {
     );
     expect(screen.queryByRole("button", { name: "重试分镜 S01" })).not.toBeInTheDocument();
     expect(within(screen.getByTestId("storyboard-frame-image-31")).getByText("生成中")).toBeInTheDocument();
+  });
+
+  it("submits a 9:16 Blender previs from the existing storyboard and retries failures in place", async () => {
+    const api = createApi();
+    const failed = {
+      renderId: "previs:7:12:31:abc",
+      jobId: "previs-render:7:12:31:abc",
+      projectId: 7,
+      scriptId: 12,
+      storyboardId: 31,
+      status: "failed" as const,
+      progress: 0,
+      attempt: 1,
+      errorReason: "Blender 渲染失败",
+      contract: {} as never,
+      result: null,
+      createdAt: "2026-07-29T10:00:00.000Z",
+      updatedAt: "2026-07-29T10:00:00.000Z",
+    };
+    vi.mocked(api.listPrevisRenders).mockResolvedValue([failed]);
+    api.submitPrevis = vi.fn(async (contract) => ({
+      ...failed,
+      renderId: "previs:7:12:32:def",
+      storyboardId: 32,
+      status: "running" as const,
+      errorReason: "",
+      contract,
+    }));
+    api.retryPrevis = vi.fn(async () => ({ ...failed, status: "running" as const, errorReason: "" }));
+
+    render(
+      <ProductionFlowBoard
+        api={api}
+        projectId={7}
+        scriptId={12}
+        videoRatio="9:16"
+        initialData={flowData()}
+      />,
+    );
+
+    expect(await screen.findByText("Blender 渲染失败")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "重试预演 S01" }));
+    await waitFor(() => expect(api.retryPrevis).toHaveBeenCalledWith(7, failed.renderId));
+
+    fireEvent.click(screen.getByRole("button", { name: "生成预演 S02" }));
+    await waitFor(() =>
+      expect(api.submitPrevis).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: 7,
+          scriptId: 12,
+          storyboardId: 32,
+          output: { width: 720, height: 1280, fps: 24 },
+        }),
+      ),
+    );
   });
 });

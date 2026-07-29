@@ -11,6 +11,7 @@ export const productionNodeOrder = [
   "worldAssets",
   "storyboardTable",
   "storyboard",
+  "previs",
   "videoTracks",
   "timeline",
   "finalOutput",
@@ -36,6 +37,7 @@ export const productionNodeLabels: Record<ProductionFlowNodeId, string> = {
   worldAssets: "三维场景资产",
   storyboardTable: "分镜表",
   storyboard: "分镜图",
+  previs: "三维预演",
   videoTracks: "视频轨道",
   timeline: "剪辑时间线",
   finalOutput: "最终成片",
@@ -72,13 +74,8 @@ export const productionConnections = [
     sourceHandle: "storyboardTable-source",
     targetHandle: "storyboard-target",
   },
-  {
-    id: "storyboard-videoTracks",
-    source: "storyboard",
-    target: "videoTracks",
-    sourceHandle: "storyboard-source",
-    targetHandle: "videoTracks-target",
-  },
+  { id: "storyboard-previs", source: "storyboard", target: "previs", sourceHandle: "storyboard-source", targetHandle: "previs-target" },
+  { id: "previs-videoTracks", source: "previs", target: "videoTracks", sourceHandle: "previs-source", targetHandle: "videoTracks-target" },
   {
     id: "videoTracks-timeline",
     source: "videoTracks",
@@ -106,9 +103,10 @@ const initialProductionLayout: Record<ProductionFlowNodeId, FlowNodePosition> = 
   worldAssets: { x: 2_700, y: 4_000 },
   storyboardTable: { x: 2_700, y: 0 },
   storyboard: { x: 3_400, y: 0 },
-  videoTracks: { x: 3_900, y: 0 },
-  timeline: { x: 4_300, y: 0 },
-  finalOutput: { x: 4_700, y: 0 },
+  previs: { x: 3_900, y: 0 },
+  videoTracks: { x: 4_400, y: 0 },
+  timeline: { x: 4_800, y: 0 },
+  finalOutput: { x: 5_200, y: 0 },
 };
 
 function finitePositive(value: unknown, fallback: number): number {

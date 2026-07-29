@@ -33,6 +33,8 @@ export interface ProductionNodeHandlers {
   onDeleteStoryboards: (ids: number[]) => void;
   onInsertStoryboard: (referenceId: number, placement: "before" | "after") => void;
   onPreviewStoryboards: () => void;
+  onSubmitPrevis: (storyboardId: number) => void;
+  onRetryPrevis: (renderId: string) => void;
   onOpenDirectorDesk: (storyboardId: number) => void;
   onOpenStage: (stage: ProductionStageTarget) => void;
   onOpenWorkbench: (view: ProductionWorkbenchView) => void;
@@ -82,6 +84,9 @@ function stageState(flow: ProductionFlowData, id: ProductionFlowNodeId): Product
   }
   if (id === "storyboardTable") return flow.storyboardTable.trim() ? "completed" : "idle";
   if (id === "storyboard") return aggregateState(flow.storyboard.map((storyboard) => storyboard.state));
+  if (id === "previs") {
+    return aggregateState((flow.previsRenders ?? []).map((render) => render.status));
+  }
   if (id === "videoTracks") {
     return aggregateState(
       flow.videoTracks.flatMap((track) => [track.state, ...track.videoList.map((video) => video.state)]),
@@ -779,6 +784,110 @@ function StoryboardNode({ data }: NodeProps) {
   );
 }
 
+function PrevisNode({ data }: NodeProps) {
+  const nodeData = data as ProductionNodeData;
+  const latestByStoryboard = new Map<number, NonNullable<ProductionFlowData["previsRenders"]>[number]>();
+  for (const render of nodeData.flow.previsRenders ?? []) {
+    if (!latestByStoryboard.has(render.storyboardId)) {
+      latestByStoryboard.set(render.storyboardId, render);
+    }
+  }
+
+  return (
+    <NodeCard id="previs" position={nodeData.position} className="w-[520px] cursor-default select-text">
+      <MainChainHandles id="previs" />
+      <NodeTitle label="三维预演" status={<StageStatus id="previs" flow={nodeData.flow} />} />
+      <p className="mt-2 text-xs leading-5 text-slate-400">
+        Blender 按导演台机位、人物站位与镜头运动生成代理预演，结果可直接作为视频运动参考。
+      </p>
+      <div className="nodrag nowheel mt-3 max-h-[680px] space-y-3 overflow-y-auto pr-1">
+        {nodeData.flow.storyboard.length ? nodeData.flow.storyboard.map((storyboard) => {
+          const render = latestByStoryboard.get(storyboard.id);
+          const label = `S${String(storyboard.index + 1).padStart(2, "0")}`;
+          return (
+            <article key={storyboard.id} className="overflow-hidden rounded-lg border border-slate-700 bg-[#292b2b]">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-700 px-3 py-2">
+                <div className="min-w-0">
+                  <strong className="text-sm">{label}</strong>
+                  <p className="truncate text-[11px] text-slate-400">{storyboard.videoDesc || storyboard.prompt || "待设置镜头"}</p>
+                </div>
+                <span className="shrink-0 text-[11px] text-slate-400">
+                  {render?.status === "completed"
+                    ? "已完成"
+                    : render?.status === "running"
+                      ? `${Math.round(render.progress)}%`
+                      : render?.status === "failed"
+                        ? "生成失败"
+                        : "未生成"}
+                </span>
+              </div>
+              {render?.result?.previewVideoUrl ? (
+                <video
+                  aria-label={`${label} 三维预演`}
+                  src={render.result.previewVideoUrl}
+                  poster={render.result.firstFrameUrl}
+                  controls
+                  preload="metadata"
+                  className="aspect-video w-full bg-black object-contain"
+                />
+              ) : (
+                <div className="grid min-h-28 place-items-center bg-slate-950/60 text-xs text-slate-500">
+                  {render?.status === "running" ? (
+                    <span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin" />Blender 正在渲染</span>
+                  ) : "暂无预演视频"}
+                </div>
+              )}
+              {render?.errorReason ? (
+                <p className="px-3 pt-2 text-xs leading-5 text-red-300">{render.errorReason}</p>
+              ) : null}
+              <div className="flex items-center gap-2 p-3">
+                {render?.status === "failed" ? (
+                  <button
+                    type="button"
+                    aria-label={`重试预演 ${label}`}
+                    onClick={() => nodeData.onRetryPrevis(render.renderId)}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-blue-500/60 bg-blue-500/10 px-3 py-2 text-xs text-blue-300">
+                    <RefreshCw className="size-3.5" />
+                    重试
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`生成预演 ${label}`}
+                    disabled={render?.status === "running"}
+                    onClick={() => nodeData.onSubmitPrevis(storyboard.id)}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-xs text-white disabled:opacity-50">
+                    {render?.status === "running" ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                    {render?.status === "completed" ? "重新预演" : render?.status === "running" ? "生成中" : "生成预演"}
+                  </button>
+                )}
+                {render?.result?.firstFrameUrl ? (
+                  <a
+                    href={render.result.firstFrameUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-slate-600 px-3 py-2 text-xs text-slate-300">
+                    首帧
+                  </a>
+                ) : null}
+                {render?.result?.lastFrameUrl ? (
+                  <a
+                    href={render.result.lastFrameUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-slate-600 px-3 py-2 text-xs text-slate-300">
+                    尾帧
+                  </a>
+                ) : null}
+              </div>
+            </article>
+          );
+        }) : <div className="grid min-h-24 place-items-center text-sm text-slate-500">暂无分镜</div>}
+      </div>
+    </NodeCard>
+  );
+}
+
 function WorkbenchStageNode({ data }: NodeProps) {
   const nodeData = data as ProductionNodeData;
   const id = nodeData.id;
@@ -849,6 +958,7 @@ function ProductionNodeComponent(props: NodeProps) {
   if (data.id === "assets") return <AssetsNode {...props} />;
   if (data.id === "worldAssets") return <WorldAssetsNode {...props} />;
   if (data.id === "storyboard") return <StoryboardNode {...props} />;
+  if (data.id === "previs") return <PrevisNode {...props} />;
   return <WorkbenchStageNode {...props} />;
 }
 

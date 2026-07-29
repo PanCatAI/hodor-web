@@ -172,6 +172,85 @@ export interface ProductionSceneWorldAsset {
   updatedAt: string;
 }
 
+export type PrevisVector3 = [number, number, number];
+
+export interface ProductionPrevisShotContract {
+  schemaVersion: "1";
+  projectId: number;
+  scriptId: number;
+  storyboardId: number;
+  name: string;
+  durationSeconds: number;
+  output: { width: number; height: number; fps: number };
+  scene: {
+    worldAssetId?: number;
+    colliderMeshUrl?: string;
+    panoramaUrl?: string;
+    backgroundColor: string;
+  };
+  actors: Array<{
+    id: string;
+    name: string;
+    sourceAssetId?: number;
+    scale: PrevisVector3;
+    keyframes: Array<{
+      frame: number;
+      position: PrevisVector3;
+      rotationEuler: PrevisVector3;
+      pose?: string;
+    }>;
+  }>;
+  props: Array<{
+    id: string;
+    name: string;
+    sourceAssetId?: number;
+    position: PrevisVector3;
+    rotationEuler: PrevisVector3;
+    scale: PrevisVector3;
+  }>;
+  camera: {
+    lensMm: number;
+    keyframes: Array<{
+      frame: number;
+      position: PrevisVector3;
+      target: PrevisVector3;
+    }>;
+  };
+}
+
+export interface ProductionPrevisResult {
+  schemaVersion: "1";
+  previewVideoKey: string;
+  previewVideoUrl: string;
+  firstFrameKey: string;
+  firstFrameUrl: string;
+  lastFrameKey: string;
+  lastFrameUrl: string;
+  manifestKey: string;
+  manifestUrl: string;
+  width: number;
+  height: number;
+  fps: number;
+  frameCount: number;
+  durationSeconds: number;
+}
+
+export interface ProductionPrevisRender {
+  renderId: string;
+  jobId: string;
+  projectId: number;
+  scriptId: number;
+  storyboardId: number;
+  status: ProductionState;
+  progress: number;
+  attempt: number;
+  errorReason: string;
+  contract: ProductionPrevisShotContract;
+  result: ProductionPrevisResult | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProductionFlowData {
   [key: string]: unknown;
   source: ProductionSourceData;
@@ -179,6 +258,7 @@ export interface ProductionFlowData {
   scriptPlan: string;
   assets: ProductionAsset[];
   worldAssets?: ProductionSceneWorldAsset[];
+  previsRenders?: ProductionPrevisRender[];
   storyboardTable: string;
   storyboard: StoryboardItem[];
   videoTracks: VideoTrack[];

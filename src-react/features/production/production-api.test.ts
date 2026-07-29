@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { HodorApiClient } from "@react/lib/api/client";
 import { createProductionApi, normalizeProductionStatus, normalizeProductionVideoMode } from "./production-api";
+import type { ProductionPrevisShotContract } from "./types";
 
 function createClient() {
   return {
@@ -217,6 +218,71 @@ describe("production API adapter", () => {
     expect(client.request).toHaveBeenCalledWith("/production/workbench/renderTimeline", {
       method: "POST",
       body: JSON.stringify({ projectId: 7, scriptId: 12, timelineRevision: 5 }),
+    });
+  });
+
+  it("submits, lists, polls and retries Blender previs through the dedicated contract", async () => {
+    const client = createClient();
+    const receipt = {
+      renderId: "previs:7:12:31:abc",
+      jobId: "previs-render:7:12:31:abc",
+      projectId: 7,
+      scriptId: 12,
+      storyboardId: 31,
+      status: "queued",
+      progress: 0,
+      attempt: 0,
+      errorReason: "",
+      contract: {
+        schemaVersion: "1" as const,
+        projectId: 7,
+        scriptId: 12,
+        storyboardId: 31,
+        name: "S01",
+        durationSeconds: 2,
+        output: { width: 720, height: 1280, fps: 24 },
+        scene: { backgroundColor: "#101820" },
+        actors: [],
+        props: [],
+        camera: {
+          lensMm: 50,
+          keyframes: [
+            { frame: 1, position: [0, -5, 2], target: [0, 0, 1] },
+            { frame: 48, position: [0, -4, 2], target: [0, 0, 1] },
+          ],
+        },
+      } as ProductionPrevisShotContract,
+      result: null,
+      createdAt: "2026-07-29T10:00:00.000Z",
+      updatedAt: "2026-07-29T10:00:00.000Z",
+    };
+    vi.mocked(client.request)
+      .mockResolvedValueOnce(receipt)
+      .mockResolvedValueOnce([receipt])
+      .mockResolvedValueOnce({ ...receipt, status: "running", progress: 50 })
+      .mockResolvedValueOnce({ ...receipt, status: "queued", attempt: 1 });
+    const api = createProductionApi(client);
+
+    await expect(api.submitPrevis(receipt.contract)).resolves.toEqual(expect.objectContaining({ status: "running" }));
+    await expect(api.listPrevisRenders(7, 12)).resolves.toHaveLength(1);
+    await expect(api.getPrevisStatus(7, receipt.renderId)).resolves.toEqual(expect.objectContaining({ progress: 50 }));
+    await expect(api.retryPrevis(7, receipt.renderId)).resolves.toEqual(expect.objectContaining({ attempt: 1 }));
+
+    expect(client.request).toHaveBeenNthCalledWith(1, "/production/workbench/previsRender", {
+      method: "POST",
+      body: JSON.stringify(receipt.contract),
+    });
+    expect(client.request).toHaveBeenNthCalledWith(2, "/production/workbench/previsList", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, scriptId: 12 }),
+    });
+    expect(client.request).toHaveBeenNthCalledWith(3, "/production/workbench/previsStatus", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, renderId: receipt.renderId }),
+    });
+    expect(client.request).toHaveBeenNthCalledWith(4, "/production/workbench/previsRetry", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, renderId: receipt.renderId }),
     });
   });
 

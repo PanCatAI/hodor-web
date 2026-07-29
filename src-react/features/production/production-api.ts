@@ -4,6 +4,8 @@ import type {
   ProductionFinalOutput,
   ProductionGenerationData,
   ProductionMediaItem,
+  ProductionPrevisRender,
+  ProductionPrevisShotContract,
   ProductionTimelineData,
   DerivedAsset,
   ImageFlowData,
@@ -95,6 +97,10 @@ export interface ProductionApi {
   ): Promise<ProductionTimelineData>;
   uploadFinalVideo(projectId: number, scriptId: number, timelineRevision: number, blob: Blob): Promise<ProductionFinalOutput>;
   renderTimeline(projectId: number, scriptId: number, timelineRevision: number): Promise<ProductionFinalOutput>;
+  submitPrevis(contract: ProductionPrevisShotContract): Promise<ProductionPrevisRender>;
+  listPrevisRenders(projectId: number, scriptId: number): Promise<ProductionPrevisRender[]>;
+  getPrevisStatus(projectId: number, renderId: string): Promise<ProductionPrevisRender>;
+  retryPrevis(projectId: number, renderId: string): Promise<ProductionPrevisRender>;
 }
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -202,6 +208,27 @@ function mapScript(value: unknown): ScriptSummary {
     content: asString(record.content),
     state: normalizeProductionStatus(record.extractState),
     errorReason: asString(record.errorReason),
+  };
+}
+
+function mapPrevisRender(value: unknown): ProductionPrevisRender {
+  const record = asRecord(value);
+  return {
+    renderId: asString(record.renderId),
+    jobId: asString(record.jobId),
+    projectId: asNumber(record.projectId),
+    scriptId: asNumber(record.scriptId),
+    storyboardId: asNumber(record.storyboardId),
+    status: normalizeProductionStatus(record.status),
+    progress: asNumber(record.progress),
+    attempt: asNumber(record.attempt),
+    errorReason: asString(record.errorReason),
+    contract: asRecord(record.contract) as unknown as ProductionPrevisShotContract,
+    result: isRecord(record.result)
+      ? (record.result as unknown as ProductionPrevisRender["result"])
+      : null,
+    createdAt: asString(record.createdAt),
+    updatedAt: asString(record.updatedAt),
   };
 }
 
@@ -366,7 +393,7 @@ function mapMediaLibrary(value: unknown): ProductionMediaItem[] {
   return [...generated, ...uploaded];
 }
 
-function post<T>(client: HodorApiClient, path: string, body: UnknownRecord): Promise<T> {
+function post<T>(client: HodorApiClient, path: string, body: unknown): Promise<T> {
   return client.request<T>(path, {
     method: "POST",
     body: JSON.stringify(body),
@@ -514,6 +541,39 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
           projectId,
           scriptId,
           timelineRevision,
+        }),
+      );
+    },
+
+    async submitPrevis(contract) {
+      return mapPrevisRender(
+        await post<unknown>(client, "/production/workbench/previsRender", contract),
+      );
+    },
+
+    async listPrevisRenders(projectId, scriptId) {
+      return asArray(
+        await post<unknown>(client, "/production/workbench/previsList", {
+          projectId,
+          scriptId,
+        }),
+      ).map(mapPrevisRender);
+    },
+
+    async getPrevisStatus(projectId, renderId) {
+      return mapPrevisRender(
+        await post<unknown>(client, "/production/workbench/previsStatus", {
+          projectId,
+          renderId,
+        }),
+      );
+    },
+
+    async retryPrevis(projectId, renderId) {
+      return mapPrevisRender(
+        await post<unknown>(client, "/production/workbench/previsRetry", {
+          projectId,
+          renderId,
         }),
       );
     },

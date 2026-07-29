@@ -82,6 +82,7 @@ const emptyFlow: ProductionFlowData = {
   scriptPlan: "",
   assets: [],
   worldAssets: [],
+  previsRenders: [],
   storyboardTable: "",
   storyboard: [],
   videoTracks: [],
@@ -100,6 +101,7 @@ function normalizeFlowData(flow: ProductionFlowData): ProductionFlowData {
     },
     assets: flow.assets ?? [],
     worldAssets: flow.worldAssets ?? [],
+    previsRenders: flow.previsRenders ?? [],
     storyboard: flow.storyboard ?? [],
     videoTracks: flow.videoTracks ?? [],
     timeline: { ...emptyFlow.timeline, ...(flow.timeline ?? {}) },
@@ -1786,6 +1788,7 @@ export function ProductionWorkbench({
                   leadingControls={flowControls}
                   trailingControls={loading ? <LoaderCircle aria-label="正在读取生产数据" className="size-5 animate-spin text-slate-300" /> : null}
                   imageModel={project.imageModel || "pancat:pancat-image"}
+                  videoRatio={project.videoRatio || "16:9"}
                   pollIntervalMs={pollIntervalMs}
                   onChange={acceptCanvasFlowData}
                   onOpenStage={openProjectStage}

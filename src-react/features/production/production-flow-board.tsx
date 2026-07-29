@@ -9,10 +9,13 @@ import type { ProductionApi } from "./production-api";
 import type {
   DerivedAsset,
   ProductionFlowData,
+  ProductionPrevisRender,
   ProductionStageTarget,
+  ProductionVideoRatio,
   ProductionWorkbenchView,
   StoryboardItem,
 } from "./types";
+import { createProductionPrevisContract } from "./production-previs-contract";
 import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
 import {
@@ -37,6 +40,7 @@ export interface ProductionFlowBoardProps {
   scriptId: number;
   initialData: ProductionFlowData;
   imageModel?: string;
+  videoRatio?: ProductionVideoRatio;
   pollIntervalMs?: number;
   externalRevision?: number;
   immersive?: boolean;
@@ -151,6 +155,7 @@ export function ProductionFlowBoard({
   scriptId,
   initialData,
   imageModel = "pancat:pancat-image",
+  videoRatio = "16:9",
   pollIntervalMs = 3_000,
   externalRevision = 0,
   leadingControls,
@@ -372,6 +377,44 @@ export function ProductionFlowBoard({
     }
   }, [api]);
 
+  const mergePrevis = useCallback((updates: ProductionPrevisRender[]) => {
+    if (!updates.length) return;
+    setData((current) => {
+      const existing = current.previsRenders ?? [];
+      const byId = new Map(existing.map((item) => [item.renderId, item]));
+      for (const update of updates) byId.set(update.renderId, update);
+      const previsRenders = [...byId.values()].sort((left, right) =>
+        right.updatedAt.localeCompare(left.updatedAt),
+      );
+      return { ...current, previsRenders };
+    });
+  }, []);
+
+  const submitPrevis = useCallback(async (storyboardId: number) => {
+    setNotice("");
+    try {
+      const contract = createProductionPrevisContract(
+        dataRef.current,
+        projectId,
+        scriptId,
+        storyboardId,
+        videoRatio,
+      );
+      mergePrevis([await api.submitPrevis(contract)]);
+    } catch (error) {
+      setNotice(`提交三维预演失败：${errorMessage(error)}`);
+    }
+  }, [api, mergePrevis, projectId, scriptId, videoRatio]);
+
+  const retryPrevis = useCallback(async (renderId: string) => {
+    setNotice("");
+    try {
+      mergePrevis([await api.retryPrevis(projectId, renderId)]);
+    } catch (error) {
+      setNotice(`重试三维预演失败：${errorMessage(error)}`);
+    }
+  }, [api, mergePrevis, projectId]);
+
   const handlers = useMemo<ProductionNodeHandlers>(
     () => ({
       onTextChange: changeText,
@@ -390,6 +433,8 @@ export function ProductionFlowBoard({
       onDeleteStoryboards: (ids) => void deleteStoryboards(ids),
       onInsertStoryboard: (id, placement) => void insertStoryboard(id, placement),
       onPreviewStoryboards: () => void previewStoryboards(),
+      onSubmitPrevis: (storyboardId) => void submitPrevis(storyboardId),
+      onRetryPrevis: (renderId) => void retryPrevis(renderId),
       onOpenDirectorDesk: openDirectorDesk,
       onOpenStage: openStage,
       onOpenWorkbench: openWorkbench,
@@ -408,8 +453,10 @@ export function ProductionFlowBoard({
       previewStoryboards,
       remove,
       retryStoryboard,
+      retryPrevis,
       selectAllStoryboards,
       selectedStoryboardIds,
+      submitPrevis,
       toggleStoryboard,
     ],
   );
@@ -461,6 +508,14 @@ export function ProductionFlowBoard({
     if (flowInstance) void initializeLayout(flowInstance);
   }, [flowInstance, projectId, scriptId]);
 
+  useEffect(
+    () => () => {
+      initializationRunRef.current += 1;
+      layoutRunRef.current += 1;
+    },
+    [],
+  );
+
   useEffect(() => {
     setNodes((current) =>
       current.map((node) => {
@@ -497,6 +552,29 @@ export function ProductionFlowBoard({
   );
 
   const runningStoryboardIds = useMemo(() => data.storyboard.filter((item) => item.state === "running").map((item) => item.id), [data.storyboard]);
+  const runningPrevisIds = useMemo(
+    () =>
+      (data.previsRenders ?? [])
+        .filter((item) => item.status === "running")
+        .map((item) => item.renderId),
+    [data.previsRenders],
+  );
+
+  useEffect(() => {
+    if (typeof api.listPrevisRenders !== "function") return;
+    let cancelled = false;
+    void api
+      .listPrevisRenders(projectId, scriptId)
+      .then((items) => {
+        if (!cancelled) mergePrevis(items);
+      })
+      .catch((error) => {
+        if (!cancelled) setNotice(`读取三维预演失败：${errorMessage(error)}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, mergePrevis, projectId, scriptId]);
 
   useEffect(() => {
     if (runningAssetIds.length === 0) return;
@@ -524,6 +602,20 @@ export function ProductionFlowBoard({
     }, pollIntervalMs);
     return () => window.clearInterval(timer);
   }, [api, pollIntervalMs, runningStoryboardIds.join(",")]);
+
+  useEffect(() => {
+    if (!runningPrevisIds.length) return;
+    const timer = window.setInterval(() => {
+      void Promise.all(
+        runningPrevisIds.map((renderId) =>
+          api.getPrevisStatus(projectId, renderId),
+        ),
+      )
+        .then(mergePrevis)
+        .catch((error) => setNotice(`三维预演轮询暂时失败：${errorMessage(error)}`));
+    }, pollIntervalMs);
+    return () => window.clearInterval(timer);
+  }, [api, mergePrevis, pollIntervalMs, projectId, runningPrevisIds.join(",")]);
 
   function updateNodePosition(node: ProductionNode) {
     const id = node.id as ProductionFlowNodeId;
@@ -628,7 +720,7 @@ export function ProductionFlowBoard({
       if (run !== initializationRunRef.current) return;
       const currentNodes = instance.getNodes();
       if (currentNodes.length > 0 && currentNodes.every((node) => node.measured?.width && node.measured.width > 0)) break;
-      await new Promise((resolve) => window.setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
     if (run === initializationRunRef.current) await layoutWhenNodesAreStable(instance);
   }
