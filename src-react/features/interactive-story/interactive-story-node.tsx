@@ -55,14 +55,14 @@ export function InteractiveStoryFlowNode({ id, data }: NodeProps) {
       <p className="mt-4 min-h-12 whitespace-pre-wrap text-sm leading-6 text-slate-300">{node.summary || "暂无节点摘要"}</p>
       <button
         type="button"
-        aria-label={`进入节点生产 ${node.title}`}
+        aria-label={`打开剧本 ${node.title}`}
         onClick={(event) => {
           event.stopPropagation();
           node.onOpenStage(node.storyNodeId, "script");
         }}
         className="nodrag mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800">
         <Clapperboard className="size-3.5" />
-        查看完整生产链
+        在画布中操作剧本
       </button>
     </article>
   );

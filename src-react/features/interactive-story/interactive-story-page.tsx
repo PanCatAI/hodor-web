@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { LoaderCircle, RefreshCw, X } from "lucide-react";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 
 import { CanvasAgentPanel } from "@react/features/canvas";
 import {
-  ProductionFlowBoard,
-  ProductionWorkbench,
   type ProductionApi,
   type ProductionFlowData,
   type ProductionGenerationData,
   type ProductionProject,
 } from "@react/features/production";
 import type { InteractiveStoryApi, InteractiveStoryNodePositionUpdate } from "./interactive-story-api";
+import { InteractiveProductionStageInspector } from "./interactive-production-stage-inspector";
 import { InteractiveStoryCanvas } from "./interactive-story-canvas";
 import type { InteractiveProductionStage } from "./interactive-production-topology";
 import type { InteractiveStoryGraph } from "./types";
@@ -110,6 +109,7 @@ export function InteractiveStoryPage({
   const selectedNode = graph?.nodes.find((node) => node.id === selectedNodeId) ?? null;
   const activeNode = graph?.nodes.find((node) => node.id === activeStage?.storyNodeId) ?? null;
   const activeFlow = activeNode ? flowsByScriptId[activeNode.scriptId] : undefined;
+  const activeGeneration = activeNode ? generationByScriptId[activeNode.scriptId] : undefined;
 
   const openStage = useCallback((storyNodeId: string, stage: InteractiveProductionStage) => {
     setSelectedNodeId(storyNodeId);
@@ -118,8 +118,11 @@ export function InteractiveStoryPage({
 
   const closeStage = useCallback(() => {
     setActiveStage(null);
+  }, []);
+
+  const refreshActiveStage = useCallback(async () => {
     const current = graphRef.current;
-    if (current) void loadProductionForNodes(current);
+    if (current) await loadProductionForNodes(current);
   }, [loadProductionForNodes]);
 
   const savePositions = useCallback(
@@ -229,48 +232,24 @@ export function InteractiveStoryPage({
         name="剧本智能体">
         {renderScriptAgent(handleAgentBusyChange, selectedNodeId)}
       </CanvasAgentPanel>
-      {activeNode && activeFlow ? (
-        <aside
-          role="region"
-          aria-label={`${activeNode.title}画布节点详情`}
-          className="absolute bottom-4 left-4 right-[430px] top-16 z-[70] overflow-hidden rounded-2xl border border-slate-700 bg-[#090b10] text-slate-100 shadow-2xl">
-          <div className="absolute left-3 top-3 z-[130] flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 shadow-xl">
-            <strong className="text-sm">{activeNode.title}</strong>
-            <span className="text-xs text-blue-300">
-              {activeStage?.stage === "workbench" ? "视频、剪辑与成片" : activeStage?.stage === "supervision" ? "监督验收" : "完整生产链"}
-            </span>
-          </div>
-          <button
-            type="button"
-            aria-label="关闭画布节点详情"
-            onClick={closeStage}
-            className="absolute right-3 top-3 z-[130] grid size-10 place-items-center rounded-lg border border-slate-700 bg-slate-950 text-slate-300 shadow-xl hover:bg-slate-900">
-            <X className="size-5" />
-          </button>
-          {activeStage?.stage === "workbench" ? (
-            <ProductionWorkbench
-              api={productionApi}
-              project={productionProject}
-              initialView="generation"
-              initialScriptId={activeNode.scriptId}
-            />
-          ) : (
-            <ProductionFlowBoard
-              api={productionApi}
-              projectId={projectId}
-              scriptId={activeNode.scriptId}
-              imageModel={productionProject.imageModel}
-              initialData={activeFlow}
-              onChange={(next) =>
-                setFlowsByScriptId((current) => ({
-                  ...current,
-                  [activeNode.scriptId]: next,
-                }))
-              }
-              onOpenWorkbench={() => setActiveStage({ storyNodeId: activeNode.id, stage: "workbench" })}
-            />
-          )}
-        </aside>
+      {activeNode && activeFlow && activeStage ? (
+        <InteractiveProductionStageInspector
+          projectId={projectId}
+          node={activeNode}
+          stage={activeStage.stage}
+          flow={activeFlow}
+          generation={activeGeneration}
+          api={productionApi}
+          project={productionProject}
+          onChange={(next) =>
+            setFlowsByScriptId((current) => ({
+              ...current,
+              [activeNode.scriptId]: next,
+            }))
+          }
+          onRefresh={refreshActiveStage}
+          onClose={closeStage}
+        />
       ) : null}
     </main>
   );

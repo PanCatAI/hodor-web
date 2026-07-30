@@ -136,7 +136,7 @@ describe("InteractiveStoryPage", () => {
     expect(api.getGraph).toHaveBeenCalledTimes(2);
   });
 
-  it("uses the shared infinite canvas, keeps the script agent at project level and opens bound production", async () => {
+  it("keeps every production stage inside the interactive canvas and opens only a stage inspector", async () => {
     const api = createApi();
     const productionApi = createProductionApi();
     render(
@@ -167,12 +167,17 @@ describe("InteractiveStoryPage", () => {
     expect(screen.getAllByText("监督验收")).toHaveLength(2);
 
     fireEvent.doubleClick(screen.getByTestId("interactive-story-node-scene-1"));
-    expect(await screen.findByRole("region", { name: "锁住的房间画布节点详情" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "关闭画布节点详情" }));
+    expect(await screen.findByRole("region", { name: "锁住的房间剧本节点详情" })).toBeInTheDocument();
+    expect(screen.queryByTestId("production-infinite-canvas")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("interactive-story-infinite-canvas")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "关闭节点详情" }));
 
     const storyboardTableNode = screen.getByTestId("interactive-production-node-ending-1::storyboardTable");
     fireEvent.click(storyboardTableNode.querySelector("button") as HTMLButtonElement);
-    expect(await screen.findByRole("region", { name: "真相画布节点详情" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "真相分镜表节点详情" })).toBeInTheDocument();
+    expect(screen.getByLabelText("分镜表内容")).toHaveTextContent("| 镜头 | 景别 |");
+    expect(screen.queryByTestId("production-infinite-canvas")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("interactive-story-infinite-canvas")).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: "运行智能体" }));
     await waitFor(() => expect(api.getGraph).toHaveBeenCalledTimes(1));

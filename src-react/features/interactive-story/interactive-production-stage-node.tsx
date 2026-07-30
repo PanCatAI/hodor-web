@@ -129,9 +129,8 @@ export function InteractiveProductionStageNode({ id, data }: NodeProps) {
           node.onOpenStage(node.storyNodeId, node.stage);
         }}
         className="nodrag mt-3 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800">
-        查看并操作
+        在画布中操作
       </button>
     </article>
   );
 }
-
