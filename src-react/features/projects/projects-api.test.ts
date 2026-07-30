@@ -26,11 +26,12 @@ describe("projects api", () => {
     const client = createClient();
     vi.mocked(client.request)
       .mockResolvedValueOnce([{ id: 7, name: "长安十二时辰", projectType: "novel" }])
+      .mockResolvedValueOnce({ id: 8, message: "新增项目成功" })
       .mockResolvedValue(undefined);
     const api = createProjectsApi(client);
 
     await expect(api.listProjects()).resolves.toEqual([{ id: "7", name: "长安十二时辰", projectType: "novel" }]);
-    await api.createProject(projectInput);
+    await expect(api.createProject(projectInput)).resolves.toEqual({ id: "8" });
     await api.updateProject({ ...projectInput, id: "7" });
     await api.deleteProject("7");
 

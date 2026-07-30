@@ -1,9 +1,11 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Clapperboard } from "lucide-react";
 
+import type { InteractiveProductionStage } from "./interactive-production-topology";
 import type { InteractiveStoryNodeKind, InteractiveStoryNodeStatus } from "./types";
 
 export interface InteractiveStoryNodeData extends Record<string, unknown> {
+  storyNodeId: string;
   title: string;
   summary: string;
   kind: InteractiveStoryNodeKind;
@@ -11,7 +13,7 @@ export interface InteractiveStoryNodeData extends Record<string, unknown> {
   scriptId: number;
   entry: boolean;
   selected: boolean;
-  onOpenProduction: (scriptId: number) => void;
+  onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void;
 }
 
 const kindLabels: Record<InteractiveStoryNodeKind, string> = {
@@ -33,7 +35,7 @@ export function InteractiveStoryFlowNode({ id, data }: NodeProps) {
   const node = data as InteractiveStoryNodeData;
   return (
     <article
-      data-testid={`interactive-story-node-${id}`}
+      data-testid={`interactive-story-node-${node.storyNodeId}`}
       className={`w-[320px] rounded-lg border bg-[#242626] p-4 text-slate-100 shadow-sm ${
         node.selected ? "border-blue-500 ring-2 ring-blue-500/20" : "border-slate-700"
       }`}>
@@ -56,11 +58,11 @@ export function InteractiveStoryFlowNode({ id, data }: NodeProps) {
         aria-label={`进入节点生产 ${node.title}`}
         onClick={(event) => {
           event.stopPropagation();
-          node.onOpenProduction(node.scriptId);
+          node.onOpenStage(node.storyNodeId, "script");
         }}
         className="nodrag mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800">
         <Clapperboard className="size-3.5" />
-        进入生产
+        查看完整生产链
       </button>
     </article>
   );

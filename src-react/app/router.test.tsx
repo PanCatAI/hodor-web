@@ -229,7 +229,8 @@ describe("Hodor React router", () => {
     render(<HodorApp />);
 
     expect(await screen.findByTestId("interactive-story-infinite-canvas")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "互动剧" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "互动剧画布" })).toBeInTheDocument();
+    expect(screen.getByText("二级入口")).toBeInTheDocument();
     expect(screen.getByText("雨夜抵达")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "互动剧智能体" })).toBeInTheDocument();
     expect(request.mock.calls.filter(([input]) => String(input).endsWith("/project/getProject"))).toHaveLength(1);
@@ -247,7 +248,7 @@ describe("Hodor React router", () => {
     render(<HodorApp />);
 
     expect(await screen.findByText("当前项目使用线性流程，只有互动剧项目可以进入互动剧情画布。")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "互动剧" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "互动剧画布" })).not.toBeInTheDocument();
     expect(request.mock.calls.some(([input]) => String(input).includes("/interactiveStory/graph/"))).toBe(false);
   });
 

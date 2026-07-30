@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { InteractiveStoryApi } from "./interactive-story-api";
 import { InteractiveStoryPage } from "./interactive-story-page";
 import type { InteractiveStoryGraph } from "./types";
+import type { ProductionApi, ProductionProject } from "@react/features/production";
 
 vi.mock("./interactive-story-canvas", () => ({
   InteractiveStoryCanvas: ({
@@ -92,12 +93,23 @@ function apiWith(updateNodePositions: InteractiveStoryApi["updateNodePositions"]
 }
 
 function renderPage(api: InteractiveStoryApi) {
+  const productionApi = {
+    getFlowData: vi.fn(async () => ({ script: "", scriptPlan: "", assets: [], storyboardTable: "", storyboard: [] })),
+    getGenerationData: vi.fn(async () => ({ storyboardList: [], trackList: [] })),
+  } as unknown as ProductionApi;
+  const productionProject: ProductionProject = {
+    id: 7,
+    name: "雨夜抉择",
+    videoModel: "pancat:pancat-video",
+    videoMode: "singleImage",
+  };
   return render(
     <InteractiveStoryPage
       projectId={7}
       api={api}
+      productionApi={productionApi}
+      productionProject={productionProject}
       renderScriptAgent={() => <div>智能体</div>}
-      onOpenProduction={() => undefined}
     />,
   );
 }

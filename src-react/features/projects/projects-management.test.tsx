@@ -8,7 +8,7 @@ import type { ProjectsApi } from "./projects-api";
 function createApi(overrides: Partial<ProjectsApi> = {}): ProjectsApi {
   return {
     listProjects: vi.fn().mockResolvedValue([]),
-    createProject: vi.fn().mockResolvedValue(undefined),
+    createProject: vi.fn().mockResolvedValue({ id: "88" }),
     updateProject: vi.fn().mockResolvedValue(undefined),
     deleteProject: vi.fn().mockResolvedValue(undefined),
     listModels: vi.fn().mockImplementation(async (type) => type === "image"
@@ -28,9 +28,10 @@ function createApi(overrides: Partial<ProjectsApi> = {}): ProjectsApi {
 }
 
 describe("Projects management", () => {
-  it("creates a fully configured project and refreshes the list", async () => {
+  it("creates a fully configured interactive project and enters its primary canvas", async () => {
     const user = userEvent.setup();
     const api = createApi();
+    window.history.replaceState(null, "", "/index.html#/projects");
     render(<ProjectsPage api={api} />);
 
     await screen.findByText("还没有项目");
@@ -38,6 +39,7 @@ describe("Projects management", () => {
     const dialog = screen.getByRole("dialog", { name: "新建项目" });
     await waitFor(() => expect(api.listModels).toHaveBeenCalledTimes(2));
     await user.type(within(dialog).getByLabelText("项目名称"), "长安十二时辰");
+    await user.selectOptions(within(dialog).getByLabelText("项目来源"), "interactive");
     await user.type(within(dialog).getByLabelText("题材类型"), "悬疑");
     await user.type(within(dialog).getByLabelText("项目简介"), "内部样片");
     await user.selectOptions(within(dialog).getByLabelText("视觉手册"), "realistic");
@@ -48,12 +50,14 @@ describe("Projects management", () => {
 
     await waitFor(() => expect(api.createProject).toHaveBeenCalledWith(expect.objectContaining({
       name: "长安十二时辰",
+      projectType: "interactive",
       artStyle: "realistic",
       directorManual: "crime",
       imageModel: "pancat:pancat-image",
       videoModel: "pancat:pancat-video",
     })));
     expect(api.listProjects).toHaveBeenCalledTimes(2);
+    expect(window.location.hash).toBe("#/projects/88/interactive");
   });
 
   it("edits and deletes an existing project", async () => {

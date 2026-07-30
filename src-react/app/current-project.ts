@@ -5,6 +5,16 @@ import type { HodorApiClient } from "@react/lib/api/client";
 export interface CurrentProject {
   id: number;
   projectType: string;
+  name?: string;
+  imageModel?: string;
+  videoModel?: string;
+  mode?: string;
+  videoMode?: string;
+  resolution?: string;
+  videoResolution?: string;
+  audio?: boolean;
+  videoAudio?: boolean;
+  videoRatio?: string;
 }
 
 export interface CurrentProjectState {
@@ -32,7 +42,22 @@ function normalizeProjects(value: unknown): CurrentProject[] {
     const record = item as Record<string, unknown>;
     const id = Number(record.id);
     if (!Number.isInteger(id) || id <= 0) return [];
-    return [{ id, projectType: typeof record.projectType === "string" ? record.projectType : "" }];
+    return [
+      {
+        id,
+        projectType: typeof record.projectType === "string" ? record.projectType : "",
+        name: typeof record.name === "string" ? record.name : undefined,
+        imageModel: typeof record.imageModel === "string" ? record.imageModel : undefined,
+        videoModel: typeof record.videoModel === "string" ? record.videoModel : undefined,
+        mode: typeof record.mode === "string" ? record.mode : undefined,
+        videoMode: typeof record.videoMode === "string" ? record.videoMode : undefined,
+        resolution: typeof record.resolution === "string" ? record.resolution : undefined,
+        videoResolution: typeof record.videoResolution === "string" ? record.videoResolution : undefined,
+        audio: typeof record.audio === "boolean" ? record.audio : undefined,
+        videoAudio: typeof record.videoAudio === "boolean" ? record.videoAudio : undefined,
+        videoRatio: typeof record.videoRatio === "string" ? record.videoRatio : undefined,
+      },
+    ];
   });
 }
 

@@ -36,6 +36,10 @@ export interface ProjectUpdate extends ProjectInput {
   id: string;
 }
 
+export interface CreatedProject {
+  id: string;
+}
+
 export interface ModelOption {
   id: string;
   label: string;
@@ -109,8 +113,12 @@ export function createProjectsApi(client: HodorApiClient) {
       const projects = await post<RawProject[]>(client, "/project/getProject");
       return projects.map((project) => ({ ...project, id: String(project.id) }));
     },
-    createProject(input: ProjectInput): Promise<unknown> {
-      return post(client, "/project/addProject", input);
+    async createProject(input: ProjectInput): Promise<CreatedProject> {
+      const result = await post<{ id?: string | number }>(client, "/project/addProject", input);
+      if (result?.id === undefined || result.id === null || String(result.id).trim() === "") {
+        throw new Error("项目已创建，但后端没有返回项目编号");
+      }
+      return { id: String(result.id) };
     },
     updateProject(input: ProjectUpdate): Promise<unknown> {
       const { id, ...project } = input;

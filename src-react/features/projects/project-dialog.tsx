@@ -16,7 +16,7 @@ export interface ProjectDialogProps {
   api: ProjectsApi;
   project: HodorProject | null;
   onClose: () => void;
-  onSaved: () => void | Promise<void>;
+  onSaved: (result: { id: string; projectType: string; created: boolean }) => void | Promise<void>;
   onManageManuals: () => void;
 }
 
@@ -108,9 +108,13 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
     setSaving(true);
     setError("");
     try {
-      if (project) await api.updateProject({ ...form, id: project.id });
-      else await api.createProject(form);
-      await onSaved();
+      if (project) {
+        await api.updateProject({ ...form, id: project.id });
+        await onSaved({ id: project.id, projectType: form.projectType, created: false });
+      } else {
+        const created = await api.createProject(form);
+        await onSaved({ id: created.id, projectType: form.projectType, created: true });
+      }
       onClose();
     } catch (requestError) {
       setError(errorText(requestError));

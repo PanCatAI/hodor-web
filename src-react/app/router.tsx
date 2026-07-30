@@ -360,20 +360,28 @@ function ProductionRoutePage() {
 
 function InteractiveStoryRoutePage() {
   const projectId = readProjectId();
-  const router = useRouter();
   const { apiClient, apiBaseUrl, getToken } = projectInteractiveStoryRoute.useRouteContext();
   const api = useMemo(() => createInteractiveStoryApi(apiClient), [apiClient]);
+  const productionApi = useMemo(() => createProductionApi(apiClient), [apiClient]);
   const { project, loading, error } = useCurrentProjectContext();
+  const productionProject = useMemo(
+    () => (projectId != null && project ? normalizeProductionProject(project, projectId) : null),
+    [project, projectId],
+  );
+
   if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
   if (loading) return <MissingContext>正在核验项目类型…</MissingContext>;
   if (error) return <MissingContext>{error}</MissingContext>;
   if (project?.projectType !== "interactive") {
     return <MissingContext>当前项目使用线性流程，只有互动剧项目可以进入互动剧情画布。</MissingContext>;
   }
+  if (!productionProject) return <MissingContext>正在读取互动剧生产配置…</MissingContext>;
   return (
     <InteractiveStoryPage
       projectId={projectId}
       api={api}
+      productionApi={productionApi}
+      productionProject={productionProject}
       renderScriptAgent={(onBusyChange, selectedNodeId) => (
         <ScriptAgentPanel
           projectId={projectId}
@@ -384,13 +392,6 @@ function InteractiveStoryRoutePage() {
           selectedNodeId={selectedNodeId}
         />
       )}
-      onOpenProduction={(scriptId) =>
-        void router.navigate({
-          to: "/projects/$projectId/production",
-          params: { projectId: String(projectId) },
-          search: { view: "workbench", episodeId: scriptId },
-        })
-      }
     />
   );
 }

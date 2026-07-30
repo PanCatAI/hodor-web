@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { InteractiveStoryPage } from "./interactive-story-page";
 import type { InteractiveStoryApi } from "./interactive-story-api";
 import type { InteractiveStoryGraph } from "./types";
+import type { ProductionApi, ProductionProject } from "@react/features/production";
 
 function createApi(): InteractiveStoryApi {
   const graph: InteractiveStoryGraph = {
@@ -67,6 +68,27 @@ function createApi(): InteractiveStoryApi {
   };
 }
 
+const productionProject: ProductionProject = {
+  id: 7,
+  name: "雨夜抉择",
+  imageModel: "pancat:pancat-image",
+  videoModel: "pancat:pancat-video",
+  videoMode: "singleImage",
+};
+
+function createProductionApi(): ProductionApi {
+  return {
+    getFlowData: vi.fn(async (_projectId: number, scriptId: number) => ({
+      script: scriptId === 12 ? "INT. ROOM" : "EXT. STREET",
+      scriptPlan: "从远景推进到近景",
+      assets: [],
+      storyboardTable: "| 镜头 | 景别 |\n| 1 | 近景 |",
+      storyboard: [],
+    })),
+    getGenerationData: vi.fn(async () => ({ storyboardList: [], trackList: [] })),
+  } as unknown as ProductionApi;
+}
+
 describe("InteractiveStoryPage", () => {
   it("does not reload the graph when selecting a node while the agent is busy", async () => {
     const api = createApi();
@@ -82,14 +104,15 @@ describe("InteractiveStoryPage", () => {
       <InteractiveStoryPage
         projectId={7}
         api={api}
+        productionApi={createProductionApi()}
+        productionProject={productionProject}
         renderScriptAgent={(onBusyChange) => <BusyReporter onBusyChange={onBusyChange} />}
-        onOpenProduction={() => undefined}
       />,
     );
 
     await screen.findByTestId("interactive-story-infinite-canvas");
     expect(api.getGraph).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByText("真相"));
+    fireEvent.click(screen.getByTestId("interactive-story-node-ending-1"));
     await waitFor(() => expect(screen.getByText("智能体运行中")).toBeInTheDocument());
     expect(api.getGraph).toHaveBeenCalledTimes(1);
   });
@@ -102,8 +125,9 @@ describe("InteractiveStoryPage", () => {
       <InteractiveStoryPage
         projectId={7}
         api={api}
+        productionApi={createProductionApi()}
+        productionProject={productionProject}
         renderScriptAgent={() => <div>项目级剧本对话</div>}
-        onOpenProduction={() => undefined}
       />,
     );
 
@@ -114,11 +138,13 @@ describe("InteractiveStoryPage", () => {
 
   it("uses the shared infinite canvas, keeps the script agent at project level and opens bound production", async () => {
     const api = createApi();
-    const openProduction = vi.fn();
+    const productionApi = createProductionApi();
     render(
       <InteractiveStoryPage
         projectId={7}
         api={api}
+        productionApi={productionApi}
+        productionProject={productionProject}
         renderScriptAgent={(onBusyChange) => (
           <section aria-label="剧本智能体侧栏">
             <button type="button" onClick={() => onBusyChange(true)}>
@@ -127,21 +153,26 @@ describe("InteractiveStoryPage", () => {
             项目级剧本对话
           </section>
         )}
-        onOpenProduction={openProduction}
       />,
     );
 
     expect(await screen.findByTestId("interactive-story-infinite-canvas")).toBeInTheDocument();
     expect(screen.getByText("项目级剧本对话")).toBeInTheDocument();
-    expect(screen.getByText("锁住的房间")).toBeInTheDocument();
+    expect(within(screen.getByTestId("interactive-story-node-scene-1")).getByText("锁住的房间")).toBeInTheDocument();
     expect(screen.getByText("主角发现门后的秘密。")).toBeInTheDocument();
+    await waitFor(() => expect(productionApi.getFlowData).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText("分镜表")).toHaveLength(2);
+    expect(screen.getAllByText("分镜图")).toHaveLength(2);
+    expect(screen.getAllByText("视频工作台")).toHaveLength(2);
+    expect(screen.getAllByText("监督验收")).toHaveLength(2);
 
     fireEvent.doubleClick(screen.getByTestId("interactive-story-node-scene-1"));
-    expect(openProduction).toHaveBeenCalledWith(12);
+    expect(await screen.findByRole("region", { name: "锁住的房间画布节点详情" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "关闭画布节点详情" }));
 
-    fireEvent.click(screen.getByText("真相"));
-    fireEvent.click(screen.getByRole("button", { name: "进入节点生产" }));
-    expect(openProduction).toHaveBeenCalledWith(13);
+    const storyboardTableNode = screen.getByTestId("interactive-production-node-ending-1::storyboardTable");
+    fireEvent.click(storyboardTableNode.querySelector("button") as HTMLButtonElement);
+    expect(await screen.findByRole("region", { name: "真相画布节点详情" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "运行智能体" }));
     await waitFor(() => expect(api.getGraph).toHaveBeenCalledTimes(1));

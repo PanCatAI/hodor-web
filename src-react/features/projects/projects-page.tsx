@@ -104,6 +104,13 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
     }
   }
 
+  async function handleSaved(result: { id: string; projectType: string; created: boolean }) {
+    await refresh();
+    if (!result.created || result.projectType !== "interactive") return;
+    localStorage.setItem("hodorSelectedProjectId", result.id);
+    window.location.hash = `/projects/${result.id}/interactive`;
+  }
+
   return (
     <section className="mx-auto max-w-7xl px-6 py-8 lg:px-10 lg:py-10">
       <header className="flex flex-wrap items-start justify-between gap-6">
@@ -154,7 +161,7 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
         </div>
       )}
 
-      {api && editorOpen ? <ProjectDialog api={api} project={editingProject} onClose={() => setEditorOpen(false)} onSaved={refresh} onManageManuals={() => { setEditorOpen(false); setManualsOpen(true); }} /> : null}
+      {api && editorOpen ? <ProjectDialog api={api} project={editingProject} onClose={() => setEditorOpen(false)} onSaved={handleSaved} onManageManuals={() => { setEditorOpen(false); setManualsOpen(true); }} /> : null}
       {api && manualsOpen ? <ManualManager api={api} onClose={() => setManualsOpen(false)} /> : null}
     </section>
   );

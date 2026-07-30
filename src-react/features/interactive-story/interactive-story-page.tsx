@@ -1,25 +1,44 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Clapperboard, LoaderCircle, RefreshCw } from "lucide-react";
+import { LoaderCircle, RefreshCw, X } from "lucide-react";
 
 import { CanvasAgentPanel } from "@react/features/canvas";
+import {
+  ProductionFlowBoard,
+  ProductionWorkbench,
+  type ProductionApi,
+  type ProductionFlowData,
+  type ProductionGenerationData,
+  type ProductionProject,
+} from "@react/features/production";
 import type { InteractiveStoryApi, InteractiveStoryNodePositionUpdate } from "./interactive-story-api";
 import { InteractiveStoryCanvas } from "./interactive-story-canvas";
+import type { InteractiveProductionStage } from "./interactive-production-topology";
 import type { InteractiveStoryGraph } from "./types";
 
 export interface InteractiveStoryPageProps {
   projectId: number;
   api: InteractiveStoryApi;
+  productionApi: ProductionApi;
+  productionProject: ProductionProject;
   renderScriptAgent: (onBusyChange: (busy: boolean) => void, selectedNodeId: string | null) => ReactNode;
-  onOpenProduction: (scriptId: number) => void;
 }
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "互动剧情图加载失败";
 }
 
-export function InteractiveStoryPage({ projectId, api, renderScriptAgent, onOpenProduction }: InteractiveStoryPageProps) {
+export function InteractiveStoryPage({
+  projectId,
+  api,
+  productionApi,
+  productionProject,
+  renderScriptAgent,
+}: InteractiveStoryPageProps) {
   const [graph, setGraph] = useState<InteractiveStoryGraph | null>(null);
+  const [flowsByScriptId, setFlowsByScriptId] = useState<Record<number, ProductionFlowData | undefined>>({});
+  const [generationByScriptId, setGenerationByScriptId] = useState<Record<number, ProductionGenerationData | undefined>>({});
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [activeStage, setActiveStage] = useState<{ storyNodeId: string; stage: InteractiveProductionStage } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [agentPanelOpen, setAgentPanelOpen] = useState(true);
@@ -46,6 +65,24 @@ export function InteractiveStoryPage({ projectId, api, renderScriptAgent, onOpen
     setGraph(merged);
   }, []);
 
+  const loadProductionForNodes = useCallback(
+    async (snapshot: InteractiveStoryGraph) => {
+      const scriptIds = [...new Set(snapshot.nodes.map((node) => node.scriptId))];
+      const entries = await Promise.all(
+        scriptIds.map(async (scriptId) => {
+          const [flow, generation] = await Promise.all([
+            productionApi.getFlowData(projectId, scriptId),
+            productionApi.getGenerationData(projectId, scriptId),
+          ]);
+          return { scriptId, flow, generation };
+        }),
+      );
+      setFlowsByScriptId(Object.fromEntries(entries.map((entry) => [entry.scriptId, entry.flow])));
+      setGenerationByScriptId(Object.fromEntries(entries.map((entry) => [entry.scriptId, entry.generation])));
+    },
+    [productionApi, projectId],
+  );
+
   const loadGraph = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -58,18 +95,32 @@ export function InteractiveStoryPage({ projectId, api, renderScriptAgent, onOpen
       if (!next) throw new Error("互动剧情图初始化后仍无法读取");
       adoptSnapshot(next);
       setSelectedNodeId((current) => (next.nodes.some((node) => node.id === current) ? current : (next.entryNodeId ?? next.nodes[0]?.id ?? null)));
+      await loadProductionForNodes(next);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
       setLoading(false);
     }
-  }, [adoptSnapshot, api, projectId]);
+  }, [adoptSnapshot, api, loadProductionForNodes, projectId]);
 
   useEffect(() => {
     void loadGraph();
   }, [loadGraph]);
 
   const selectedNode = graph?.nodes.find((node) => node.id === selectedNodeId) ?? null;
+  const activeNode = graph?.nodes.find((node) => node.id === activeStage?.storyNodeId) ?? null;
+  const activeFlow = activeNode ? flowsByScriptId[activeNode.scriptId] : undefined;
+
+  const openStage = useCallback((storyNodeId: string, stage: InteractiveProductionStage) => {
+    setSelectedNodeId(storyNodeId);
+    setActiveStage({ storyNodeId, stage });
+  }, []);
+
+  const closeStage = useCallback(() => {
+    setActiveStage(null);
+    const current = graphRef.current;
+    if (current) void loadProductionForNodes(current);
+  }, [loadProductionForNodes]);
 
   const savePositions = useCallback(
     (updates: InteractiveStoryNodePositionUpdate[]) => {
@@ -143,16 +194,7 @@ export function InteractiveStoryPage({ projectId, api, renderScriptAgent, onOpen
     </div>
   );
 
-  const trailingControls = selectedNode ? (
-    <button
-      type="button"
-      aria-label="进入节点生产"
-      onClick={() => onOpenProduction(selectedNode.scriptId)}
-      className="flex h-10 items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/95 px-3 text-sm text-slate-200 shadow-lg hover:bg-slate-900">
-      <Clapperboard className="size-4" />
-      进入节点生产
-    </button>
-  ) : loading ? (
+  const trailingControls = loading ? (
     <LoaderCircle aria-label="正在读取互动剧情" className="size-5 animate-spin text-slate-300" />
   ) : null;
 
@@ -162,10 +204,12 @@ export function InteractiveStoryPage({ projectId, api, renderScriptAgent, onOpen
         <InteractiveStoryCanvas
           graph={graph}
           selectedNodeId={selectedNodeId}
+          flowsByScriptId={flowsByScriptId}
+          generationByScriptId={generationByScriptId}
           leadingControls={leadingControls}
           trailingControls={trailingControls}
           onSelectNode={setSelectedNodeId}
-          onOpenProduction={onOpenProduction}
+          onOpenStage={openStage}
           onPositionsChange={savePositions}
         />
       ) : loading ? (
@@ -185,6 +229,49 @@ export function InteractiveStoryPage({ projectId, api, renderScriptAgent, onOpen
         name="剧本智能体">
         {renderScriptAgent(handleAgentBusyChange, selectedNodeId)}
       </CanvasAgentPanel>
+      {activeNode && activeFlow ? (
+        <aside
+          role="region"
+          aria-label={`${activeNode.title}画布节点详情`}
+          className="absolute bottom-4 left-4 right-[430px] top-16 z-[70] overflow-hidden rounded-2xl border border-slate-700 bg-[#090b10] text-slate-100 shadow-2xl">
+          <div className="absolute left-3 top-3 z-[130] flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 shadow-xl">
+            <strong className="text-sm">{activeNode.title}</strong>
+            <span className="text-xs text-blue-300">
+              {activeStage?.stage === "workbench" ? "视频、剪辑与成片" : activeStage?.stage === "supervision" ? "监督验收" : "完整生产链"}
+            </span>
+          </div>
+          <button
+            type="button"
+            aria-label="关闭画布节点详情"
+            onClick={closeStage}
+            className="absolute right-3 top-3 z-[130] grid size-10 place-items-center rounded-lg border border-slate-700 bg-slate-950 text-slate-300 shadow-xl hover:bg-slate-900">
+            <X className="size-5" />
+          </button>
+          {activeStage?.stage === "workbench" ? (
+            <ProductionWorkbench
+              api={productionApi}
+              project={productionProject}
+              initialView="generation"
+              initialScriptId={activeNode.scriptId}
+            />
+          ) : (
+            <ProductionFlowBoard
+              api={productionApi}
+              projectId={projectId}
+              scriptId={activeNode.scriptId}
+              imageModel={productionProject.imageModel}
+              initialData={activeFlow}
+              onChange={(next) =>
+                setFlowsByScriptId((current) => ({
+                  ...current,
+                  [activeNode.scriptId]: next,
+                }))
+              }
+              onOpenWorkbench={() => setActiveStage({ storyNodeId: activeNode.id, stage: "workbench" })}
+            />
+          )}
+        </aside>
+      ) : null}
     </main>
   );
 }

@@ -17,9 +17,11 @@ export function ProtectedLayout() {
     router.options.context.apiClient,
     Number.isInteger(numericProjectId) && numericProjectId > 0 ? numericProjectId : null,
   );
-  const visibleProjectNavigation = projectNavigation.filter(
-    (item) => item.to !== "/projects/$projectId/interactive" || project?.projectType === "interactive",
-  );
+  const interactiveCanvasNavigation = projectNavigation.filter((item) => item.to === "/projects/$projectId/interactive");
+  const secondaryProjectNavigation = projectNavigation.filter((item) => item.to !== "/projects/$projectId/interactive");
+  const visibleProjectNavigation = project?.projectType === "interactive"
+    ? [...interactiveCanvasNavigation, ...secondaryProjectNavigation]
+    : secondaryProjectNavigation;
 
   const logout = async () => {
     clearSession();
@@ -55,17 +57,23 @@ export function ProtectedLayout() {
             {projectId ? (
               <>
                 <div className="col-span-full my-2 hidden border-t border-border lg:block" />
-                {visibleProjectNavigation.map(({ label, to, icon: Icon }) => (
-                  <Link
-                    key={to}
-                    to={to}
-                    params={{ projectId }}
-                    className="flex min-w-0 items-center justify-center gap-3 rounded-lg px-3 py-3 text-sm text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-100 lg:justify-start"
-                    activeProps={{ className: "bg-primary/10 text-blue-300" }}
-                  >
-                    <Icon aria-hidden="true" size={18} />
-                    <span className="truncate">{label}</span>
-                  </Link>
+                {visibleProjectNavigation.map(({ label, to, icon: Icon }, index) => (
+                  <div key={to} className="contents">
+                    {project?.projectType === "interactive" && index === 1 ? (
+                      <div className="col-span-full mt-2 hidden px-3 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-600 lg:block">
+                        二级入口
+                      </div>
+                    ) : null}
+                    <Link
+                      to={to}
+                      params={{ projectId }}
+                      className="flex min-w-0 items-center justify-center gap-3 rounded-lg px-3 py-3 text-sm text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-100 lg:justify-start"
+                      activeProps={{ className: "bg-primary/10 text-blue-300" }}
+                    >
+                      <Icon aria-hidden="true" size={18} />
+                      <span className="truncate">{label}</span>
+                    </Link>
+                  </div>
                 ))}
               </>
             ) : null}
