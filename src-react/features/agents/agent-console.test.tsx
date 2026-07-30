@@ -146,14 +146,31 @@ describe("AgentConsole", () => {
     expect(document.querySelector('[data-message-role="user"] [data-message-variant="base"]')).toHaveClass("bg-[#2c2c2c]");
   });
 
-  it("disables input while generating and turns send into stop", () => {
+  it("keeps the composer editable while generating and preserves the empty-input stop action", () => {
     const client = createClient({ activity: "streaming", currentMessageId: "assistant-1" });
     render(<AgentConsole client={client} title="第一幕" display="panel" />);
 
-    expect(screen.getByLabelText("发送指令")).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "发送" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("发送指令")).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "停止生成" }));
     expect(client.stop).toHaveBeenCalledOnce();
+  });
+
+  it("lets a new instruction replace a stuck generation", async () => {
+    const client = createClient({ activity: "streaming", currentMessageId: "assistant-1" });
+    render(<AgentConsole client={client} title="第一幕" display="panel" />);
+
+    fireEvent.change(screen.getByLabelText("发送指令"), {
+      target: { value: "继续执行衍生资产分析" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "发送新指令并停止当前生成",
+      }),
+    );
+
+    expect(client.send).toHaveBeenCalledWith("继续执行衍生资产分析");
+    expect(client.stop).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByLabelText("发送指令")).toHaveValue(""));
   });
 
   it("disables both input and action while disconnected", () => {

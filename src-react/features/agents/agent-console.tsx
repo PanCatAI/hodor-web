@@ -382,12 +382,12 @@ export function AgentConsole({
   }, [openMenu]);
 
   function send(text: string) {
-    if (!busy && connected && client.send(text)) setInput("");
+    if (connected && client.send(text)) setInput("");
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (busy) client.stop();
+    if (busy && !input.trim()) client.stop();
     else send(input);
   }
 
@@ -591,7 +591,7 @@ export function AgentConsole({
             aria-label="发送指令"
             rows={3}
             value={input}
-            disabled={busy || !connected}
+            disabled={!connected}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
@@ -706,10 +706,20 @@ export function AgentConsole({
 
             <button
               type="submit"
-              aria-label={busy ? "停止生成" : "发送"}
+              aria-label={
+                busy
+                  ? input.trim()
+                    ? "发送新指令并停止当前生成"
+                    : "停止生成"
+                  : "发送"
+              }
               disabled={busy ? !connected : !input.trim() || !connected}
               className="grid size-8 place-items-center rounded-md bg-blue-600 text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
-              {busy ? <CircleStop className="size-4" /> : <Send className="size-4" />}
+              {busy && !input.trim() ? (
+                <CircleStop className="size-4" />
+              ) : (
+                <Send className="size-4" />
+              )}
             </button>
           </div>
         </form>

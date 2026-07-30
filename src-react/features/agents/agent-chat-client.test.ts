@@ -131,6 +131,109 @@ describe("agent chat client", () => {
     expect(client.getSnapshot().currentMessageId).toBeNull();
   });
 
+  it.each(["complete", "error", "stop"] as const)(
+    "does not enter a permanent busy state when a terminal assistant message arrives as %s",
+    (status) => {
+      const { client, socket } = setup();
+      client.connect();
+
+      socket.trigger("message", {
+        id: `assistant-${status}`,
+        role: "assistant",
+        name: "统筹",
+        status,
+        datetime: "2026-07-20T10:00:00.000Z",
+        content: [
+          {
+            id: "text-1",
+            type: "markdown",
+            data: status === "complete" ? "请确认是否继续？" : "本轮已结束",
+            status,
+          },
+        ],
+      });
+
+      expect(client.getSnapshot()).toMatchObject({
+        activity: "idle",
+        currentMessageId: null,
+      });
+    },
+  );
+
+  it("does not let an older terminal message replace a newer active response", () => {
+    const { client, socket } = setup();
+    client.connect();
+
+    socket.trigger("message", {
+      id: "assistant-new",
+      role: "assistant",
+      status: "streaming",
+      datetime: "2026-07-20T10:00:01.000Z",
+      content: [],
+    });
+    socket.trigger("message", {
+      id: "assistant-old",
+      role: "assistant",
+      status: "complete",
+      datetime: "2026-07-20T10:00:00.000Z",
+      content: [{ id: "text-old", type: "markdown", data: "旧回答", status: "complete" }],
+    });
+
+    expect(client.getSnapshot()).toMatchObject({
+      activity: "streaming",
+      currentMessageId: "assistant-new",
+    });
+  });
+
+  it("ignores late streaming fragments for terminal or unknown messages", () => {
+    const { client, socket } = setup();
+    client.connect();
+
+    socket.trigger("message", {
+      id: "assistant-finished",
+      role: "assistant",
+      status: "pending",
+      datetime: "2026-07-20T10:00:00.000Z",
+      content: [
+        {
+          id: "text-finished",
+          type: "markdown",
+          data: "请确认是否继续？",
+          status: "streaming",
+        },
+      ],
+    });
+    socket.trigger("message:update", {
+      id: "assistant-finished",
+      status: "complete",
+    });
+    socket.trigger("content:update", {
+      messageId: "assistant-finished",
+      contentId: "text-finished",
+      data: "迟到片段",
+      strategy: "append",
+      status: "streaming",
+    });
+    socket.trigger("content:add", {
+      messageId: "assistant-missing",
+      content: {
+        id: "text-missing",
+        type: "markdown",
+        data: "孤立片段",
+        status: "streaming",
+      },
+    });
+    socket.trigger("message:update", {
+      id: "assistant-missing",
+      status: "streaming",
+    });
+
+    expect(client.getSnapshot()).toMatchObject({
+      activity: "idle",
+      currentMessageId: null,
+    });
+  });
+
   it("keeps thinking segments before visible answers and removes completed empty messages", () => {
     const { client, socket } = setup();
     client.connect();

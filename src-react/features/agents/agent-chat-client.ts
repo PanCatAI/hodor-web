@@ -117,6 +117,10 @@ function inferActivity(status: AgentMessageStatus | undefined): AgentActivitySta
   return status === "streaming" ? "streaming" : "pending";
 }
 
+function isActiveMessageStatus(status: AgentMessageStatus | undefined) {
+  return status === "pending" || status === "streaming";
+}
+
 function successResult(result: unknown): unknown {
   if (result && typeof result === "object" && typeof (result as Record<string, unknown>).success === "boolean") return result;
   return { success: true, message: result ?? "操作完成" };
@@ -250,6 +254,21 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
     });
   }
 
+  function markMessageActive(
+    messageId: string,
+    activity: AgentActivityState,
+  ) {
+    const message = snapshot.messages.find((item) => item.id === messageId);
+    if (!message || !isActiveMessageStatus(message.status)) return;
+    if (
+      snapshot.currentMessageId &&
+      snapshot.currentMessageId !== messageId
+    ) {
+      return;
+    }
+    update({ activity, currentMessageId: messageId });
+  }
+
   function setupHandlers(activeSocket: AgentSocket) {
     activeSocket.on("connect", () => {
       const reconnecting = hasConnected;
@@ -270,9 +289,22 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
       const messages = snapshot.messages.some((item) => item.id === message.id)
         ? snapshot.messages.map((item) => (item.id === message.id ? message : item))
         : [...snapshot.messages, message];
+      const activeAssistantMessage =
+        message.role === "assistant" && isActiveMessageStatus(message.status);
+      const currentAssistantMessageEnded =
+        message.role === "assistant" &&
+        !activeAssistantMessage &&
+        snapshot.currentMessageId === message.id;
       update({
         messages,
-        ...(message.role === "assistant" ? { currentMessageId: message.id, activity: inferActivity(message.status) } : {}),
+        ...(activeAssistantMessage
+          ? {
+              currentMessageId: message.id,
+              activity: inferActivity(message.status),
+            }
+          : currentAssistantMessageEnded
+            ? { currentMessageId: null, activity: "idle" }
+            : {}),
       });
     });
 
@@ -285,14 +317,16 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
       if (event.status === "complete" && updatedMessage && isEmptyMessage(updatedMessage)) {
         update({ messages: snapshot.messages.filter((message) => message.id !== event.id) });
       }
-      if (event.status === "streaming") update({ activity: "streaming" });
+      if (event.status === "streaming") {
+        markMessageActive(event.id, "streaming");
+      }
       if (snapshot.currentMessageId === event.id && (event.status === "complete" || event.status === "error" || event.status === "stop")) {
         update({ activity: "idle", currentMessageId: null });
       }
     });
 
     activeSocket.on("content:add", (event: ContentAddEvent) => {
-      replaceMessage(event.messageId, (message) => ({
+      const updatedMessage = replaceMessage(event.messageId, (message) => ({
         ...message,
         content: (() => {
           const content = {
@@ -307,11 +341,13 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
           return [...message.content.slice(0, firstNonThinkingIndex), content, ...message.content.slice(firstNonThinkingIndex)];
         })(),
       }));
-      if (event.content.status === "streaming") update({ activity: "streaming" });
+      if (updatedMessage && event.content.status === "streaming") {
+        markMessageActive(event.messageId, "streaming");
+      }
     });
 
     activeSocket.on("content:update", (event: ContentUpdateEvent) => {
-      replaceMessage(event.messageId, (message) => ({
+      const updatedMessage = replaceMessage(event.messageId, (message) => ({
         ...message,
         status: event.status === "streaming" && message.status === "pending" ? "streaming" : message.status,
         content: message.content.map((content) => {
@@ -327,7 +363,12 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
           return nextContent;
         }),
       }));
-      if (event.status === "streaming" || event.strategy === "append") update({ activity: "streaming" });
+      if (
+        updatedMessage &&
+        (event.status === "streaming" || event.strategy === "append")
+      ) {
+        markMessageActive(event.messageId, "streaming");
+      }
     });
 
     function registerReadHandler(event: "getPlanData" | "getFlowData", handler?: AgentServerHandler) {
