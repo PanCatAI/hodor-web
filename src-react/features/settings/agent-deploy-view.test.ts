@@ -48,4 +48,25 @@ describe("normalizeAgentDeployments", () => {
 
     expect(normalizeAgentDeployments(input)).toEqual(input);
   });
+
+  it("replaces legacy null numeric settings with values accepted by the save contract", () => {
+    const result = normalizeAgentDeployments([
+      {
+        id: 1,
+        key: "scriptAgent",
+        name: "剧本智能体",
+        desc: "生成剧本",
+        model: "DeepSeek",
+        modelName: "deepseek:chat",
+        vendorId: "deepseek",
+        temperature: null,
+        maxOutputTokens: null,
+      },
+    ]);
+
+    expect(result[0]).toMatchObject({
+      temperature: 1,
+      maxOutputTokens: 0,
+    });
+  });
 });
