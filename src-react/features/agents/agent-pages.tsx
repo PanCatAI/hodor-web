@@ -43,6 +43,45 @@ const productionWelcomeMessages = [
   },
 ];
 
+const interactiveWelcomeMessages = [
+  {
+    id: "interactive-welcome",
+    role: "assistant" as const,
+    status: "complete" as const,
+    datetime: "",
+    content: [
+      {
+        type: "text",
+        status: "complete" as const,
+        data: "你好，我会陪你把故事想法或原文整理成可以直接生产的分支互动剧。",
+      },
+      {
+        type: "text",
+        status: "complete" as const,
+        data: "你可以导入已有原文、从一个故事想法开始，或者让我先读取当前画布并给出下一步。",
+      },
+      {
+        type: "suggestion",
+        status: "complete" as const,
+        data: [
+          {
+            title: "我有一份原文",
+            prompt: "我有一份原文，请告诉我如何导入，并引导我把它改编成带分支的互动剧。",
+          },
+          {
+            title: "从故事想法开始",
+            prompt: "我想从一个故事想法开始，请逐步提问，并帮我建立第一版互动剧情图。",
+          },
+          {
+            title: "检查当前进度",
+            prompt: "请读取当前项目和互动剧情画布，概括已有内容，并告诉我最应该继续完成什么。",
+          },
+        ],
+      },
+    ],
+  },
+];
+
 function AgentBusyReporter({ client, onBusyChange }: { client: ReturnType<typeof createAgentChatClient>; onBusyChange?: (busy: boolean) => void }) {
   const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const busy = snapshot.activity === "pending" || snapshot.activity === "streaming";
@@ -194,6 +233,7 @@ export function ScriptAgentPanel({
         getToken,
         socketFactory,
         handlers: activeHandlers,
+        initialMessages: interactiveWelcomeMessages,
         messageContext,
       }),
     [activeHandlers, apiBaseUrl, apiClient, getToken, messageContext, projectId, socketFactory],

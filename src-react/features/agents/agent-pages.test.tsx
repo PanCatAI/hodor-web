@@ -153,6 +153,10 @@ describe("agent pages", () => {
     });
 
     expect(await screen.findByRole("heading", { name: "互动剧智能体" })).toBeInTheDocument();
+    expect(screen.getByText("你好，我会陪你把故事想法或原文整理成可以直接生产的分支互动剧。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "我有一份原文" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "从故事想法开始" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "检查当前进度" })).toBeInTheDocument();
     expect(socketFactory).toHaveBeenCalledTimes(1);
     await act(async () => view.rerender(
       <ScriptAgentPanel
