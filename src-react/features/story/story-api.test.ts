@@ -35,6 +35,23 @@ describe("story API", () => {
     });
   });
 
+  it("scopes single and batch original-text deletion to the current project", async () => {
+    const request = vi.fn(async () => ({ message: "ok" }));
+    const api = createStoryApi({ request });
+
+    await api.deleteNovel(7, 11);
+    await api.deleteNovels(7, [11, 12]);
+
+    expect(request).toHaveBeenNthCalledWith(1, "/novel/delNovel", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, id: 11 }),
+    });
+    expect(request).toHaveBeenNthCalledWith(2, "/novel/batchDeleteNovel", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, ids: [11, 12] }),
+    });
+  });
+
   it("loads and updates scripts without changing the backend contract", async () => {
     const request = vi.fn(async () => []);
     const api = createStoryApi({ request });

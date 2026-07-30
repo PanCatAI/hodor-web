@@ -82,7 +82,17 @@ describe("NovelPage", () => {
 
     fireEvent.click(screen.getByRole("checkbox", { name: "选择 雨夜" }));
     fireEvent.click(screen.getByRole("button", { name: "批量删除 (1)" }));
-    await waitFor(() => expect(api.deleteNovels).toHaveBeenCalledWith([11]));
+    await waitFor(() => expect(api.deleteNovels).toHaveBeenCalledWith(7, [11]));
+  });
+
+  it("deletes one chapter within the current project", async () => {
+    const api = createApi();
+    render(<NovelPage api={api} projectId={7} />);
+
+    await screen.findByText("雨夜");
+    fireEvent.click(screen.getByRole("button", { name: "删除 雨夜" }));
+
+    await waitFor(() => expect(api.deleteNovel).toHaveBeenCalledWith(7, 11));
   });
 
   it("imports parsed TXT chapters in one request", async () => {
