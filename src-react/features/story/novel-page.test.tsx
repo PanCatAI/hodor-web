@@ -60,6 +60,7 @@ describe("NovelPage", () => {
 
     await waitFor(() =>
       expect(api.updateNovel).toHaveBeenCalledWith({
+        projectId: 7,
         id: 11,
         index: 1,
         reel: "第一卷",

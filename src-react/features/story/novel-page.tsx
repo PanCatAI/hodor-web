@@ -102,6 +102,7 @@ export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000
     try {
       if (draft.id) {
         await api.updateNovel({
+          projectId,
           id: draft.id,
           index: draft.index,
           reel: draft.reel,

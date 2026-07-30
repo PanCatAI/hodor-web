@@ -20,7 +20,7 @@ describe("story API", () => {
     const api = createStoryApi({ request });
 
     await api.createNovel({ projectId: 7, index: 1, reel: "第一卷", chapter: "第一章", chapterData: "正文" });
-    await api.updateNovel({ id: 11, index: 1, reel: "第一卷", chapter: "第一章", chapterData: "新正文", event: "冲突" });
+    await api.updateNovel({ projectId: 7, id: 11, index: 1, reel: "第一卷", chapter: "第一章", chapterData: "新正文", event: "冲突" });
 
     expect(request).toHaveBeenNthCalledWith(1, "/novel/addNovel", {
       method: "POST",
@@ -31,7 +31,7 @@ describe("story API", () => {
     });
     expect(request).toHaveBeenNthCalledWith(2, "/novel/updateNovel", {
       method: "POST",
-      body: JSON.stringify({ id: 11, index: 1, reel: "第一卷", chapter: "第一章", chapterData: "新正文", event: "冲突" }),
+      body: JSON.stringify({ projectId: 7, id: 11, index: 1, reel: "第一卷", chapter: "第一章", chapterData: "新正文", event: "冲突" }),
     });
   });
 

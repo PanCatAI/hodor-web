@@ -65,7 +65,9 @@ export interface ScriptExtractionState {
   errorReason?: string;
 }
 
-export interface UpdateNovelInput extends Omit<OriginalText, "eventState" | "errorReason"> {}
+export interface UpdateNovelInput extends Omit<OriginalText, "eventState" | "errorReason"> {
+  projectId: number;
+}
 
 export interface SaveScriptInput {
   id?: number;
