@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HodorApp } from "./hodor-app";
 import { normalizeProductionProject } from "./router";
+import { createWesternFantasyWorldProfile } from "@react/features/world-profile/world-profile-fields";
 
 function openRoute(path: string) {
   window.history.replaceState(null, "", `/index.react.html#${path}`);
@@ -26,6 +27,9 @@ describe("Hodor React router", () => {
     expect(normalizeProductionProject([{ id: 9, videoRatio: "9:16" }], 9)).toMatchObject({ id: 9, videoRatio: "9:16" });
     expect(normalizeProductionProject([{ id: 9 }], 9)).toMatchObject({ id: 9, videoRatio: "16:9" });
     expect(normalizeProductionProject([{ id: 9, videoRatio: "4:3" }], 9)).toMatchObject({ id: 9, videoRatio: "16:9" });
+    expect(normalizeProductionProject([{ id: 9 }], 9).worldProfile).toBeNull();
+    const worldProfile = createWesternFantasyWorldProfile();
+    expect(normalizeProductionProject([{ id: 9, worldProfile }], 9).worldProfile).toEqual(worldProfile);
   });
 
   it("redirects protected routes to the Pancat login page", async () => {

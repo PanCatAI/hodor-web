@@ -20,6 +20,7 @@ import { PlaceholderPage } from "./placeholder-page";
 import { ProtectedLayout } from "./protected-layout";
 import { RootLayout } from "./root-layout";
 import { useCurrentProjectContext } from "./current-project";
+import { normalizeProjectWorldProfile, type ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
 
 export interface RouterContext {
   apiClient: HodorApiClient;
@@ -266,6 +267,7 @@ interface RawProductionProject {
   videoAudio?: boolean;
   videoRatio?: string;
   imageModel?: string;
+  worldProfile?: unknown;
 }
 
 function normalizeVideoRatio(value: string | undefined): ProductionVideoRatio {
@@ -283,6 +285,7 @@ export function normalizeProductionProject(value: RawProductionProject | RawProd
     videoRatio: normalizeVideoRatio(project.videoRatio?.trim()),
     videoResolution: project.videoResolution?.trim() || project.resolution?.trim() || "1080p",
     videoAudio: project.videoAudio ?? project.audio ?? false,
+    worldProfile: normalizeProjectWorldProfile(project.worldProfile),
   };
 }
 
@@ -290,6 +293,7 @@ function ProductionWorkbenchRoutePage({ projectId, initialScriptId }: { projectI
   const { apiClient, apiBaseUrl, getToken } = projectProductionRoute.useRouteContext();
   const router = useRouter();
   const api = useMemo(() => createProductionApi(apiClient), [apiClient]);
+  const projectsApi = useMemo(() => createProjectsApi(apiClient), [apiClient]);
   const [project, setProject] = useState<ProductionProject | null>(null);
   const [error, setError] = useState("");
 
@@ -338,6 +342,15 @@ function ProductionWorkbenchRoutePage({ projectId, initialScriptId }: { projectI
           onBusyChange={onBusyChange}
         />
       )}
+      onWorldProfileChange={async (worldProfile) => {
+        await projectsApi.updateWorldProfile(String(projectId), worldProfile);
+        setProject((current) => (current ? { ...current, worldProfile } : current));
+      }}
+      onExtractWorldProfile={async (mode) => {
+        const result = await projectsApi.extractWorldProfile(String(projectId), mode);
+        setProject((current) => (current ? { ...current, worldProfile: result.profile } : current));
+        return result.profile;
+      }}
     />
   );
 }
@@ -363,6 +376,7 @@ function InteractiveStoryRoutePage() {
   const { apiClient, apiBaseUrl, getToken } = projectInteractiveStoryRoute.useRouteContext();
   const api = useMemo(() => createInteractiveStoryApi(apiClient), [apiClient]);
   const productionApi = useMemo(() => createProductionApi(apiClient), [apiClient]);
+  const projectsApi = useMemo(() => createProjectsApi(apiClient), [apiClient]);
   const { project, loading, error } = useCurrentProjectContext();
   const productionProject = useMemo(
     () => (projectId != null && project ? normalizeProductionProject(project, projectId) : null),
@@ -382,6 +396,10 @@ function InteractiveStoryRoutePage() {
       api={api}
       productionApi={productionApi}
       productionProject={productionProject}
+      onWorldProfileChange={async (worldProfile: ProjectWorldProfile) => {
+        await projectsApi.updateWorldProfile(String(projectId), worldProfile);
+      }}
+      onExtractWorldProfile={async (mode) => (await projectsApi.extractWorldProfile(String(projectId), mode)).profile}
       renderScriptAgent={(onBusyChange, selectedNodeId) => (
         <ScriptAgentPanel
           projectId={projectId}

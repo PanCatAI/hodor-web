@@ -10,5 +10,6 @@ export {
   type ProjectInput,
   type ProjectsApi,
   type ProjectUpdate,
+  type ExtractedWorldProfile,
   type VisualManual,
 } from "./projects-api";

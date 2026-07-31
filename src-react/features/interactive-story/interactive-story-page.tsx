@@ -13,6 +13,8 @@ import { InteractiveProductionStageInspector } from "./interactive-production-st
 import { InteractiveStoryCanvas } from "./interactive-story-canvas";
 import type { InteractiveProductionStage } from "./interactive-production-topology";
 import type { InteractiveStoryGraph } from "./types";
+import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
+import { WorldProfileInspector } from "@react/features/world-profile/world-profile-inspector";
 
 export interface InteractiveStoryPageProps {
   projectId: number;
@@ -20,6 +22,8 @@ export interface InteractiveStoryPageProps {
   productionApi: ProductionApi;
   productionProject: ProductionProject;
   renderScriptAgent: (onBusyChange: (busy: boolean) => void, selectedNodeId: string | null) => ReactNode;
+  onWorldProfileChange?: (profile: ProjectWorldProfile) => void | Promise<void>;
+  onExtractWorldProfile?: (mode: "merge" | "replace") => ProjectWorldProfile | Promise<ProjectWorldProfile>;
 }
 
 function errorMessage(error: unknown) {
@@ -32,6 +36,8 @@ export function InteractiveStoryPage({
   productionApi,
   productionProject,
   renderScriptAgent,
+  onWorldProfileChange,
+  onExtractWorldProfile,
 }: InteractiveStoryPageProps) {
   const [graph, setGraph] = useState<InteractiveStoryGraph | null>(null);
   const [flowsByScriptId, setFlowsByScriptId] = useState<Record<number, ProductionFlowData | undefined>>({});
@@ -41,6 +47,8 @@ export function InteractiveStoryPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [agentPanelOpen, setAgentPanelOpen] = useState(true);
+  const [worldProfile, setWorldProfile] = useState<ProjectWorldProfile | null>(productionProject.worldProfile ?? null);
+  const [worldProfileOpen, setWorldProfileOpen] = useState(false);
   const agentWasBusy = useRef(false);
   const graphRef = useRef<InteractiveStoryGraph | null>(null);
   const serverRevisionRef = useRef(0);
@@ -106,6 +114,10 @@ export function InteractiveStoryPage({
     void loadGraph();
   }, [loadGraph]);
 
+  useEffect(() => {
+    setWorldProfile(productionProject.worldProfile ?? null);
+  }, [productionProject.worldProfile]);
+
   const selectedNode = graph?.nodes.find((node) => node.id === selectedNodeId) ?? null;
   const activeNode = graph?.nodes.find((node) => node.id === activeStage?.storyNodeId) ?? null;
   const activeFlow = activeNode ? flowsByScriptId[activeNode.scriptId] : undefined;
@@ -119,6 +131,7 @@ export function InteractiveStoryPage({
   const closeStage = useCallback(() => {
     setActiveStage(null);
   }, []);
+  const openWorldProfile = useCallback(() => setWorldProfileOpen(true), []);
 
   const refreshActiveStage = useCallback(async () => {
     const current = graphRef.current;
@@ -214,6 +227,8 @@ export function InteractiveStoryPage({
           onSelectNode={setSelectedNodeId}
           onOpenStage={openStage}
           onPositionsChange={savePositions}
+          worldProfile={worldProfile}
+          onOpenWorldProfile={openWorldProfile}
         />
       ) : loading ? (
         <div className="absolute inset-0 grid place-items-center text-sm text-slate-400">正在读取互动剧情…</div>
@@ -249,6 +264,25 @@ export function InteractiveStoryPage({
           }
           onRefresh={refreshActiveStage}
           onClose={closeStage}
+        />
+      ) : null}
+      {worldProfileOpen ? (
+        <WorldProfileInspector
+          profile={worldProfile}
+          onClose={() => setWorldProfileOpen(false)}
+          onSave={async (profile) => {
+            await onWorldProfileChange?.(profile);
+            setWorldProfile(profile);
+          }}
+          onExtract={
+            onExtractWorldProfile
+              ? async (mode) => {
+                  const profile = await onExtractWorldProfile(mode);
+                  setWorldProfile(profile);
+                  return profile;
+                }
+              : undefined
+          }
         />
       ) : null}
     </main>

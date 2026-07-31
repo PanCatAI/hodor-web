@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { HodorApiClient } from "@react/lib/api/client";
 import { createProjectsApi, type ProjectInput } from "./projects-api";
+import { createWesternFantasyWorldProfile } from "@react/features/world-profile/world-profile-fields";
 
 function createClient() {
   return { request: vi.fn() } as unknown as HodorApiClient;
@@ -19,6 +20,7 @@ const projectInput: ProjectInput = {
   videoModel: "pancat:pancat-video",
   imageQuality: "1K",
   mode: "singleImage",
+  worldProfile: createWesternFantasyWorldProfile(),
 };
 
 describe("projects api", () => {
@@ -30,7 +32,7 @@ describe("projects api", () => {
       .mockResolvedValue(undefined);
     const api = createProjectsApi(client);
 
-    await expect(api.listProjects()).resolves.toEqual([{ id: "7", name: "长安十二时辰", projectType: "novel" }]);
+    await expect(api.listProjects()).resolves.toEqual([{ id: "7", name: "长安十二时辰", projectType: "novel", worldProfile: null }]);
     await expect(api.createProject(projectInput)).resolves.toEqual({ id: "8" });
     await api.updateProject({ ...projectInput, id: "7" });
     await api.deleteProject("7");
@@ -47,6 +49,43 @@ describe("projects api", () => {
     expect(client.request).toHaveBeenNthCalledWith(4, "/project/delProject", {
       method: "POST",
       body: JSON.stringify({ id: 7 }),
+    });
+  });
+
+  it("preserves world profiles in project reads and supports a profile-only update", async () => {
+    const client = createClient();
+    const worldProfile = createWesternFantasyWorldProfile();
+    worldProfile.premise = "圣像闭眼，旧王国的誓约苏醒。";
+    vi.mocked(client.request).mockResolvedValueOnce([{ id: 9, name: "圣像", projectType: "interactive", worldProfile }]).mockResolvedValue(undefined);
+    const api = createProjectsApi(client);
+
+    await expect(api.listProjects()).resolves.toEqual([
+      expect.objectContaining({ id: "9", worldProfile }),
+    ]);
+    await api.updateWorldProfile("9", worldProfile);
+
+    expect(client.request).toHaveBeenNthCalledWith(2, "/general/updateProject", {
+      method: "POST",
+      body: JSON.stringify({ id: 9, worldProfile }),
+    });
+  });
+
+  it("extracts a validated world profile from project source text", async () => {
+    const client = createClient();
+    const worldProfile = createWesternFantasyWorldProfile();
+    vi.mocked(client.request).mockResolvedValue({
+      profile: worldProfile,
+      evidence: { chapterCount: 3, characterCount: 3200 },
+    });
+    const api = createProjectsApi(client);
+
+    await expect(api.extractWorldProfile("9", "merge")).resolves.toEqual({
+      profile: worldProfile,
+      evidence: { chapterCount: 3, characterCount: 3200 },
+    });
+    expect(client.request).toHaveBeenCalledWith("/project/extractWorldProfile", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 9, mode: "merge", persist: false }),
     });
   });
 

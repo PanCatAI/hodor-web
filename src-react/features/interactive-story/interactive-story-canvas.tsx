@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useNodesState, type Edge, type Node, type NodeProps, type ReactFlowInstance } from "@xyflow/react";
 
 import { InfiniteCanvas, topologyLevelLayout } from "@react/features/canvas";
@@ -6,7 +6,7 @@ import type { ProductionFlowData, ProductionGenerationData } from "@react/featur
 import {
   buildInteractiveProductionTopology,
   type InteractiveProductionStage,
-  type InteractiveProductionTopologyNode,
+  type InteractiveProductionTopology,
 } from "./interactive-production-topology";
 import {
   InteractiveProductionStageNode,
@@ -15,9 +15,11 @@ import {
 import { InteractiveStoryFlowNode, type InteractiveStoryNodeData } from "./interactive-story-node";
 import type { InteractiveStoryNodePositionUpdate } from "./interactive-story-api";
 import type { InteractiveStoryGraph } from "./types";
+import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
+import { WorldProfileNode, type WorldProfileNodeData } from "@react/features/world-profile/world-profile-node";
 
-type AggregateNodeData = InteractiveStoryNodeData | InteractiveProductionStageNodeData;
-type AggregateNode = Node<AggregateNodeData, "interactiveStory" | "interactiveProductionStage">;
+type AggregateNodeData = InteractiveStoryNodeData | InteractiveProductionStageNodeData | WorldProfileNodeData;
+type AggregateNode = Node<AggregateNodeData, "interactiveStory" | "interactiveProductionStage" | "worldProfile">;
 
 export interface InteractiveStoryCanvasProps {
   graph: InteractiveStoryGraph;
@@ -29,16 +31,31 @@ export interface InteractiveStoryCanvasProps {
   onSelectNode: (nodeId: string) => void;
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void;
   onPositionsChange: (positions: InteractiveStoryNodePositionUpdate[]) => void;
+  worldProfile: ProjectWorldProfile | null;
+  onOpenWorldProfile: () => void;
 }
 
 function createAggregateNode(
-  topologyNode: InteractiveProductionTopologyNode,
+  topologyNode: InteractiveProductionTopology["nodes"][number],
   graph: InteractiveStoryGraph,
   selectedNodeId: string | null,
   flowsByScriptId: Record<number, ProductionFlowData | undefined>,
   generationByScriptId: Record<number, ProductionGenerationData | undefined>,
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void,
+  worldProfile: ProjectWorldProfile | null,
+  onOpenWorldProfile: () => void,
 ): AggregateNode {
+  if (topologyNode.kind === "worldProfile") {
+    return {
+      id: topologyNode.id,
+      type: "worldProfile",
+      position: topologyNode.position,
+      draggable: false,
+      selectable: true,
+      focusable: false,
+      data: { profile: worldProfile, mode: "interactive", onOpen: onOpenWorldProfile },
+    };
+  }
   const storyNode = graph.nodes.find((candidate) => candidate.id === topologyNode.storyNodeId);
   if (!storyNode) throw new Error(`互动剧情节点不存在: ${topologyNode.storyNodeId}`);
   if (topologyNode.stage === "script") {
@@ -87,10 +104,12 @@ function createNodes(
   flowsByScriptId: Record<number, ProductionFlowData | undefined>,
   generationByScriptId: Record<number, ProductionGenerationData | undefined>,
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void,
+  worldProfile: ProjectWorldProfile | null,
+  onOpenWorldProfile: () => void,
 ): AggregateNode[] {
   const topology = buildInteractiveProductionTopology(graph);
   return topology.nodes.map((node) =>
-    createAggregateNode(node, graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage),
+    createAggregateNode(node, graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage, worldProfile, onOpenWorldProfile),
   );
 }
 
@@ -142,10 +161,17 @@ export function InteractiveStoryCanvas({
   onSelectNode,
   onOpenStage,
   onPositionsChange,
+  worldProfile,
+  onOpenWorldProfile,
 }: InteractiveStoryCanvasProps) {
+  const worldProfileRef = useRef(worldProfile);
+  const openWorldProfileRef = useRef(onOpenWorldProfile);
+  worldProfileRef.current = worldProfile;
+  openWorldProfileRef.current = onOpenWorldProfile;
+  const openWorldProfile = useCallback(() => openWorldProfileRef.current(), []);
   const initialNodes = useMemo(
-    () => createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage),
-    [flowsByScriptId, generationByScriptId, graph, onOpenStage, selectedNodeId],
+    () => createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage, worldProfileRef.current, openWorldProfile),
+    [flowsByScriptId, generationByScriptId, graph, onOpenStage, openWorldProfile, selectedNodeId],
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<AggregateNode>(initialNodes);
   const edges = useMemo(() => createEdges(graph), [graph]);
@@ -153,13 +179,24 @@ export function InteractiveStoryCanvas({
     () => ({
       interactiveStory: InteractiveStoryFlowNode as (props: NodeProps) => React.ReactNode,
       interactiveProductionStage: InteractiveProductionStageNode as (props: NodeProps) => React.ReactNode,
+      worldProfile: WorldProfileNode as (props: NodeProps) => React.ReactNode,
     }),
     [],
   );
 
   useEffect(() => {
-    setNodes(createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage));
-  }, [flowsByScriptId, generationByScriptId, graph, onOpenStage, selectedNodeId, setNodes]);
+    setNodes(createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage, worldProfileRef.current, openWorldProfile));
+  }, [flowsByScriptId, generationByScriptId, graph, onOpenStage, openWorldProfile, selectedNodeId, setNodes]);
+
+  useEffect(() => {
+    setNodes((current) =>
+      current.map((node) =>
+        node.type === "worldProfile"
+          ? { ...node, data: { ...(node.data as WorldProfileNodeData), profile: worldProfile } }
+          : node,
+      ),
+    );
+  }, [setNodes, worldProfile]);
 
   return (
     <InfiniteCanvas<AggregateNode>
@@ -171,18 +208,22 @@ export function InteractiveStoryCanvas({
       trailingControls={trailingControls}
       ariaLabel="互动剧情画布"
       testId="interactive-story-infinite-canvas"
-      onNodeClick={(node) => onSelectNode(node.data.storyNodeId)}
+      onNodeClick={(node) => {
+        if (node.type !== "worldProfile") onSelectNode((node.data as InteractiveStoryNodeData | InteractiveProductionStageNodeData).storyNodeId);
+      }}
       onNodeDoubleClick={(node) =>
-        onOpenStage(
-          node.data.storyNodeId,
-          node.type === "interactiveStory" ? "script" : (node.data as InteractiveProductionStageNodeData).stage,
-        )
+        node.type === "worldProfile"
+          ? openWorldProfile()
+          : onOpenStage(
+              (node.data as InteractiveStoryNodeData | InteractiveProductionStageNodeData).storyNodeId,
+              node.type === "interactiveStory" ? "script" : (node.data as InteractiveProductionStageNodeData).stage,
+            )
       }
       onNodeDragStop={(flowNode) => {
         if (flowNode.type !== "interactiveStory") return;
         onPositionsChange([
           {
-            nodeId: flowNode.data.storyNodeId,
+              nodeId: (flowNode.data as InteractiveStoryNodeData).storyNodeId,
             position: {
               x: Math.round(flowNode.position.x / 4),
               y: Math.round(flowNode.position.y / 2),
@@ -197,7 +238,7 @@ export function InteractiveStoryCanvas({
           nextNodes
             .filter((node) => node.type === "interactiveStory")
             .map((node) => ({
-              nodeId: node.data.storyNodeId,
+              nodeId: (node.data as InteractiveStoryNodeData).storyNodeId,
               position: { x: Math.round(node.position.x / 4), y: Math.round(node.position.y / 2) },
             })),
         );

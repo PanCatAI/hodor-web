@@ -67,6 +67,10 @@ export interface ProductionWorkbenchProps {
   initialScriptId?: number;
   onOpenAgent?: (scriptId: number) => void;
   renderProductionAgent?: (scriptId: number, onFlowDataChange: () => void, onBusyChange: (busy: boolean) => void) => ReactNode;
+  onWorldProfileChange?: (profile: NonNullable<ProductionProject["worldProfile"]>) => void | Promise<void>;
+  onExtractWorldProfile?: (
+    mode: "merge" | "replace",
+  ) => NonNullable<ProductionProject["worldProfile"]> | Promise<NonNullable<ProductionProject["worldProfile"]>>;
 }
 
 const emptyFlow: ProductionFlowData = { script: "", scriptPlan: "", assets: [], storyboardTable: "", storyboard: [] };
@@ -1299,6 +1303,8 @@ export function ProductionWorkbench({
   initialScriptId,
   onOpenAgent,
   renderProductionAgent,
+  onWorldProfileChange,
+  onExtractWorldProfile,
 }: ProductionWorkbenchProps) {
   const [scripts, setScripts] = useState<ScriptSummary[]>([]);
   const [scriptId, setScriptId] = useState<number | null>(null);
@@ -1654,6 +1660,9 @@ export function ProductionWorkbench({
                   leadingControls={flowControls}
                   trailingControls={loading ? <LoaderCircle aria-label="正在读取生产数据" className="size-5 animate-spin text-slate-300" /> : null}
                   imageModel={project.imageModel || "pancat:pancat-image"}
+                  worldProfile={project.worldProfile ?? null}
+                  onWorldProfileChange={onWorldProfileChange}
+                  onExtractWorldProfile={onExtractWorldProfile}
                   pollIntervalMs={pollIntervalMs}
                   onChange={acceptCanvasFlowData}
                   onOpenWorkbench={openCanvasWorkbench}

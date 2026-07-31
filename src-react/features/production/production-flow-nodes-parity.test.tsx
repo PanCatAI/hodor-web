@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ProductionApi } from "./production-api";
 import { ProductionFlowBoard } from "./production-flow-board";
 import type { ProductionAsset, ProductionFlowData, StoryboardItem } from "./types";
+import { createWesternFantasyWorldProfile } from "@react/features/world-profile/world-profile-fields";
 
 function asset(index: number): ProductionAsset {
   return {
@@ -143,5 +144,34 @@ describe("upstream production node parity", () => {
 
     expect(screen.queryByTestId("production-node-id-badge")).not.toBeInTheDocument();
     expect(screen.queryByTestId("production-node-marker-dot")).not.toBeInTheDocument();
+  });
+
+  it("edits only the shared world-profile node from the production canvas", async () => {
+    const profile = createWesternFantasyWorldProfile();
+    profile.premise = "旧前提";
+    const onWorldProfileChange = vi.fn(async () => undefined);
+    render(
+      <ProductionFlowBoard
+        api={api()}
+        projectId={7}
+        scriptId={12}
+        initialData={flowData(0, 0)}
+        worldProfile={profile}
+        onWorldProfileChange={onWorldProfileChange}
+      />,
+    );
+
+    const node = screen.getByTestId("world-profile-node");
+    const scriptNode = screen.getByTestId("flow-node-script");
+    expect(node).toHaveTextContent("旧前提");
+    fireEvent.click(node.querySelector("button") as HTMLButtonElement);
+    fireEvent.change(screen.getByLabelText("世界前提"), { target: { value: "新前提" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存世界设定" }));
+
+    await waitFor(() => expect(onWorldProfileChange).toHaveBeenCalledWith(expect.objectContaining({ premise: "新前提" })));
+    expect(screen.queryByRole("dialog", { name: "世界设定" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("world-profile-node")).toHaveTextContent("新前提");
+    expect(screen.getByTestId("flow-node-script")).toBe(scriptNode);
+    expect(scriptNode).toHaveTextContent("原文");
   });
 });
