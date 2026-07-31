@@ -184,7 +184,11 @@ describe("InteractiveStoryPage", () => {
     await waitFor(() => expect(productionApi.getFlowData).toHaveBeenCalledTimes(2));
     expect(screen.getAllByText("分镜表")).toHaveLength(2);
     expect(screen.getAllByText("分镜图")).toHaveLength(2);
-    expect(screen.getAllByText("视频工作台")).toHaveLength(2);
+    expect(screen.getAllByText("场面调度")).toHaveLength(2);
+    expect(screen.getAllByText("镜头覆盖")).toHaveLength(2);
+    expect(screen.getAllByText("Blender 预演")).toHaveLength(2);
+    expect(screen.getAllByText("正式生成")).toHaveLength(2);
+    expect(screen.getAllByText("多机位剪辑")).toHaveLength(2);
     expect(screen.getAllByText("监督验收")).toHaveLength(2);
 
     fireEvent.doubleClick(screen.getByTestId("interactive-story-node-scene-1"));
@@ -199,6 +203,12 @@ describe("InteractiveStoryPage", () => {
     expect(screen.getByLabelText("分镜表内容")).toHaveTextContent("| 镜头 | 景别 |");
     expect(screen.queryByTestId("production-infinite-canvas")).not.toBeInTheDocument();
     expect(screen.getAllByTestId("interactive-story-infinite-canvas")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "关闭节点详情" }));
+    const coverageNode = screen.getByTestId("interactive-production-node-scene-1::coverage");
+    fireEvent.doubleClick(coverageNode);
+    expect(await screen.findByRole("region", { name: "锁住的房间镜头覆盖节点详情" })).toBeInTheDocument();
+    expect(screen.getByText("等待智能体生成镜头覆盖计划。")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "运行智能体" }));
     await waitFor(() => expect(api.getGraph).toHaveBeenCalledTimes(1));

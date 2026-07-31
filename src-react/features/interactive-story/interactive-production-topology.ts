@@ -6,7 +6,11 @@ export const interactiveProductionStageOrder = [
   "assets",
   "storyboardTable",
   "storyboard",
-  "workbench",
+  "blocking",
+  "coverage",
+  "previs",
+  "formalGeneration",
+  "multicamEdit",
   "supervision",
 ] as const;
 
@@ -46,8 +50,12 @@ const stageOffsets: Record<InteractiveProductionStage, InteractiveStoryPosition>
   assets: { x: 390, y: 330 },
   storyboardTable: { x: 780, y: 0 },
   storyboard: { x: 1_170, y: 0 },
-  workbench: { x: 1_560, y: 0 },
-  supervision: { x: 1_950, y: 0 },
+  blocking: { x: 1_560, y: 0 },
+  coverage: { x: 1_950, y: 0 },
+  previs: { x: 2_340, y: 0 },
+  formalGeneration: { x: 2_730, y: 0 },
+  multicamEdit: { x: 3_120, y: 0 },
+  supervision: { x: 3_510, y: 0 },
 };
 
 const productionConnections: Array<[InteractiveProductionStage, InteractiveProductionStage]> = [
@@ -56,8 +64,13 @@ const productionConnections: Array<[InteractiveProductionStage, InteractiveProdu
   ["scriptPlan", "storyboardTable"],
   ["assets", "storyboard"],
   ["storyboardTable", "storyboard"],
-  ["storyboard", "workbench"],
-  ["workbench", "supervision"],
+  ["storyboard", "blocking"],
+  ["assets", "blocking"],
+  ["blocking", "coverage"],
+  ["coverage", "previs"],
+  ["previs", "formalGeneration"],
+  ["formalGeneration", "multicamEdit"],
+  ["multicamEdit", "supervision"],
 ];
 
 export function interactiveProductionNodeId(storyNodeId: string, stage: InteractiveProductionStage): string {

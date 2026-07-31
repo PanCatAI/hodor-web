@@ -50,6 +50,8 @@ export interface WebAvVideoEditorProps {
   mediaLibrary?: WebAvEditorClip[];
   onClipsChange?: (clips: VideoItem[]) => void;
   onTimelineChange?: (clips: WebAvEditorClip[]) => void;
+  normalizeTimelineChange?: (clips: WebAvEditorClip[]) => WebAvEditorClip[];
+  onTimelineError?: (error: unknown) => void;
 }
 
 interface TimelineEntry {
@@ -459,6 +461,8 @@ export function WebAvVideoEditor({
   mediaLibrary = [],
   onClipsChange,
   onTimelineChange,
+  normalizeTimelineChange,
+  onTimelineError,
 }: WebAvVideoEditorProps) {
   const { width: canvasWidth, height: canvasHeight } = resolveWebAvCanvasSize(videoRatio);
   const usableVideos = useMemo(() => clips.filter((clip) => clip.state === "completed" && clip.src), [clips]);
@@ -722,9 +726,17 @@ export function WebAvVideoEditor({
   }
 
   function commit(next: WebAvEditorClip[]) {
-    historyRef.current = pushWebAvEditorHistory({ ...historyRef.current, present: structuredClone(timelineClips) }, next);
+    let committed = next;
+    try {
+      committed = normalizeTimelineChange?.(next) ?? next;
+    } catch (error) {
+      setRuntimeError(formatWebAvError(error));
+      onTimelineError?.(error);
+      return;
+    }
+    historyRef.current = pushWebAvEditorHistory({ ...historyRef.current, present: structuredClone(timelineClips) }, committed);
     setHistoryRevision((revision) => revision + 1);
-    applyTimeline(next);
+    applyTimeline(committed);
   }
 
   function undo() {

@@ -8,8 +8,19 @@ export { ImageFlowEditor } from "./image-flow-editor";
 export type { ImageFlowEditorProps } from "./image-flow-editor";
 export { WebAvVideoEditor } from "./webav-video-editor";
 export type { WebAvVideoEditorProps } from "./webav-video-editor";
+export { createProductionPrevisContract } from "./production-previs-contract";
+export { createProductionDirectorProject } from "./production-director-project";
+export { selectLatestCoverage, sortCoverageAggregates } from "./coverage-selection";
 export type {
   DerivedAsset,
+  BlockingPlan,
+  CinematicCoverageAggregate,
+  CinematicCoveragePlan,
+  CoverageBundle,
+  CoverageCameraRole,
+  CoverageCameraStatus,
+  CoverageOtioExport,
+  RecommendedCut,
   FlowNodePosition,
   ImageFlowData,
   ImageFlowEdge,
@@ -19,6 +30,8 @@ export type {
   ProductionGenerationData,
   ProductionMediaItem,
   ProductionProject,
+  ProductionPrevisRender,
+  ProductionPrevisShotContract,
   ProductionState,
   ScriptSummary,
   StoryboardItem,

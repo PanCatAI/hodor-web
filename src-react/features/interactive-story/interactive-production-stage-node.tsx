@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Boxes, ClipboardCheck, Clapperboard, Film, ListVideo, Table2 } from "lucide-react";
+import { Boxes, ClipboardCheck, Clapperboard, Film, ListVideo, Table2, UsersRound, Video, WandSparkles, Workflow, Scissors } from "lucide-react";
 
-import type { ProductionFlowData, ProductionGenerationData, ProductionState } from "@react/features/production";
+import { selectLatestCoverage, type CinematicCoverageAggregate, type ProductionFlowData, type ProductionGenerationData, type ProductionState } from "@react/features/production";
 import type { InteractiveProductionStage } from "./interactive-production-topology";
 
 export interface InteractiveProductionStageNodeData extends Record<string, unknown> {
@@ -10,6 +10,7 @@ export interface InteractiveProductionStageNodeData extends Record<string, unkno
   stage: Exclude<InteractiveProductionStage, "script">;
   flow?: ProductionFlowData;
   generation?: ProductionGenerationData;
+  coverages?: CinematicCoverageAggregate[];
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void;
 }
 
@@ -18,7 +19,11 @@ const stageLabels: Record<Exclude<InteractiveProductionStage, "script">, string>
   assets: "资产工厂",
   storyboardTable: "分镜表",
   storyboard: "分镜图",
-  workbench: "视频工作台",
+  blocking: "场面调度",
+  coverage: "镜头覆盖",
+  previs: "Blender 预演",
+  formalGeneration: "正式生成",
+  multicamEdit: "多机位剪辑",
   supervision: "监督验收",
 };
 
@@ -27,7 +32,11 @@ const stageIcons = {
   assets: Boxes,
   storyboardTable: Table2,
   storyboard: ListVideo,
-  workbench: Film,
+  blocking: UsersRound,
+  coverage: Workflow,
+  previs: Video,
+  formalGeneration: WandSparkles,
+  multicamEdit: Scissors,
   supervision: ClipboardCheck,
 };
 
@@ -38,7 +47,7 @@ function aggregateState(states: ProductionState[]): ProductionState {
   return "idle";
 }
 
-function describeStage(data: InteractiveProductionStageNodeData): { state: ProductionState; summary: string } {
+export function describeInteractiveProductionStage(data: InteractiveProductionStageNodeData): { state: ProductionState; summary: string } {
   const flow = data.flow;
   if (!flow) return { state: "running", summary: "正在读取节点生产数据" };
   if (data.stage === "scriptPlan") {
@@ -68,13 +77,44 @@ function describeStage(data: InteractiveProductionStageNodeData): { state: Produ
         : "等待分镜图",
     };
   }
-  if (data.stage === "workbench") {
-    const tracks = data.generation?.trackList ?? [];
-    const selected = tracks.filter((track) => track.selectVideoId != null).length;
+  const coverage = selectLatestCoverage(data.coverages ?? []);
+  if (data.stage === "blocking") {
     return {
-      state: aggregateState(tracks.map((track) => track.state)),
-      summary: tracks.length ? `${tracks.length} 条视频轨道，${selected} 条已选定素材；包含剪辑与成片` : "等待视频、剪辑与成片",
+      state: coverage ? "completed" : "idle",
+      summary: coverage
+        ? `${coverage.plan.blocking.actorAnchors.length} 个人物锚点 · ${coverage.plan.blocking.beats.length} 个表演节拍`
+        : "等待场面调度计划",
     };
+  }
+  const cameras = coverage?.bundle?.cameras ?? [];
+  if (data.stage === "coverage") {
+    return {
+      state: coverage?.status ?? "idle",
+      summary: coverage?.pollError
+        ? `状态刷新失败：${coverage.pollError.message}`
+        : coverage
+          ? `${coverage.plan.cameras.length} 个同步机位 · ${coverage.plan.presetId}`
+          : "等待镜头覆盖计划",
+    };
+  }
+  if (data.stage === "previs") {
+    const ready = cameras.filter((camera) => ["previs-ready", "generating", "ready"].includes(camera.status)).length;
+    const states = cameras.map((camera): ProductionState => {
+      if (camera.status === "failed") return "failed";
+      if (camera.status === "rendering" || camera.status === "queued") return "running";
+      if (["previs-ready", "generating", "ready"].includes(camera.status)) return "completed";
+      return "idle";
+    });
+    return { state: aggregateState(states), summary: cameras.length ? `${ready}/${cameras.length} 个 Blender 机位预演可用` : "等待 Blender 预演" };
+  }
+  if (data.stage === "formalGeneration") {
+    const ready = cameras.filter((camera) => camera.status === "ready").length;
+    const running = cameras.filter((camera) => camera.status === "generating").length;
+    return { state: cameras.some((camera) => camera.status === "failed") ? "failed" : running ? "running" : cameras.length > 0 && ready === cameras.length ? "completed" : "idle", summary: cameras.length ? `${ready}/${cameras.length} 个正式机位素材可剪` : "等待正式视频生成" };
+  }
+  if (data.stage === "multicamEdit") {
+    const clips = coverage?.recommendedCut?.clips.length ?? 0;
+    return { state: clips ? "completed" : "idle", summary: clips ? `${clips} 个建议剪辑片段，可继续人工调整和导出 OTIO` : "等待建议剪辑" };
   }
   const ready =
     Boolean(flow.scriptPlan.trim()) &&
@@ -104,7 +144,7 @@ const stateStyles: Record<ProductionState, string> = {
 export function InteractiveProductionStageNode({ id, data }: NodeProps) {
   const node = data as InteractiveProductionStageNodeData;
   const Icon = stageIcons[node.stage];
-  const status = describeStage(node);
+  const status = describeInteractiveProductionStage(node);
   const label = stageLabels[node.stage];
   return (
     <article className="w-[330px] rounded-lg border border-slate-700 bg-[#242626] p-4 text-slate-100 shadow-sm" data-testid={`interactive-production-node-${id}`}>

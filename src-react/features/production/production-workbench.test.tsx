@@ -115,6 +115,18 @@ function createApi(scriptItems?: ScriptSummary[]): ProductionApi {
     updateStoryboardImage: vi.fn(async () => undefined),
     addStoryboard: vi.fn(async () => 77),
     updateAssetImage: vi.fn(async () => undefined),
+    submitCoverage: vi.fn(async () => { throw new Error("未在该测试中使用"); }),
+    listCoverage: vi.fn(async () => []),
+    getCoverageStatus: vi.fn(async () => { throw new Error("未在该测试中使用"); }),
+    retryCoverageCamera: vi.fn(async () => undefined),
+    getCoverageRecommendedCut: vi.fn(async () => null),
+    saveCoverageRecommendedCut: vi.fn(async () => { throw new Error("未在该测试中使用"); }),
+    applyCoverageRecommendedCut: vi.fn(async () => ({ timelineId: 0, timelineRevision: 0 })),
+    exportCoverageOtio: vi.fn(async () => ({ fileName: "coverage.otio", mediaType: "application/vnd.opentimelineio+json", document: {} })),
+    submitPrevis: vi.fn(async () => { throw new Error("未在该测试中使用"); }),
+    listPrevisRenders: vi.fn(async () => []),
+    getPrevisStatus: vi.fn(async () => { throw new Error("未在该测试中使用"); }),
+    retryPrevis: vi.fn(async () => { throw new Error("未在该测试中使用"); }),
   };
 }
 

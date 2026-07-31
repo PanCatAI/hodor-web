@@ -2,6 +2,12 @@ import type { HodorApiClient } from "@react/lib/api/client";
 import type {
   ProductionFlowData,
   ProductionGenerationData,
+  CinematicCoverageAggregate,
+  CinematicCoveragePlan,
+  CoverageOtioExport,
+  RecommendedCut,
+  ProductionPrevisRender,
+  ProductionPrevisShotContract,
   ProductionMediaItem,
   DerivedAsset,
   ImageFlowData,
@@ -15,6 +21,15 @@ import type {
   VideoItem,
   VideoTrack,
 } from "./types";
+import {
+  parseCinematicCoveragePlan,
+  parseCoverageBundle,
+  parsePrevisResult,
+  parsePrevisShotContract,
+  parseProductionState,
+  parseRecommendedCut,
+} from "./production-contract-guards";
+import { sortCoverageAggregates } from "./coverage-selection";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -83,6 +98,18 @@ export interface ProductionApi {
   addStoryboard(projectId: number, scriptId: number, input: AddStoryboardInput): Promise<number>;
   updateAssetImage(id: number, url: string, flowId: number): Promise<void>;
   getMediaLibrary(projectId: number, scriptId: number): Promise<ProductionMediaItem[]>;
+  submitCoverage(plan: CinematicCoveragePlan): Promise<CinematicCoverageAggregate>;
+  listCoverage(projectId: number, scriptId: number): Promise<CinematicCoverageAggregate[]>;
+  getCoverageStatus(projectId: number, scriptId: number, coverageId: string): Promise<CinematicCoverageAggregate>;
+  retryCoverageCamera(projectId: number, scriptId: number, coverageId: string, cameraId?: string): Promise<CinematicCoverageAggregate | void>;
+  getCoverageRecommendedCut(projectId: number, scriptId: number, coverageId: string): Promise<RecommendedCut | null>;
+  saveCoverageRecommendedCut(projectId: number, scriptId: number, coverageId: string, expectedVersion: number, recommendedCut: RecommendedCut): Promise<CinematicCoverageAggregate>;
+  applyCoverageRecommendedCut(projectId: number, scriptId: number, coverageId: string, expectedTimelineRevision: number): Promise<{ timelineId: number; timelineRevision: number }>;
+  exportCoverageOtio(projectId: number, scriptId: number, coverageId: string): Promise<CoverageOtioExport>;
+  submitPrevis(contract: ProductionPrevisShotContract): Promise<ProductionPrevisRender>;
+  listPrevisRenders(projectId: number, scriptId: number): Promise<ProductionPrevisRender[]>;
+  getPrevisStatus(projectId: number, renderId: string): Promise<ProductionPrevisRender>;
+  retryPrevis(projectId: number, renderId: string): Promise<ProductionPrevisRender>;
 }
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -91,6 +118,17 @@ function isRecord(value: unknown): value is UnknownRecord {
 
 function asRecord(value: unknown): UnknownRecord {
   return isRecord(value) ? value : {};
+}
+
+function unwrapEnvelope(value: unknown, keys: string[]): unknown {
+  let current = value;
+  for (let depth = 0; depth < 6 && isRecord(current); depth += 1) {
+    const record = current;
+    const key = keys.find((candidate) => record[candidate] !== undefined);
+    if (!key) break;
+    current = record[key];
+  }
+  return current;
 }
 
 function asArray(value: unknown): unknown[] {
@@ -161,6 +199,8 @@ export function normalizeProductionStatus(value: unknown): ProductionState {
     case "pending":
     case "processing":
     case "queued":
+    case "rendering":
+    case "generating":
     case "running":
       return "running";
     case 1:
@@ -168,6 +208,8 @@ export function normalizeProductionStatus(value: unknown): ProductionState {
     case "已完成":
     case "成功":
     case "success":
+    case "ready":
+    case "previs-ready":
     case "completed":
       return "completed";
     case -1:
@@ -328,7 +370,104 @@ function mapMediaLibrary(value: unknown): ProductionMediaItem[] {
   return [...generated, ...uploaded];
 }
 
-function post<T>(client: HodorApiClient, path: string, body: UnknownRecord): Promise<T> {
+function mapPrevisRender(value: unknown): ProductionPrevisRender {
+  const record = isRecord(value) && asString(value.renderId)
+    ? value
+    : asRecord(unwrapEnvelope(value, ["data", "result", "render", "previs"]));
+  if (!asString(record.renderId)) throw new Error("Blender 预演响应缺少 renderId");
+  const requiredNumber = (key: string) => {
+    if (typeof record[key] !== "number" || !Number.isFinite(record[key])) throw new Error(`合同校验失败: previs.${key} 必须是有限数字`);
+    return record[key];
+  };
+  const requiredString = (key: string, allowEmpty = false) => {
+    if (typeof record[key] !== "string" || (!allowEmpty && !record[key].trim())) throw new Error(`合同校验失败: previs.${key} 必须是${allowEmpty ? "" : "非空"}字符串`);
+    return record[key];
+  };
+  if (record.result !== null && !isRecord(record.result)) throw new Error("合同校验失败: previs.result 必须是对象或 null");
+  return {
+    renderId: requiredString("renderId"),
+    jobId: requiredString("jobId"),
+    projectId: requiredNumber("projectId"),
+    scriptId: requiredNumber("scriptId"),
+    storyboardId: requiredNumber("storyboardId"),
+    status: parseProductionState(record.status, "previs.status"),
+    progress: requiredNumber("progress"),
+    attempt: requiredNumber("attempt"),
+    errorReason: requiredString("errorReason", true),
+    contract: parsePrevisShotContract(record.contract),
+    result: record.result === null ? null : parsePrevisResult(record.result),
+    createdAt: requiredString("createdAt"),
+    updatedAt: requiredString("updatedAt"),
+  };
+}
+
+function mapCoverageAggregate(value: unknown): CinematicCoverageAggregate {
+  const record = isRecord(value) && asString(value.coverageId)
+    ? value
+    : asRecord(unwrapEnvelope(value, ["data", "result", "coverage", "aggregate"]));
+  if (!asString(record.coverageId)) throw new Error("镜头覆盖响应缺少 coverageId");
+  const requiredNumber = (key: string) => {
+    if (typeof record[key] !== "number" || !Number.isFinite(record[key])) throw new Error(`合同校验失败: coverage.${key} 必须是有限数字`);
+    return record[key];
+  };
+  if (record.bundle !== null && !isRecord(record.bundle)) throw new Error("合同校验失败: coverage.bundle 必须是对象或 null");
+  if (record.recommendedCut !== null && !isRecord(record.recommendedCut)) throw new Error("合同校验失败: coverage.recommendedCut 必须是对象或 null");
+  if (record.error !== null && !isRecord(record.error)) throw new Error("合同校验失败: coverage.error 必须是对象或 null");
+  const rawError = record.error === null ? null : record.error;
+  const updatedAt = record.updatedAt === undefined
+    ? undefined
+    : typeof record.updatedAt === "string"
+      ? record.updatedAt
+      : (() => { throw new Error("合同校验失败: coverage.updatedAt 必须是字符串"); })();
+  const timelineRevision = record.timelineRevision === undefined ? undefined : requiredNumber("timelineRevision");
+  return {
+    schemaVersion: record.schemaVersion === "1" ? "1" : (() => { throw new Error("合同校验失败: coverage.schemaVersion 必须等于 1"); })(),
+    coverageId: asString(record.coverageId),
+    projectId: requiredNumber("projectId"),
+    scriptId: requiredNumber("scriptId"),
+    storyboardId: requiredNumber("storyboardId"),
+    status: parseProductionState(record.status, "coverage.status"),
+    version: requiredNumber("version"),
+    ...(updatedAt === undefined ? {} : { updatedAt }),
+    ...(timelineRevision === undefined ? {} : { timelineRevision }),
+    plan: parseCinematicCoveragePlan(record.plan),
+    bundle: record.bundle === null ? null : parseCoverageBundle(record.bundle),
+    recommendedCut: record.recommendedCut === null ? null : parseRecommendedCut(record.recommendedCut),
+    error: rawError
+      ? {
+          ...(rawError.code === undefined ? {} : { code: typeof rawError.code === "string" ? rawError.code : (() => { throw new Error("合同校验失败: coverage.error.code 必须是字符串"); })() }),
+          message: typeof rawError.message === "string" && rawError.message.trim() ? rawError.message : (() => { throw new Error("合同校验失败: coverage.error.message 必须是非空字符串"); })(),
+        }
+      : null,
+  };
+}
+
+function mapRecommendedCut(value: unknown): RecommendedCut | null {
+  const unwrapped = unwrapEnvelope(value, ["data", "result", "recommendedCut", "cut"]);
+  return unwrapped == null ? null : parseRecommendedCut(unwrapped);
+}
+
+function mapOtioExport(value: unknown): CoverageOtioExport {
+  value = unwrapEnvelope(value, ["data", "result", "export", "file"]);
+  const record = asRecord(value);
+  const document = record.document;
+  if (
+    document == null
+    || (typeof document === "string" && !document.trim())
+    || (isRecord(document) && Object.keys(document).length === 0)
+  ) throw new Error("OTIO 导出响应缺少 document");
+  const fileName = asString(record.fileName);
+  const mediaType = asString(record.mediaType);
+  if (!fileName) throw new Error("OTIO 导出响应缺少 fileName");
+  if (!mediaType) throw new Error("OTIO 导出响应缺少 mediaType");
+  return {
+    fileName,
+    mediaType,
+    document,
+  };
+}
+
+function post<T>(client: HodorApiClient, path: string, body: unknown): Promise<T> {
   return client.request<T>(path, {
     method: "POST",
     body: JSON.stringify(body),
@@ -401,6 +540,12 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
         }),
         storyboardTable: asString(data.storyboardTable),
         storyboard: asArray(data.storyboard).map(mapStoryboard),
+        ...(Array.isArray(data.worldAssets)
+          ? { worldAssets: data.worldAssets.filter(isRecord) as unknown as ProductionFlowData["worldAssets"] }
+          : {}),
+        ...(Array.isArray(data.previsRenders)
+          ? { previsRenders: data.previsRenders.map(mapPrevisRender) }
+          : {}),
         ...(isRecord(data.workbench) ? { workbench: data.workbench } : {}),
         ...(isRecord(data.layout)
           ? {
@@ -567,6 +712,94 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
     async getMediaLibrary(projectId, scriptId) {
       const data = await post<unknown>(client, "/assets/getMaterialData", { projectId, scriptId });
       return mapMediaLibrary(data);
+    },
+
+    async submitCoverage(plan) {
+      return mapCoverageAggregate(await post<unknown>(client, "/production/workbench/coverageSubmit", plan));
+    },
+
+    async listCoverage(projectId, scriptId) {
+      const value = await post<unknown>(client, "/production/workbench/coverageList", { projectId, scriptId });
+      return sortCoverageAggregates(asArray(unwrapEnvelope(value, ["data", "result", "items", "coverages"])).map(mapCoverageAggregate));
+    },
+
+    async getCoverageStatus(projectId, scriptId, coverageId) {
+      return mapCoverageAggregate(
+        await post<unknown>(client, "/production/workbench/coverageStatus", { projectId, scriptId, coverageId }),
+      );
+    },
+
+    async retryCoverageCamera(projectId, scriptId, coverageId, cameraId) {
+      const value = await post<unknown>(client, "/production/workbench/coverageRetry", {
+        projectId,
+        scriptId,
+        coverageId,
+        ...(cameraId ? { cameraId } : {}),
+      });
+      return isRecord(value) ? mapCoverageAggregate(value) : undefined;
+    },
+
+    async getCoverageRecommendedCut(projectId, scriptId, coverageId) {
+      const query = new URLSearchParams({
+        projectId: String(projectId),
+        scriptId: String(scriptId),
+        coverageId,
+      });
+      return mapRecommendedCut(
+        await client.request<unknown>(`/production/workbench/coverageRecommendedCut?${query.toString()}`, { method: "GET" }),
+      );
+    },
+
+    async saveCoverageRecommendedCut(projectId, scriptId, coverageId, expectedVersion, recommendedCut) {
+      return mapCoverageAggregate(
+        await client.request<unknown>("/production/workbench/coverageRecommendedCut", {
+          method: "PUT",
+          body: JSON.stringify({ projectId, scriptId, coverageId, expectedVersion, recommendedCut }),
+        }),
+      );
+    },
+
+    async applyCoverageRecommendedCut(projectId, scriptId, coverageId, expectedTimelineRevision) {
+      const response = await post<unknown>(client, "/production/workbench/coverageApplyCut", {
+          projectId,
+          scriptId,
+          coverageId,
+          expectedTimelineRevision,
+        });
+      const value = asRecord(unwrapEnvelope(response, ["data", "result", "timeline"]));
+      const timelineId = asNumber(value.timelineId);
+      const timelineRevision = asNumber(value.timelineRevision);
+      if (timelineId <= 0 || value.timelineRevision === undefined || timelineRevision < 0) throw new Error("建议剪辑应用响应缺少 timelineId 或 timelineRevision");
+      return { timelineId, timelineRevision };
+    },
+
+    async exportCoverageOtio(projectId, scriptId, coverageId) {
+      return mapOtioExport(
+        await post<unknown>(client, "/production/workbench/coverageExportOtio", {
+          projectId,
+          scriptId,
+          coverageId,
+        }),
+      );
+    },
+
+    async submitPrevis(contract) {
+      return mapPrevisRender(
+        await post<unknown>(client, "/production/workbench/previsRender", contract),
+      );
+    },
+
+    async listPrevisRenders(projectId, scriptId) {
+      const value = await post<unknown>(client, "/production/workbench/previsList", { projectId, scriptId });
+      return asArray(unwrapEnvelope(value, ["data", "result", "items", "renders"])).map(mapPrevisRender);
+    },
+
+    async getPrevisStatus(projectId, renderId) {
+      return mapPrevisRender(await post<unknown>(client, "/production/workbench/previsStatus", { projectId, renderId }));
+    },
+
+    async retryPrevis(projectId, renderId) {
+      return mapPrevisRender(await post<unknown>(client, "/production/workbench/previsRetry", { projectId, renderId }));
     },
   };
 }

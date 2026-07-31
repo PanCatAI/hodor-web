@@ -4,6 +4,7 @@ import { LoaderCircle, RefreshCw } from "lucide-react";
 import { CanvasAgentPanel } from "@react/features/canvas";
 import {
   type ProductionApi,
+  type CinematicCoverageAggregate,
   type ProductionFlowData,
   type ProductionGenerationData,
   type ProductionProject,
@@ -11,6 +12,7 @@ import {
 import type { InteractiveStoryApi, InteractiveStoryNodePositionUpdate } from "./interactive-story-api";
 import { InteractiveProductionStageInspector } from "./interactive-production-stage-inspector";
 import { InteractiveStoryCanvas } from "./interactive-story-canvas";
+import { applyCoveragePollSettlements } from "./interactive-coverage-state";
 import type { InteractiveProductionStage } from "./interactive-production-topology";
 import type { InteractiveStoryGraph } from "./types";
 import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
@@ -42,6 +44,7 @@ export function InteractiveStoryPage({
   const [graph, setGraph] = useState<InteractiveStoryGraph | null>(null);
   const [flowsByScriptId, setFlowsByScriptId] = useState<Record<number, ProductionFlowData | undefined>>({});
   const [generationByScriptId, setGenerationByScriptId] = useState<Record<number, ProductionGenerationData | undefined>>({});
+  const [coverageByScriptId, setCoverageByScriptId] = useState<Record<number, CinematicCoverageAggregate[] | undefined>>({});
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<{ storyNodeId: string; stage: InteractiveProductionStage } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,15 +80,17 @@ export function InteractiveStoryPage({
       const scriptIds = [...new Set(snapshot.nodes.map((node) => node.scriptId))];
       const entries = await Promise.all(
         scriptIds.map(async (scriptId) => {
-          const [flow, generation] = await Promise.all([
+          const [flow, generation, coverages] = await Promise.all([
             productionApi.getFlowData(projectId, scriptId),
             productionApi.getGenerationData(projectId, scriptId),
+            typeof productionApi.listCoverage === "function" ? productionApi.listCoverage(projectId, scriptId) : Promise.resolve([]),
           ]);
-          return { scriptId, flow, generation };
+          return { scriptId, flow, generation, coverages };
         }),
       );
       setFlowsByScriptId(Object.fromEntries(entries.map((entry) => [entry.scriptId, entry.flow])));
       setGenerationByScriptId(Object.fromEntries(entries.map((entry) => [entry.scriptId, entry.generation])));
+      setCoverageByScriptId(Object.fromEntries(entries.map((entry) => [entry.scriptId, entry.coverages])));
     },
     [productionApi, projectId],
   );
@@ -111,6 +116,31 @@ export function InteractiveStoryPage({
   }, [adoptSnapshot, api, loadProductionForNodes, projectId]);
 
   useEffect(() => {
+    if (typeof productionApi.getCoverageStatus !== "function") return;
+    const active = Object.values(coverageByScriptId)
+      .flatMap((items) => items ?? [])
+      .filter((coverage) => coverage.status === "running");
+    if (!active.length) return;
+    let cancelled = false;
+    let timer = 0;
+    const poll = async () => {
+      const results = await Promise.allSettled(
+        active.map((coverage) =>
+          productionApi.getCoverageStatus(coverage.projectId, coverage.scriptId, coverage.coverageId),
+        ),
+      );
+      if (cancelled) return;
+      setCoverageByScriptId((current) => applyCoveragePollSettlements(current, active, results));
+      timer = window.setTimeout(() => void poll(), 2_500);
+    };
+    timer = window.setTimeout(() => void poll(), 2_500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [coverageByScriptId, productionApi]);
+
+  useEffect(() => {
     void loadGraph();
   }, [loadGraph]);
 
@@ -122,6 +152,7 @@ export function InteractiveStoryPage({
   const activeNode = graph?.nodes.find((node) => node.id === activeStage?.storyNodeId) ?? null;
   const activeFlow = activeNode ? flowsByScriptId[activeNode.scriptId] : undefined;
   const activeGeneration = activeNode ? generationByScriptId[activeNode.scriptId] : undefined;
+  const activeCoverages = activeNode ? coverageByScriptId[activeNode.scriptId] : undefined;
 
   const openStage = useCallback((storyNodeId: string, stage: InteractiveProductionStage) => {
     setSelectedNodeId(storyNodeId);
@@ -222,6 +253,7 @@ export function InteractiveStoryPage({
           selectedNodeId={selectedNodeId}
           flowsByScriptId={flowsByScriptId}
           generationByScriptId={generationByScriptId}
+          coverageByScriptId={coverageByScriptId}
           leadingControls={leadingControls}
           trailingControls={trailingControls}
           onSelectNode={setSelectedNodeId}
@@ -254,6 +286,7 @@ export function InteractiveStoryPage({
           stage={activeStage.stage}
           flow={activeFlow}
           generation={activeGeneration}
+          coverages={activeCoverages}
           api={productionApi}
           project={productionProject}
           onChange={(next) =>

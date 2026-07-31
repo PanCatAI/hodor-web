@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNodesState, type Edge, type Node, type NodeProps, type ReactFlowInstance } from "@xyflow/react";
 
 import { InfiniteCanvas, topologyLevelLayout } from "@react/features/canvas";
-import type { ProductionFlowData, ProductionGenerationData } from "@react/features/production";
+import type { CinematicCoverageAggregate, ProductionFlowData, ProductionGenerationData } from "@react/features/production";
 import {
   buildInteractiveProductionTopology,
   type InteractiveProductionStage,
@@ -26,6 +26,7 @@ export interface InteractiveStoryCanvasProps {
   selectedNodeId: string | null;
   flowsByScriptId: Record<number, ProductionFlowData | undefined>;
   generationByScriptId: Record<number, ProductionGenerationData | undefined>;
+  coverageByScriptId?: Record<number, CinematicCoverageAggregate[] | undefined>;
   leadingControls?: ReactNode;
   trailingControls?: ReactNode;
   onSelectNode: (nodeId: string) => void;
@@ -41,6 +42,7 @@ function createAggregateNode(
   selectedNodeId: string | null,
   flowsByScriptId: Record<number, ProductionFlowData | undefined>,
   generationByScriptId: Record<number, ProductionGenerationData | undefined>,
+  coverageByScriptId: Record<number, CinematicCoverageAggregate[] | undefined>,
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void,
   worldProfile: ProjectWorldProfile | null,
   onOpenWorldProfile: () => void,
@@ -93,6 +95,7 @@ function createAggregateNode(
       stage: topologyNode.stage,
       flow: flowsByScriptId[storyNode.scriptId],
       generation: generationByScriptId[storyNode.scriptId],
+      coverages: coverageByScriptId[storyNode.scriptId],
       onOpenStage,
     },
   };
@@ -103,14 +106,65 @@ function createNodes(
   selectedNodeId: string | null,
   flowsByScriptId: Record<number, ProductionFlowData | undefined>,
   generationByScriptId: Record<number, ProductionGenerationData | undefined>,
+  coverageByScriptId: Record<number, CinematicCoverageAggregate[] | undefined>,
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void,
   worldProfile: ProjectWorldProfile | null,
   onOpenWorldProfile: () => void,
 ): AggregateNode[] {
   const topology = buildInteractiveProductionTopology(graph);
   return topology.nodes.map((node) =>
-    createAggregateNode(node, graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage, worldProfile, onOpenWorldProfile),
+    createAggregateNode(node, graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageByScriptId, onOpenStage, worldProfile, onOpenWorldProfile),
   );
+}
+
+function shallowEqualRecord(left: Record<string, unknown>, right: Record<string, unknown>) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return leftKeys.length === rightKeys.length && leftKeys.every((key) => Object.is(left[key], right[key]));
+}
+
+export function reconcileInteractiveStoryCanvasNodes<T extends Node>(current: T[], desired: T[]): T[] {
+  const byId = new Map(current.map((node) => [node.id, node]));
+  const reconciled = desired.map((next) => {
+    const previous = byId.get(next.id);
+    if (!previous) return next;
+    const unchanged =
+      previous.type === next.type &&
+      previous.draggable === next.draggable &&
+      previous.selectable === next.selectable &&
+      previous.focusable === next.focusable &&
+      shallowEqualRecord(previous.data as Record<string, unknown>, next.data as Record<string, unknown>);
+    if (unchanged) return previous;
+    return { ...next, position: previous.position };
+  });
+  return reconciled.length === current.length && reconciled.every((node, index) => node === current[index])
+    ? current
+    : reconciled;
+}
+
+const coverageBackedStages = new Set<InteractiveProductionStage>(["blocking", "coverage", "previs", "formalGeneration", "multicamEdit"]);
+
+export function patchInteractiveStoryCoverageNodes<T extends Node>(
+  current: T[],
+  graph: InteractiveStoryGraph,
+  previous: Record<number, CinematicCoverageAggregate[] | undefined>,
+  next: Record<number, CinematicCoverageAggregate[] | undefined>,
+): T[] {
+  const scriptIds = new Set([...Object.keys(previous), ...Object.keys(next)].map(Number));
+  const changedScriptIds = new Set([...scriptIds].filter((scriptId) => previous[scriptId] !== next[scriptId]));
+  if (changedScriptIds.size === 0) return current;
+  const scriptIdByStoryNode = new Map(graph.nodes.map((node) => [node.id, node.scriptId]));
+  let changed = false;
+  const patched = current.map((node) => {
+    if (node.type !== "interactiveProductionStage") return node;
+    const data = node.data as unknown as InteractiveProductionStageNodeData;
+    const scriptId = scriptIdByStoryNode.get(data.storyNodeId);
+    if (scriptId === undefined || !changedScriptIds.has(scriptId) || !coverageBackedStages.has(data.stage)) return node;
+    if (data.coverages === next[scriptId]) return node;
+    changed = true;
+    return { ...node, data: { ...data, coverages: next[scriptId] } } as T;
+  });
+  return changed ? patched : current;
 }
 
 function createEdges(graph: InteractiveStoryGraph): Edge[] {
@@ -156,6 +210,7 @@ export function InteractiveStoryCanvas({
   selectedNodeId,
   flowsByScriptId,
   generationByScriptId,
+  coverageByScriptId = {},
   leadingControls,
   trailingControls,
   onSelectNode,
@@ -169,9 +224,9 @@ export function InteractiveStoryCanvas({
   worldProfileRef.current = worldProfile;
   openWorldProfileRef.current = onOpenWorldProfile;
   const openWorldProfile = useCallback(() => openWorldProfileRef.current(), []);
-  const initialNodes = useMemo(
-    () => createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage, worldProfileRef.current, openWorldProfile),
-    [flowsByScriptId, generationByScriptId, graph, onOpenStage, openWorldProfile, selectedNodeId],
+  const coverageRef = useRef(coverageByScriptId);
+  const [initialNodes] = useState(() =>
+    createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageByScriptId, onOpenStage, worldProfileRef.current, openWorldProfile),
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<AggregateNode>(initialNodes);
   const edges = useMemo(() => createEdges(graph), [graph]);
@@ -185,13 +240,20 @@ export function InteractiveStoryCanvas({
   );
 
   useEffect(() => {
-    setNodes(createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, onOpenStage, worldProfileRef.current, openWorldProfile));
+    const desired = createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageRef.current, onOpenStage, worldProfileRef.current, openWorldProfile);
+    setNodes((current) => reconcileInteractiveStoryCanvasNodes(current, desired));
   }, [flowsByScriptId, generationByScriptId, graph, onOpenStage, openWorldProfile, selectedNodeId, setNodes]);
+
+  useEffect(() => {
+    const previous = coverageRef.current;
+    coverageRef.current = coverageByScriptId;
+    setNodes((current) => patchInteractiveStoryCoverageNodes(current, graph, previous, coverageByScriptId));
+  }, [coverageByScriptId, graph, setNodes]);
 
   useEffect(() => {
     setNodes((current) =>
       current.map((node) =>
-        node.type === "worldProfile"
+        node.type === "worldProfile" && (node.data as WorldProfileNodeData).profile !== worldProfile
           ? { ...node, data: { ...(node.data as WorldProfileNodeData), profile: worldProfile } }
           : node,
       ),
