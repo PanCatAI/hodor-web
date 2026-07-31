@@ -7,6 +7,8 @@ import { ArrowRight, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Pl
 import type { DerivedAsset, ProductionAsset, ProductionFlowData, StoryboardItem } from "./types";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
 import { ProductionTextNodeEditor } from "./production-text-node-editor";
+import { WorldProfileNode } from "@react/features/world-profile/world-profile-node";
+import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
 
 export interface ProductionNodeHandlers {
   onTextChange: (field: "script" | "scriptPlan" | "storyboardTable", value: string) => void;
@@ -25,12 +27,14 @@ export interface ProductionNodeHandlers {
   onInsertStoryboard: (referenceId: number, placement: "before" | "after") => void;
   onPreviewStoryboards: () => void;
   onOpenWorkbench: () => void;
+  onOpenWorldProfile: () => void;
 }
 
 export interface ProductionNodeData extends Record<string, unknown>, ProductionNodeHandlers {
   id: ProductionFlowNodeId;
   position: { x: number; y: number };
   flow: ProductionFlowData;
+  worldProfile: ProjectWorldProfile | null;
 }
 
 function stateLabel(state: DerivedAsset["state"] | StoryboardItem["state"]) {
@@ -77,7 +81,7 @@ function NodeTitle({ label }: { label: string }) {
   );
 }
 
-function MainChainHandles({ id, source = true }: { id: Exclude<ProductionFlowNodeId, "script" | "assets">; source?: boolean }) {
+function MainChainHandles({ id, source = true }: { id: Exclude<ProductionFlowNodeId, "worldProfile" | "script" | "assets">; source?: boolean }) {
   return (
     <>
       <Handle id={`${id}-target`} type="target" position={Position.Left} />
@@ -104,6 +108,7 @@ function TextNode({
       className={`w-fit max-w-[100vw] cursor-default select-text ${id === "storyboardTable" ? "min-w-[100px]" : "min-w-[200px]"}`}>
       {id === "script" ? (
         <>
+          <Handle id="script-worldProfile" type="target" position={Position.Left} />
           <Handle id="script-main" type="source" position={Position.Right} />
           <Handle id="script-assets" type="source" position={Position.Bottom} />
         </>
@@ -573,6 +578,14 @@ function WorkbenchNode({ data }: NodeProps) {
 
 function ProductionNodeComponent(props: NodeProps) {
   const data = props.data as ProductionNodeData;
+  if (data.id === "worldProfile") {
+    return (
+      <WorldProfileNode
+        {...props}
+        data={{ profile: data.worldProfile, mode: "production", onOpen: data.onOpenWorldProfile }}
+      />
+    );
+  }
   if (data.id === "script") return <TextNode id="script" data={data} label="剧本" placeholder="暂无数据" />;
   if (data.id === "scriptPlan") return <TextNode id="scriptPlan" data={data} label="导演计划" placeholder="暂无数据" />;
   if (data.id === "storyboardTable") return <TextNode id="storyboardTable" data={data} label="分镜表" placeholder="暂无数据" />;

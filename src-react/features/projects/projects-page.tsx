@@ -5,6 +5,7 @@ import { Button } from "@react/components/ui/button";
 import { ManualManager } from "./manual-manager";
 import { ProjectDialog } from "./project-dialog";
 import type { HodorProject, ProjectsApi } from "./projects-api";
+import { WorldProfileSummary } from "@react/features/world-profile/world-profile-summary";
 
 export type { HodorProject } from "./projects-api";
 
@@ -126,6 +127,9 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
                   <div className="flex items-start justify-between gap-3"><h2 className="text-lg font-semibold tracking-tight">{project.name}</h2><span className="shrink-0 rounded-full border border-blue-900/70 bg-blue-950/40 px-2.5 py-1 text-xs text-blue-300">{projectTypeLabel(project.projectType)}</span></div>
                   {project.artStyle ? <p className="mt-4 w-fit rounded-md bg-white/5 px-2 py-1 text-xs text-slate-300">{project.artStyle}</p> : null}
                   <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-400">{project.intro || "暂无项目简介"}</p>
+                  <div className="mt-4 border-t border-slate-800 pt-3">
+                    <WorldProfileSummary profile={project.worldProfile ?? null} compact />
+                  </div>
                 </a>
                 <footer className="flex items-center justify-between border-t border-border px-5 py-3 text-xs text-slate-600">
                   <span>{createdAt ? `创建于 ${createdAt}` : project.imageModel && project.videoModel ? "模型已配置" : "待配置模型"}</span>

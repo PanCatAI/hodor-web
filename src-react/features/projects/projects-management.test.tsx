@@ -4,12 +4,18 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ProjectsPage } from "./projects-page";
 import type { ProjectsApi } from "./projects-api";
+import { createWesternFantasyWorldProfile } from "@react/features/world-profile/world-profile-fields";
 
 function createApi(overrides: Partial<ProjectsApi> = {}): ProjectsApi {
   return {
     listProjects: vi.fn().mockResolvedValue([]),
     createProject: vi.fn().mockResolvedValue({ id: "88" }),
     updateProject: vi.fn().mockResolvedValue(undefined),
+    updateWorldProfile: vi.fn().mockResolvedValue(undefined),
+    extractWorldProfile: vi.fn().mockResolvedValue({
+      profile: createWesternFantasyWorldProfile(),
+      evidence: {},
+    }),
     deleteProject: vi.fn().mockResolvedValue(undefined),
     listModels: vi.fn().mockImplementation(async (type) => type === "image"
       ? [{ id: "pancat:pancat-image", label: "Pancat Image", type: "image", vendorName: "Pancat" }]
@@ -46,6 +52,8 @@ describe("Projects management", () => {
     await user.selectOptions(within(dialog).getByLabelText("导演手册"), "crime");
     await user.selectOptions(within(dialog).getByLabelText("图片模型"), "pancat:pancat-image");
     await user.selectOptions(within(dialog).getByLabelText("视频模型"), "pancat:pancat-video");
+    await user.click(within(dialog).getByRole("button", { name: "使用欧美玄幻预设" }));
+    await user.type(within(dialog).getByLabelText("世界前提"), "圣像闭眼，旧王国的誓约苏醒。");
     await user.click(within(dialog).getByRole("button", { name: "创建项目" }));
 
     await waitFor(() => expect(api.createProject).toHaveBeenCalledWith(expect.objectContaining({
@@ -55,9 +63,62 @@ describe("Projects management", () => {
       directorManual: "crime",
       imageModel: "pancat:pancat-image",
       videoModel: "pancat:pancat-video",
+      worldProfile: expect.objectContaining({
+        schemaVersion: "1",
+        genre: "欧美玄幻",
+        premise: "圣像闭眼，旧王国的誓约苏醒。",
+      }),
     })));
     expect(api.listProjects).toHaveBeenCalledTimes(2);
     expect(window.location.hash).toBe("#/projects/88/interactive");
+  });
+
+  it("shows world-profile completion and a concise summary on project cards", async () => {
+    const worldProfile = createWesternFantasyWorldProfile();
+    worldProfile.premise = "圣像闭眼，旧王国的誓约苏醒。";
+    worldProfile.worldRules = ["神迹必须付出代价"];
+    const api = createApi({
+      listProjects: vi.fn().mockResolvedValue([
+        {
+          id: "9",
+          name: "维尔家族",
+          projectType: "interactive",
+          imageModel: "pancat:pancat-image",
+          videoModel: "pancat:pancat-video",
+          worldProfile,
+        },
+        {
+          id: "10",
+          name: "旧项目",
+          projectType: "novel",
+          imageModel: "pancat:pancat-image",
+          videoModel: "pancat:pancat-video",
+          worldProfile: null,
+        },
+      ]),
+    });
+
+    render(<ProjectsPage api={api} />);
+
+    const configured = await screen.findByRole("heading", { name: "维尔家族" });
+    expect(configured.closest("article")).toHaveTextContent("世界设定已配置");
+    expect(configured.closest("article")).toHaveTextContent("圣像闭眼");
+    const legacy = screen.getByRole("heading", { name: "旧项目" });
+    expect(legacy.closest("article")).toHaveTextContent("未配置世界设定");
+  });
+
+  it("does not submit the western-fantasy preset until its premise is filled", async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    render(<ProjectsPage api={api} />);
+
+    await screen.findByText("还没有项目");
+    await user.click(screen.getByRole("button", { name: "新建项目" }));
+    const dialog = screen.getByRole("dialog", { name: "新建项目" });
+    await user.click(within(dialog).getByRole("button", { name: "使用欧美玄幻预设" }));
+
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("请补充世界前提后再保存项目");
+    expect(within(dialog).getByRole("button", { name: "创建项目" })).toBeDisabled();
   });
 
   it("edits and deletes an existing project", async () => {
@@ -80,9 +141,59 @@ describe("Projects management", () => {
     await waitFor(() => expect(api.deleteProject).toHaveBeenCalledWith("7"));
   });
 
-  it("enters project details even when model discovery is temporarily unavailable", async () => {
+  it("keeps extracted world-profile changes local until the project dialog is saved", async () => {
     const user = userEvent.setup();
-    const project = { id: "7", name: "模型失效项目", projectType: "interactive", artStyle: "realistic", directorManual: "crime", imageModel: "offline:image", videoModel: "pancat:pancat-video" };
+    const originalProfile = createWesternFantasyWorldProfile();
+    originalProfile.premise = "旧王国仍遵守沉睡誓约。";
+    const extractedProfile = createWesternFantasyWorldProfile();
+    extractedProfile.premise = "圣像闭眼，旧王国的誓约苏醒。";
+    const project = {
+      id: "7",
+      name: "圣像",
+      intro: "内部样片",
+      type: "欧美玄幻",
+      projectType: "novel",
+      artStyle: "realistic",
+      directorManual: "crime",
+      imageModel: "pancat:pancat-image",
+      videoModel: "pancat:pancat-video",
+      videoRatio: "16:9",
+      imageQuality: "1K",
+      mode: "singleImage",
+      worldProfile: originalProfile,
+    };
+    const api = createApi({
+      listProjects: vi.fn().mockResolvedValue([project]),
+      extractWorldProfile: vi.fn().mockResolvedValue({ profile: extractedProfile, evidence: {} }),
+    });
+    render(<ProjectsPage api={api} />);
+
+    await screen.findByRole("heading", { name: "圣像" });
+    await user.click(screen.getByRole("button", { name: "编辑项目 圣像" }));
+    let dialog = screen.getByRole("dialog", { name: "编辑项目" });
+    await user.click(within(dialog).getByRole("button", { name: "从原文整理" }));
+    await waitFor(() => expect(within(dialog).getByLabelText("世界前提")).toHaveValue(extractedProfile.premise));
+    expect(api.updateProject).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: "取消" }));
+    expect(api.updateProject).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "编辑项目 圣像" }));
+    dialog = screen.getByRole("dialog", { name: "编辑项目" });
+    expect(within(dialog).getByLabelText("世界前提")).toHaveValue(originalProfile.premise);
+    await user.click(within(dialog).getByRole("button", { name: "从原文整理" }));
+    await waitFor(() => expect(within(dialog).getByLabelText("世界前提")).toHaveValue(extractedProfile.premise));
+    await user.click(within(dialog).getByRole("button", { name: "保存修改" }));
+
+    await waitFor(() => expect(api.updateProject).toHaveBeenCalledWith(expect.objectContaining({
+      id: "7",
+      worldProfile: extractedProfile,
+    })));
+  });
+
+  it("blocks entry and opens settings when a configured model is unavailable", async () => {
+    const user = userEvent.setup();
+    const project = { id: "7", name: "模型失效项目", projectType: "novel", artStyle: "realistic", directorManual: "crime", imageModel: "offline:image", videoModel: "pancat:pancat-video" };
     const api = createApi({
       listProjects: vi.fn().mockResolvedValue([project]),
       getModelDetail: vi.fn().mockRejectedValue(new Error("供应商已停用")),
@@ -92,9 +203,9 @@ describe("Projects management", () => {
 
     await user.click(await screen.findByRole("link", { name: "打开项目 模型失效项目" }));
 
-    expect(window.location.hash).toBe("#/projects/7/interactive");
-    expect(api.getModelDetail).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog", { name: "编辑项目" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("模型不可用");
+    expect(screen.getByRole("dialog", { name: "编辑项目" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/projects");
   });
 
   it("creates, edits and deletes visual manuals", async () => {
