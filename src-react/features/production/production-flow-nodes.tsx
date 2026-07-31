@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
@@ -133,7 +134,17 @@ function triggerAnchorClick(href: string, filename: string, newTab = false) {
   document.body.removeChild(anchor);
 }
 
-function ImageTools({ src, name, scale = 1 }: { src: string; name: string; scale?: number }) {
+function ImageTools({
+  src,
+  name,
+  scale = 1,
+  children,
+}: {
+  src: string;
+  name: string;
+  scale?: number;
+  children?: ReactNode;
+}) {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [feedback, setFeedback] = useState("");
   const bigSrc = src.split("?")[0] || src;
@@ -194,6 +205,19 @@ function ImageTools({ src, name, scale = 1 }: { src: string; name: string; scale
 
   return (
     <>
+      {children ? (
+        <button
+          type="button"
+          aria-label={`查看${name}原图`}
+          title="查看原图"
+          onClick={(event) => {
+            event.stopPropagation();
+            setPreviewVisible(true);
+          }}
+          className="nodrag block size-full cursor-zoom-in">
+          {children}
+        </button>
+      ) : null}
       <div
         data-testid={`image-tools-${name}`}
         style={{ transform: `scale(${scale})`, transformOrigin: "bottom right" }}
@@ -269,10 +293,9 @@ function AssetImage({ asset, original }: { asset: DerivedAsset | ProductionAsset
   return (
     <div className="production-node-media group/image relative aspect-square w-full overflow-hidden rounded bg-[#303232]">
       {completedImage ? (
-        <>
+        <ImageTools src={asset.src} name={asset.name}>
           <img src={asset.src} alt={asset.name} className="size-full object-contain" loading="lazy" />
-          <ImageTools src={asset.src} name={asset.name} />
-        </>
+        </ImageTools>
       ) : (
         <div className="flex size-full flex-col items-center justify-center gap-2 text-xs text-slate-400">
           {asset.state === "running" ? <LoaderCircle className="size-5 animate-spin" /> : null}

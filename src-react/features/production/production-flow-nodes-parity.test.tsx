@@ -109,6 +109,19 @@ describe("upstream production node parity", () => {
     expect(screen.queryByRole("dialog", { name: "预览 分镜 2000" })).not.toBeInTheDocument();
   });
 
+  it("opens the original asset image when its thumbnail is clicked", () => {
+    const data = flowData(1, 0);
+    data.assets[0]!.src = "https://example.test/asset-original.jpg?size=1024x1024";
+    render(<ProductionFlowBoard api={api()} projectId={7} scriptId={12} initialData={data} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "查看资产 1原图" }));
+
+    const preview = screen.getByRole("dialog", { name: "预览 资产 1" });
+    expect(within(preview).getByAltText("预览 资产 1")).toHaveAttribute("src", "https://example.test/asset-original.jpg");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "预览 资产 1" })).not.toBeInTheDocument();
+  });
+
   it("scales the checkbox, delete, edit and image tools with a shrunken frame and caps overlays at their original size", () => {
     render(<ProductionFlowBoard api={api()} projectId={7} scriptId={12} initialData={flowData(0, 1)} />);
 
