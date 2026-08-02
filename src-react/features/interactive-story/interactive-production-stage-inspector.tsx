@@ -11,6 +11,7 @@ import type {
   StoryboardItem,
 } from "@react/features/production";
 import { createProductionPrevisContract, selectLatestCoverage, WebAvVideoEditor } from "@react/features/production";
+import { spatialProductionStageById, type SpatialProductionStageId } from "@react/features/production/spatial-production-stages";
 import {
   createCoverageEditorTimeline,
   recommendedCutDigest,
@@ -41,9 +42,13 @@ export const interactiveStageLabels: Record<InteractiveProductionStage, string> 
   assets: "资产工厂",
   storyboardTable: "分镜表",
   storyboard: "分镜图",
+  sceneMaster: "场景母版",
+  marbleWorld: "Marble 世界",
+  spatialRegistration: "空间注册",
   blocking: "场面调度",
   coverage: "镜头覆盖",
   previs: "Blender 预演",
+  previsValidation: "预演校验",
   formalGeneration: "正式生成",
   multicamEdit: "多机位剪辑",
   supervision: "监督验收",
@@ -614,6 +619,30 @@ export function InteractiveProductionStageInspector({
           }
         }}
       />
+    );
+  } else if (["sceneMaster", "marbleWorld", "spatialRegistration", "previsValidation"].includes(stage)) {
+    const snapshot = spatialProductionStageById(
+      { flow: draftFlow, generation, coverages },
+      stage as SpatialProductionStageId,
+    );
+    content = (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
+          <div className="text-xs text-slate-500">当前状态</div>
+          <strong className="mt-2 block text-lg">{snapshot.summary}</strong>
+          {snapshot.blockingReason ? <p role="alert" className="mt-3 text-sm text-amber-300">{snapshot.blockingReason}</p> : null}
+        </div>
+        {snapshot.artifacts.length ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {snapshot.artifacts.map((artifact, index) => (
+              <div key={`${artifact.label}-${artifact.url ?? artifact.detail ?? index}`} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 text-sm">
+                {artifact.url ? <a href={artifact.url} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">{artifact.label}</a> : artifact.label}
+                {artifact.detail ? <div className="mt-1 text-xs text-slate-500">{artifact.detail}</div> : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
     );
   } else if (stage === "blocking") {
     const coverage = selectLatestCoverage(coverages);

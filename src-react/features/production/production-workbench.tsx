@@ -43,6 +43,7 @@ import type { ProductionApi } from "./production-api";
 import { ProductionFlowBoard } from "./production-flow-board";
 import type {
   ProductionFlowData,
+  ProductionGenerationData,
   ProductionAsset,
   ProductionMediaItem,
   ProductionProject,
@@ -1327,6 +1328,10 @@ export function ProductionWorkbench({
   const flowRevisionRef = useRef(0);
   const loadSequence = useRef(0);
   const storyboards = flowData.storyboard;
+  const canvasGenerationData = useMemo<ProductionGenerationData>(
+    () => ({ storyboardList: storyboards, trackList: tracks }),
+    [storyboards, tracks],
+  );
   const bumpFlowRevision = useCallback(() => {
     flowRevisionRef.current += 1;
     setFlowRevision(flowRevisionRef.current);
@@ -1655,6 +1660,7 @@ export function ProductionWorkbench({
                   projectId={project.id}
                   scriptId={scriptId}
                   initialData={flowData}
+                  generationData={canvasGenerationData}
                   externalRevision={flowRevision}
                   immersive
                   leadingControls={flowControls}

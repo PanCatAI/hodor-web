@@ -6,19 +6,22 @@ import { Download, X } from "lucide-react";
 import { InfiniteCanvas, readCanvasWheelEvent } from "@react/features/canvas";
 import { ImageFlowEditor } from "./image-flow-editor";
 import type { ProductionApi } from "./production-api";
-import type { DerivedAsset, ProductionFlowData, StoryboardItem } from "./types";
+import type { CinematicCoverageAggregate, DerivedAsset, ProductionFlowData, ProductionGenerationData, StoryboardItem } from "./types";
 import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
 import { applyProductionLayout, mergeProductionLayout, productionAutoLayout, productionEdges, productionNodeOrder } from "./production-flow-layout";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
 import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
 import { WorldProfileInspector } from "@react/features/world-profile/world-profile-inspector";
+import { buildSpatialProductionStages, type SpatialProductionStageId } from "./spatial-production-stages";
+import { retrySpatialProductionStage, type CanvasSpatialRetryStage } from "./spatial-production-retry";
 
 export interface ProductionFlowBoardProps {
   api: ProductionApi;
   projectId: number;
   scriptId: number;
   initialData: ProductionFlowData;
+  generationData?: ProductionGenerationData;
   imageModel?: string;
   pollIntervalMs?: number;
   externalRevision?: number;
@@ -138,8 +141,15 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "操作失败";
 }
 
-function createNodes(flow: ProductionFlowData, handlers: ProductionNodeHandlers, worldProfile: ProjectWorldProfile | null): ProductionNode[] {
+function createNodes(
+  flow: ProductionFlowData,
+  handlers: ProductionNodeHandlers,
+  worldProfile: ProjectWorldProfile | null,
+  generation?: ProductionGenerationData,
+  coverages: CinematicCoverageAggregate[] = [],
+): ProductionNode[] {
   const layout = mergeProductionLayout(flow.layout);
+  const spatialStages = new Map(buildSpatialProductionStages({ flow, generation, coverages }).map((stage) => [stage.id, stage]));
   return productionNodeOrder.map((id) => ({
     id,
     type: "production",
@@ -149,7 +159,7 @@ function createNodes(flow: ProductionFlowData, handlers: ProductionNodeHandlers,
     focusable: false,
     initialWidth: 150,
     initialHeight: 50,
-    data: { ...handlers, id, position: layout[id], flow, worldProfile },
+    data: { ...handlers, id, position: layout[id], flow, worldProfile, spatialStage: spatialStages.get(id as SpatialProductionStageId) },
   }));
 }
 
@@ -158,6 +168,7 @@ export function ProductionFlowBoard({
   projectId,
   scriptId,
   initialData,
+  generationData,
   imageModel = "pancat:pancat-image",
   pollIntervalMs = 3_000,
   externalRevision = 0,
@@ -179,6 +190,7 @@ export function ProductionFlowBoard({
   const [storyboardPreview, setStoryboardPreview] = useState("");
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<ProductionNode> | null>(null);
   const [worldProfile, setWorldProfile] = useState<ProjectWorldProfile | null>(initialWorldProfile);
+  const [coverages, setCoverages] = useState<CinematicCoverageAggregate[]>([]);
   const [worldProfileOpen, setWorldProfileOpen] = useState(false);
   const worldProfileRef = useRef<ProjectWorldProfile | null>(initialWorldProfile);
   const identityRef = useRef(`${projectId}:${scriptId}`);
@@ -248,6 +260,15 @@ export function ProductionFlowBoard({
   }, [data.storyboard]);
 
   const clearStoryboardSelection = useCallback(() => setSelectedStoryboardIds([]), []);
+
+  const retrySpatialStage = useCallback(
+    async (stage: CanvasSpatialRetryStage) => {
+      const snapshot = await retrySpatialProductionStage({ api, projectId, scriptId, stage, flow: data, coverages });
+      setData(snapshot.flow);
+      setCoverages(snapshot.coverages);
+    },
+    [api, coverages, data, projectId, scriptId],
+  );
 
   const generateStoryboards = useCallback(async () => {
     if (!selectedStoryboardIds.length) return;
@@ -360,6 +381,7 @@ export function ProductionFlowBoard({
       onPreviewStoryboards: () => void previewStoryboards(),
       onOpenWorkbench: openWorkbench,
       onOpenWorldProfile: () => setWorldProfileOpen(true),
+      onRetrySpatialStage: retrySpatialStage,
     }),
     [
       changeText,
@@ -372,13 +394,14 @@ export function ProductionFlowBoard({
       openWorkbench,
       previewStoryboards,
       remove,
+      retrySpatialStage,
       selectAllStoryboards,
       selectedStoryboardIds,
       toggleStoryboard,
     ],
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<ProductionNode>(createNodes(initialData, handlers, initialWorldProfile));
+  const [nodes, setNodes, onNodesChange] = useNodesState<ProductionNode>(createNodes(initialData, handlers, initialWorldProfile, generationData));
   const edges = useMemo(() => productionEdges(), []);
   const nodeTypes = useMemo(() => ({ production: ProductionFlowNode as (props: NodeProps) => React.ReactNode }), []);
 
@@ -389,8 +412,11 @@ export function ProductionFlowBoard({
     if (!identityChanged && !revisionChanged) return;
     identityRef.current = identity;
     initializationRunRef.current += 1;
-    layoutRunRef.current += 1;
-    layoutCompletedRef.current = "";
+    if (identityChanged) {
+      layoutRunRef.current += 1;
+      layoutCompletedRef.current = "";
+      setCoverages([]);
+    }
     revisionRef.current = externalRevision;
     mountedRef.current = false;
     setData(initialData);
@@ -398,21 +424,44 @@ export function ProductionFlowBoard({
       setSelectedStoryboardIds([]);
       setStoryboardPreview("");
     }
-    setNodes(createNodes(initialData, handlers, worldProfileRef.current));
+    setNodes(createNodes(initialData, handlers, worldProfileRef.current, generationData, coverages));
   }, [externalRevision, handlers, initialData, projectId, scriptId, setNodes]);
 
   useEffect(() => {
     if (flowInstance) void initializeLayout(flowInstance);
-  }, [externalRevision, projectId, scriptId]);
+  }, [projectId, scriptId]);
 
   useEffect(() => {
     setNodes((current) =>
       current.map((node) => ({
         ...node,
-        data: { ...node.data, ...handlers, id: node.id as ProductionFlowNodeId, position: node.position, flow: data },
+        data: {
+          ...node.data,
+          ...handlers,
+          id: node.id as ProductionFlowNodeId,
+          position: node.position,
+          flow: data,
+          spatialStage: new Map(buildSpatialProductionStages({ flow: data, generation: generationData, coverages }).map((stage) => [stage.id, stage])).get(node.id as SpatialProductionStageId),
+        },
       })),
     );
-  }, [data, handlers, setNodes]);
+  }, [coverages, data, generationData, handlers, setNodes]);
+
+  useEffect(() => {
+    if (typeof api.listCoverage !== "function") return;
+    let active = true;
+    void api
+      .listCoverage(projectId, scriptId)
+      .then((items) => {
+        if (active) setCoverages(items);
+      })
+      .catch((error) => {
+        if (active) setNotice(`镜头覆盖读取失败：${errorMessage(error)}`);
+      });
+    return () => {
+      active = false;
+    };
+  }, [api, externalRevision, projectId, scriptId]);
 
   useEffect(() => {
     worldProfileRef.current = initialWorldProfile;

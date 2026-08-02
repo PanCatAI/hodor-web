@@ -86,6 +86,7 @@ describe("interactive canvas node reconciliation", () => {
     const other: CinematicCoverageAggregate[] = [];
     const current = [
       { id: "scene-1::coverage", type: "interactiveProductionStage", position: { x: 111, y: 112 }, data: { storyNodeId: "scene-1", stage: "coverage", coverages: first } },
+      { id: "scene-1::previsValidation", type: "interactiveProductionStage", position: { x: 116, y: 117 }, data: { storyNodeId: "scene-1", stage: "previsValidation", coverages: first } },
       { id: "scene-1::script", type: "interactiveStory", position: { x: 121, y: 122 }, data: { storyNodeId: "scene-1" } },
       { id: "scene-2::coverage", type: "interactiveProductionStage", position: { x: 211, y: 212 }, data: { storyNodeId: "scene-2", stage: "coverage", coverages: other } },
     ] as Node[];
@@ -97,7 +98,10 @@ describe("interactive canvas node reconciliation", () => {
     expect(next[0]).not.toBe(current[0]);
     expect(next[0]?.data.coverages).toBe(changed);
     expect(next[0]?.position).toEqual({ x: 111, y: 112 });
-    expect(next[1]).toBe(current[1]);
+    expect(next[1]).not.toBe(current[1]);
+    expect(next[1]?.data.coverages).toBe(changed);
+    expect(next[1]?.position).toEqual({ x: 116, y: 117 });
     expect(next[2]).toBe(current[2]);
+    expect(next[3]).toBe(current[3]);
   });
 });

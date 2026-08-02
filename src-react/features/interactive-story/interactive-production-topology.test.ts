@@ -58,16 +58,20 @@ const graph: InteractiveStoryGraph = {
 };
 
 describe("interactive production topology", () => {
-  it("places blocking, coverage, Blender previs, formal generation and multicam edit in the main chain", () => {
+  it("places every spatial production stage in the main chain", () => {
     expect(interactiveProductionStageOrder).toEqual([
       "script",
       "scriptPlan",
       "assets",
       "storyboardTable",
       "storyboard",
+      "sceneMaster",
+      "marbleWorld",
+      "spatialRegistration",
       "blocking",
       "coverage",
       "previs",
+      "previsValidation",
       "formalGeneration",
       "multicamEdit",
       "supervision",
@@ -76,11 +80,15 @@ describe("interactive production topology", () => {
     const topology = buildInteractiveProductionTopology(graph);
     expect(topology.edges).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ source: "scene-1::storyboard", target: "scene-1::blocking" }),
-        expect.objectContaining({ source: "scene-1::assets", target: "scene-1::blocking" }),
+        expect.objectContaining({ source: "scene-1::storyboard", target: "scene-1::sceneMaster" }),
+        expect.objectContaining({ source: "scene-1::assets", target: "scene-1::sceneMaster" }),
+        expect.objectContaining({ source: "scene-1::sceneMaster", target: "scene-1::marbleWorld" }),
+        expect.objectContaining({ source: "scene-1::marbleWorld", target: "scene-1::spatialRegistration" }),
+        expect.objectContaining({ source: "scene-1::spatialRegistration", target: "scene-1::blocking" }),
         expect.objectContaining({ source: "scene-1::blocking", target: "scene-1::coverage" }),
         expect.objectContaining({ source: "scene-1::coverage", target: "scene-1::previs" }),
-        expect.objectContaining({ source: "scene-1::previs", target: "scene-1::formalGeneration" }),
+        expect.objectContaining({ source: "scene-1::previs", target: "scene-1::previsValidation" }),
+        expect.objectContaining({ source: "scene-1::previsValidation", target: "scene-1::formalGeneration" }),
         expect.objectContaining({ source: "scene-1::formalGeneration", target: "scene-1::multicamEdit" }),
         expect.objectContaining({ source: "scene-1::multicamEdit", target: "scene-1::supervision" }),
       ]),

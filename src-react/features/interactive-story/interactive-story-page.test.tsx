@@ -145,6 +145,17 @@ describe("InteractiveStoryPage", () => {
   it("keeps every production stage inside the interactive canvas and opens only a stage inspector", async () => {
     const api = createApi();
     const productionApi = createProductionApi();
+    vi.mocked(productionApi.getFlowData).mockImplementation(async (_projectId, scriptId) => ({
+      script: scriptId === 12 ? "INT. ROOM" : "EXT. STREET",
+      scriptPlan: "从远景推进到近景",
+      assets: [{
+        id: 11, name: "医院大厅", type: "scene", prompt: "雨夜医院大厅", desc: "", src: "https://example.test/hall.jpg", state: "completed", errorReason: "", derive: [],
+      }],
+      storyboardTable: "| 镜头 | 景别 |\n| 1 | 近景 |",
+      storyboard: [{ id: scriptId === 12 ? 31 : 32, index: 0, prompt: "推门", videoDesc: "", src: "", state: "idle", errorReason: "", associateAssetsIds: [11] }],
+    }));
+    productionApi.startMarbleWorld = vi.fn(async () => ({ jobId: "job-81" } as never));
+    productionApi.startSpatialPipeline = vi.fn(async () => ({ success: true, accepted: true, projectId: 7, scriptId: 12, currentStage: "marbleWorld" } as const));
     const onWorldProfileChange = vi.fn(async () => undefined);
     render(
       <InteractiveStoryPage
@@ -184,12 +195,29 @@ describe("InteractiveStoryPage", () => {
     await waitFor(() => expect(productionApi.getFlowData).toHaveBeenCalledTimes(2));
     expect(screen.getAllByText("分镜表")).toHaveLength(2);
     expect(screen.getAllByText("分镜图")).toHaveLength(2);
+    expect(screen.getAllByText("场景母版")).toHaveLength(2);
+    expect(screen.getAllByText("Marble 世界")).toHaveLength(2);
+    expect(screen.getAllByText("空间注册")).toHaveLength(2);
     expect(screen.getAllByText("场面调度")).toHaveLength(2);
     expect(screen.getAllByText("镜头覆盖")).toHaveLength(2);
     expect(screen.getAllByText("Blender 预演")).toHaveLength(2);
+    expect(screen.getAllByText("预演校验")).toHaveLength(2);
     expect(screen.getAllByText("正式生成")).toHaveLength(2);
     expect(screen.getAllByText("多机位剪辑")).toHaveLength(2);
     expect(screen.getAllByText("监督验收")).toHaveLength(2);
+
+    const marbleNode = screen.getByTestId("interactive-production-node-scene-1::marbleWorld");
+    const marblePosition = screen.getByTestId("rf__node-scene-1::marbleWorld").getAttribute("style");
+    fireEvent.click(within(marbleNode).getByLabelText("启动或恢复Marble 世界"));
+    await waitFor(() => expect(productionApi.startMarbleWorld).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: 7,
+      storyboardId: 31,
+      sourceSceneAssetId: 11,
+    })));
+    expect(productionApi.startSpatialPipeline).toHaveBeenCalledWith(12, expect.stringContaining("Marble 世界"));
+    await waitFor(() => expect(productionApi.getFlowData).toHaveBeenCalledTimes(3));
+    expect(api.getGraph).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("rf__node-scene-1::marbleWorld")).toHaveAttribute("style", marblePosition);
 
     fireEvent.doubleClick(screen.getByTestId("interactive-story-node-scene-1"));
     expect(await screen.findByRole("region", { name: "锁住的房间剧本节点详情" })).toBeInTheDocument();

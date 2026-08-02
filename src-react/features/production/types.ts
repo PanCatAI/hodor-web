@@ -154,6 +154,58 @@ export interface CoverageOtioExport {
   document: unknown;
 }
 
+export type SceneWorldVector3 = [number, number, number];
+
+export interface SceneWorldRegistrationAnchorEvidence {
+  source: "provider-caption" | "collider-inspection" | "scene-master" | "operator-measurement";
+  reference: string;
+}
+
+export interface SceneWorldRegistrationAnchor {
+  landmarkId: string;
+  name: string;
+  position: SceneWorldVector3;
+  facing: SceneWorldVector3;
+  evidence: SceneWorldRegistrationAnchorEvidence;
+}
+
+export interface SceneWorldRegistration {
+  schemaVersion: "1";
+  status: "calibrated";
+  coordinateSystem: "opengl" | "opencv";
+  worldToStage: {
+    translation: SceneWorldVector3;
+    rotationEuler: SceneWorldVector3;
+  };
+  landmarks: Array<Omit<SceneWorldRegistrationAnchor, "evidence">>;
+  stagingZones: Array<{
+    zoneId: string;
+    name: string;
+    min: SceneWorldVector3;
+    max: SceneWorldVector3;
+  }>;
+  cameraZones: Array<{
+    zoneId: string;
+    name: string;
+    min: SceneWorldVector3;
+    max: SceneWorldVector3;
+  }>;
+  provenance?: {
+    provider: "worldlabs-marble";
+    providerWorldId: string;
+    generatedAt: string;
+    semantics: {
+      metricScaleFactor: number;
+      groundPlaneOffset: number;
+      coordinateSystem: "opengl" | "opencv";
+    };
+    anchors: Array<{
+      landmarkId: string;
+      evidence: SceneWorldRegistrationAnchorEvidence;
+    }>;
+  };
+}
+
 export interface ProductionSceneWorldAsset {
   id: number;
   projectId: number;
@@ -171,10 +223,46 @@ export interface ProductionSceneWorldAsset {
   spzUrls: Record<string, string>;
   thumbnailUrl: string;
   caption: string;
-  semantics: { metricScaleFactor: number; groundPlaneOffset: number };
+  semantics: {
+    metricScaleFactor: number;
+    groundPlaneOffset: number;
+    coordinateSystem: "opengl" | "opencv";
+    registration: SceneWorldRegistration | null;
+  };
   error: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductionMarbleWorldJob {
+  jobId: string;
+  requestId: string;
+  projectId: number;
+  storyboardId: number;
+  sourceSceneAssetId: number | null;
+  provider: "worldlabs-marble";
+  model: string;
+  status: "submitting" | "running" | "succeeded" | "failed";
+  operationId: string | null;
+  prompt: string;
+  displayName: string;
+  sourceImageUrl: string | null;
+  sourceImage: Record<string, unknown> | null;
+  sourceIsPanorama: boolean;
+  progress: number | null;
+  progressDescription: string;
+  sceneAsset: Record<string, unknown> | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductionWorldRegistrationReceipt {
+  worldAssetId: number;
+  providerWorldId: string;
+  status: "incomplete" | "candidate" | "completed";
+  registration: SceneWorldRegistration | null;
+  worldAsset: ProductionSceneWorldAsset;
 }
 
 export type PrevisVector3 = [number, number, number];
@@ -215,6 +303,12 @@ export interface ProductionPrevisRender {
     manifestKey: string; manifestUrl: string;
     width: number; height: number; fps: number; frameCount: number; durationSeconds: number;
   };
+  quality?: {
+    status: "pending" | "passed" | "failed";
+    score?: number;
+    issues: Array<{ code?: string; severity: "warning" | "error"; message: string }>;
+  };
+  report?: { key?: string; url?: string; summary?: string };
   createdAt: string;
   updatedAt: string;
 }

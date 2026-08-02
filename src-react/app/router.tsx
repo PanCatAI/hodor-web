@@ -6,7 +6,7 @@ import { AssetsCenter, createAssetApi } from "@react/features/assets";
 import { LoginPage } from "@react/features/auth/login-page";
 import { CastingPage, createCastingApi } from "@react/features/casting";
 import { createHodorDirectorDeskAdapter, DirectorDeskPage, type DirectorDeskEditorModule } from "@react/features/director-desk";
-import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type ProductionProject, type StoryboardItem } from "@react/features/production";
+import { createProductionApi, createProductionSpatialPipelineClient, ImageFlowEditor, ProductionWorkbench, type ProductionProject, type StoryboardItem } from "@react/features/production";
 import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createInteractiveStoryApi, InteractiveStoryPage } from "@react/features/interactive-story";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
@@ -274,6 +274,30 @@ function normalizeVideoRatio(value: string | undefined): ProductionVideoRatio {
   return value === "1:1" || value === "9:16" ? value : "16:9";
 }
 
+function useProductionApiWithSpatialPipeline({
+  apiClient,
+  apiBaseUrl,
+  getToken,
+  projectId,
+}: {
+  apiClient: HodorApiClient;
+  apiBaseUrl: string;
+  getToken: () => string | null;
+  projectId: number;
+}) {
+  const spatialPipelineClient = useMemo(
+    () => createProductionSpatialPipelineClient({ apiBaseUrl, projectId, getToken }),
+    [apiBaseUrl, getToken, projectId],
+  );
+  useEffect(() => () => spatialPipelineClient.disconnect(), [spatialPipelineClient]);
+  return useMemo(
+    () => createProductionApi(apiClient, {
+      startSpatialPipeline: (scriptId, objective) => spatialPipelineClient.start({ scriptId, objective }),
+    }),
+    [apiClient, spatialPipelineClient],
+  );
+}
+
 export function normalizeProductionProject(value: RawProductionProject | RawProductionProject[], projectId: number): ProductionProject {
   const project = Array.isArray(value) ? (value.find((item) => Number(item.id) === projectId) ?? {}) : value;
   return {
@@ -292,7 +316,7 @@ export function normalizeProductionProject(value: RawProductionProject | RawProd
 function ProductionWorkbenchRoutePage({ projectId, initialScriptId }: { projectId: number; initialScriptId?: number }) {
   const { apiClient, apiBaseUrl, getToken } = projectProductionRoute.useRouteContext();
   const router = useRouter();
-  const api = useMemo(() => createProductionApi(apiClient), [apiClient]);
+  const api = useProductionApiWithSpatialPipeline({ apiClient, apiBaseUrl, getToken, projectId });
   const projectsApi = useMemo(() => createProjectsApi(apiClient), [apiClient]);
   const [project, setProject] = useState<ProductionProject | null>(null);
   const [error, setError] = useState("");
@@ -375,7 +399,7 @@ function InteractiveStoryRoutePage() {
   const projectId = readProjectId();
   const { apiClient, apiBaseUrl, getToken } = projectInteractiveStoryRoute.useRouteContext();
   const api = useMemo(() => createInteractiveStoryApi(apiClient), [apiClient]);
-  const productionApi = useMemo(() => createProductionApi(apiClient), [apiClient]);
+  const productionApi = useProductionApiWithSpatialPipeline({ apiClient, apiBaseUrl, getToken, projectId: projectId ?? 0 });
   const projectsApi = useMemo(() => createProjectsApi(apiClient), [apiClient]);
   const { project, loading, error } = useCurrentProjectContext();
   const productionProject = useMemo(

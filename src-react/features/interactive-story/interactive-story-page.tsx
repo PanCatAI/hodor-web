@@ -8,6 +8,8 @@ import {
   type ProductionFlowData,
   type ProductionGenerationData,
   type ProductionProject,
+  retrySpatialProductionStage,
+  type CanvasSpatialRetryStage,
 } from "@react/features/production";
 import type { InteractiveStoryApi, InteractiveStoryNodePositionUpdate } from "./interactive-story-api";
 import { InteractiveProductionStageInspector } from "./interactive-production-stage-inspector";
@@ -164,6 +166,29 @@ export function InteractiveStoryPage({
   }, []);
   const openWorldProfile = useCallback(() => setWorldProfileOpen(true), []);
 
+  const retryStage = useCallback(
+    async (storyNodeId: string, stage: CanvasSpatialRetryStage) => {
+      const node = graphRef.current?.nodes.find((candidate) => candidate.id === storyNodeId);
+      if (!node) throw new Error("互动剧情节点不存在");
+      const flow = flowsByScriptId[node.scriptId];
+      if (!flow) throw new Error("当前节点生产数据尚未载入");
+      const snapshot = await retrySpatialProductionStage({
+        api: productionApi,
+        projectId,
+        scriptId: node.scriptId,
+        stage,
+        flow,
+        coverages: coverageByScriptId[node.scriptId] ?? [],
+      });
+      setFlowsByScriptId((current) => ({ ...current, [node.scriptId]: snapshot.flow }));
+      if (snapshot.generation) {
+        setGenerationByScriptId((current) => ({ ...current, [node.scriptId]: snapshot.generation }));
+      }
+      setCoverageByScriptId((current) => ({ ...current, [node.scriptId]: snapshot.coverages }));
+    },
+    [coverageByScriptId, flowsByScriptId, productionApi, projectId],
+  );
+
   const refreshActiveStage = useCallback(async () => {
     const current = graphRef.current;
     if (current) await loadProductionForNodes(current);
@@ -258,6 +283,7 @@ export function InteractiveStoryPage({
           trailingControls={trailingControls}
           onSelectNode={setSelectedNodeId}
           onOpenStage={openStage}
+          onRetryStage={retryStage}
           onPositionsChange={savePositions}
           worldProfile={worldProfile}
           onOpenWorldProfile={openWorldProfile}

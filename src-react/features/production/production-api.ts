@@ -8,6 +8,11 @@ import type {
   RecommendedCut,
   ProductionPrevisRender,
   ProductionPrevisShotContract,
+  ProductionMarbleWorldJob,
+  ProductionSceneWorldAsset,
+  ProductionWorldRegistrationReceipt,
+  SceneWorldRegistration,
+  SceneWorldRegistrationAnchor,
   ProductionMediaItem,
   DerivedAsset,
   ImageFlowData,
@@ -30,6 +35,7 @@ import {
   parseRecommendedCut,
 } from "./production-contract-guards";
 import { sortCoverageAggregates } from "./coverage-selection";
+import type { ProductionSpatialPipelineStartAck } from "./production-spatial-pipeline-client";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -56,6 +62,38 @@ export interface AddStoryboardInput {
   videoDesc: string;
   shouldGenerateImage: number;
   src: string | null;
+}
+
+export interface StartMarbleWorldInput {
+  projectId: number;
+  storyboardId: number;
+  sourceSceneAssetId: number;
+  requestId: string;
+  prompt: string;
+  displayName?: string;
+  model?: string;
+  sourceImageUrl?: string;
+  sourceIsPanorama?: boolean;
+}
+
+export interface GenerateWorldRegistrationInput {
+  projectId: number;
+  scriptId: number;
+  worldAssetId: number;
+  expectedProviderWorldId: string;
+  anchors: SceneWorldRegistrationAnchor[];
+  worldToStage?: {
+    translation: [number, number, number];
+    rotationEuler: [number, number, number];
+  };
+}
+
+export interface SaveWorldRegistrationInput {
+  projectId: number;
+  scriptId: number;
+  worldAssetId: number;
+  expectedProviderWorldId: string;
+  registration: SceneWorldRegistration;
 }
 
 export interface ProductionApi {
@@ -97,6 +135,12 @@ export interface ProductionApi {
   updateStoryboardImage(id: number, url: string, flowId: number): Promise<void>;
   addStoryboard(projectId: number, scriptId: number, input: AddStoryboardInput): Promise<number>;
   updateAssetImage(id: number, url: string, flowId: number): Promise<void>;
+  startMarbleWorld(input: StartMarbleWorldInput): Promise<ProductionMarbleWorldJob>;
+  refreshMarbleWorld(projectId: number, storyboardId: number, jobId: string): Promise<ProductionMarbleWorldJob>;
+  getWorldRegistration(projectId: number, scriptId: number, worldAssetId: number): Promise<ProductionWorldRegistrationReceipt>;
+  generateWorldRegistration(input: GenerateWorldRegistrationInput): Promise<ProductionWorldRegistrationReceipt>;
+  saveWorldRegistration(input: SaveWorldRegistrationInput): Promise<ProductionWorldRegistrationReceipt>;
+  startSpatialPipeline?(scriptId: number, objective: string): Promise<Extract<ProductionSpatialPipelineStartAck, { success: true }>>;
   getMediaLibrary(projectId: number, scriptId: number): Promise<ProductionMediaItem[]>;
   submitCoverage(plan: CinematicCoveragePlan): Promise<CinematicCoverageAggregate>;
   listCoverage(projectId: number, scriptId: number): Promise<CinematicCoverageAggregate[]>;
@@ -272,6 +316,90 @@ function mapDerivedAsset(value: unknown): DerivedAsset {
   };
 }
 
+function mapSceneWorldRegistration(value: unknown): SceneWorldRegistration | null {
+  return isRecord(value) ? value as unknown as SceneWorldRegistration : null;
+}
+
+function mapSceneWorldAsset(value: unknown): ProductionSceneWorldAsset {
+  const record = asRecord(value);
+  const semantics = asRecord(record.semantics);
+  const rawStatus = asString(record.status);
+  const status = rawStatus === "submitting" || rawStatus === "running" || rawStatus === "succeeded" || rawStatus === "failed"
+    ? rawStatus
+    : "failed";
+  return {
+    id: asNumber(record.id),
+    projectId: asNumber(record.projectId),
+    sourceSceneAssetId: asNumber(record.sourceSceneAssetId),
+    storyboardId: asNumber(record.storyboardId),
+    provider: "worldlabs-marble",
+    providerWorldId: asString(record.providerWorldId),
+    model: asString(record.model),
+    status,
+    prompt: asString(record.prompt),
+    displayName: asString(record.displayName),
+    worldJobId: asString(record.worldJobId),
+    panoramaUrl: asString(record.panoramaUrl),
+    colliderMeshUrl: asString(record.colliderMeshUrl),
+    spzUrls: Object.fromEntries(
+      Object.entries(asRecord(record.spzUrls)).flatMap(([key, entry]) => typeof entry === "string" ? [[key, entry]] : []),
+    ),
+    thumbnailUrl: asString(record.thumbnailUrl),
+    caption: asString(record.caption),
+    semantics: {
+      metricScaleFactor: asNumber(semantics.metricScaleFactor, 1),
+      groundPlaneOffset: asNumber(semantics.groundPlaneOffset),
+      coordinateSystem: semantics.coordinateSystem === "opencv" ? "opencv" : "opengl",
+      registration: mapSceneWorldRegistration(semantics.registration),
+    },
+    error: asString(record.error),
+    createdAt: asString(record.createdAt),
+    updatedAt: asString(record.updatedAt),
+  };
+}
+
+function mapMarbleWorldJob(value: unknown): ProductionMarbleWorldJob {
+  const record = asRecord(value);
+  const rawStatus = asString(record.status);
+  const status = rawStatus === "submitting" || rawStatus === "running" || rawStatus === "succeeded" || rawStatus === "failed"
+    ? rawStatus
+    : "failed";
+  return {
+    jobId: asString(record.jobId),
+    requestId: asString(record.requestId),
+    projectId: asNumber(record.projectId),
+    storyboardId: asNumber(record.storyboardId),
+    sourceSceneAssetId: record.sourceSceneAssetId == null ? null : asNumber(record.sourceSceneAssetId),
+    provider: "worldlabs-marble",
+    model: asString(record.model),
+    status,
+    operationId: typeof record.operationId === "string" ? record.operationId : null,
+    prompt: asString(record.prompt),
+    displayName: asString(record.displayName),
+    sourceImageUrl: typeof record.sourceImageUrl === "string" ? record.sourceImageUrl : null,
+    sourceImage: isRecord(record.sourceImage) ? record.sourceImage : null,
+    sourceIsPanorama: record.sourceIsPanorama === true,
+    progress: record.progress == null ? null : asNumber(record.progress),
+    progressDescription: asString(record.progressDescription),
+    sceneAsset: isRecord(record.sceneAsset) ? record.sceneAsset : null,
+    error: typeof record.error === "string" ? record.error : null,
+    createdAt: asString(record.createdAt),
+    updatedAt: asString(record.updatedAt),
+  };
+}
+
+function mapWorldRegistrationReceipt(value: unknown): ProductionWorldRegistrationReceipt {
+  const record = asRecord(value);
+  const rawStatus = asString(record.status);
+  return {
+    worldAssetId: asNumber(record.worldAssetId),
+    providerWorldId: asString(record.providerWorldId),
+    status: rawStatus === "candidate" || rawStatus === "completed" ? rawStatus : "incomplete",
+    registration: mapSceneWorldRegistration(record.registration),
+    worldAsset: mapSceneWorldAsset(record.worldAsset),
+  };
+}
+
 function mapMedia(value: unknown): TrackMedia {
   const record = asRecord(value);
   const source = record.sources === "storyboard" || record.sources === "assets" ? record.sources : undefined;
@@ -384,6 +512,39 @@ function mapPrevisRender(value: unknown): ProductionPrevisRender {
     return record[key];
   };
   if (record.result !== null && !isRecord(record.result)) throw new Error("合同校验失败: previs.result 必须是对象或 null");
+  const resultRecord = isRecord(record.result) ? record.result : {};
+  const qualityRecord = asRecord(record.quality ?? resultRecord.quality);
+  const qualityStatus = asString(qualityRecord.status).toLowerCase();
+  const quality = qualityStatus
+    ? {
+        status: (["passed", "completed", "succeeded", "ready"].includes(qualityStatus)
+          ? "passed"
+          : qualityStatus === "failed"
+            ? "failed"
+            : "pending") as "pending" | "passed" | "failed",
+        ...(typeof qualityRecord.score === "number" && Number.isFinite(qualityRecord.score) ? { score: qualityRecord.score } : {}),
+        issues: asArray(qualityRecord.issues).flatMap((entry) => {
+          if (typeof entry === "string" && entry.trim()) return [{ severity: "error" as const, message: entry.trim() }];
+          const issue = asRecord(entry);
+          const message = asString(issue.message).trim();
+          if (!message) return [];
+          const code = asString(issue.code).trim();
+          return [{
+            ...(code ? { code } : {}),
+            severity: asString(issue.severity).toLowerCase() === "error" ? "error" as const : "warning" as const,
+            message,
+          }];
+        }),
+      }
+    : undefined;
+  const rawReport = record.report ?? resultRecord.report;
+  const reportRecord = asRecord(rawReport);
+  const reportUrl = typeof rawReport === "string" ? rawReport.trim() : asString(reportRecord.url).trim();
+  const reportKey = asString(reportRecord.key).trim();
+  const reportSummary = asString(reportRecord.summary).trim();
+  const report = reportUrl || reportKey || reportSummary
+    ? { ...(reportKey ? { key: reportKey } : {}), ...(reportUrl ? { url: reportUrl } : {}), ...(reportSummary ? { summary: reportSummary } : {}) }
+    : undefined;
   return {
     renderId: requiredString("renderId"),
     jobId: requiredString("jobId"),
@@ -396,6 +557,8 @@ function mapPrevisRender(value: unknown): ProductionPrevisRender {
     errorReason: requiredString("errorReason", true),
     contract: parsePrevisShotContract(record.contract),
     result: record.result === null ? null : parsePrevisResult(record.result),
+    ...(quality ? { quality } : {}),
+    ...(report ? { report } : {}),
     createdAt: requiredString("createdAt"),
     updatedAt: requiredString("updatedAt"),
   };
@@ -500,8 +663,14 @@ function selectPromptMedia(track: VideoTrack, mode: string): Array<{ id: number;
   return references;
 }
 
-export function createProductionApi(client: HodorApiClient): ProductionApi {
+export function createProductionApi(
+  client: HodorApiClient,
+  options: {
+    startSpatialPipeline?: ProductionApi["startSpatialPipeline"];
+  } = {},
+): ProductionApi {
   return {
+    ...(options.startSpatialPipeline ? { startSpatialPipeline: options.startSpatialPipeline } : {}),
     async listVideoModels() {
       const models = asArray(await post<unknown>(client, "/modelSelect/getModelList", { type: "video" }));
       return models.flatMap((value) => {
@@ -541,7 +710,7 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
         storyboardTable: asString(data.storyboardTable),
         storyboard: asArray(data.storyboard).map(mapStoryboard),
         ...(Array.isArray(data.worldAssets)
-          ? { worldAssets: data.worldAssets.filter(isRecord) as unknown as ProductionFlowData["worldAssets"] }
+          ? { worldAssets: data.worldAssets.map(mapSceneWorldAsset) }
           : {}),
         ...(Array.isArray(data.previsRenders)
           ? { previsRenders: data.previsRenders.map(mapPrevisRender) }
@@ -707,6 +876,34 @@ export function createProductionApi(client: HodorApiClient): ProductionApi {
 
     async updateAssetImage(id, url, flowId) {
       await post(client, "/production/assets/updateAssetsUrl", { id, url, flowId });
+    },
+
+    async startMarbleWorld(input) {
+      return mapMarbleWorldJob(await post<unknown>(client, "/directorDesk/startWorldGeneration", input));
+    },
+
+    async refreshMarbleWorld(projectId, storyboardId, jobId) {
+      return mapMarbleWorldJob(
+        await post<unknown>(client, "/directorDesk/refreshWorldGeneration", { projectId, storyboardId, jobId }),
+      );
+    },
+
+    async getWorldRegistration(projectId, scriptId, worldAssetId) {
+      return mapWorldRegistrationReceipt(
+        await post<unknown>(client, "/directorDesk/getWorldRegistration", { projectId, scriptId, worldAssetId }),
+      );
+    },
+
+    async generateWorldRegistration(input) {
+      return mapWorldRegistrationReceipt(
+        await post<unknown>(client, "/directorDesk/generateWorldRegistration", input),
+      );
+    },
+
+    async saveWorldRegistration(input) {
+      return mapWorldRegistrationReceipt(
+        await post<unknown>(client, "/directorDesk/saveWorldRegistration", input),
+      );
     },
 
     async getMediaLibrary(projectId, scriptId) {

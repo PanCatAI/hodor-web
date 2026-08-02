@@ -17,6 +17,7 @@ import type { InteractiveStoryNodePositionUpdate } from "./interactive-story-api
 import type { InteractiveStoryGraph } from "./types";
 import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
 import { WorldProfileNode, type WorldProfileNodeData } from "@react/features/world-profile/world-profile-node";
+import type { CanvasSpatialRetryStage } from "@react/features/production/spatial-production-retry";
 
 type AggregateNodeData = InteractiveStoryNodeData | InteractiveProductionStageNodeData | WorldProfileNodeData;
 type AggregateNode = Node<AggregateNodeData, "interactiveStory" | "interactiveProductionStage" | "worldProfile">;
@@ -31,6 +32,7 @@ export interface InteractiveStoryCanvasProps {
   trailingControls?: ReactNode;
   onSelectNode: (nodeId: string) => void;
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void;
+  onRetryStage: (storyNodeId: string, stage: CanvasSpatialRetryStage) => Promise<void>;
   onPositionsChange: (positions: InteractiveStoryNodePositionUpdate[]) => void;
   worldProfile: ProjectWorldProfile | null;
   onOpenWorldProfile: () => void;
@@ -44,6 +46,7 @@ function createAggregateNode(
   generationByScriptId: Record<number, ProductionGenerationData | undefined>,
   coverageByScriptId: Record<number, CinematicCoverageAggregate[] | undefined>,
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void,
+  onRetryStage: (storyNodeId: string, stage: CanvasSpatialRetryStage) => Promise<void>,
   worldProfile: ProjectWorldProfile | null,
   onOpenWorldProfile: () => void,
 ): AggregateNode {
@@ -97,6 +100,7 @@ function createAggregateNode(
       generation: generationByScriptId[storyNode.scriptId],
       coverages: coverageByScriptId[storyNode.scriptId],
       onOpenStage,
+      onRetryStage,
     },
   };
 }
@@ -108,12 +112,13 @@ function createNodes(
   generationByScriptId: Record<number, ProductionGenerationData | undefined>,
   coverageByScriptId: Record<number, CinematicCoverageAggregate[] | undefined>,
   onOpenStage: (storyNodeId: string, stage: InteractiveProductionStage) => void,
+  onRetryStage: (storyNodeId: string, stage: CanvasSpatialRetryStage) => Promise<void>,
   worldProfile: ProjectWorldProfile | null,
   onOpenWorldProfile: () => void,
 ): AggregateNode[] {
   const topology = buildInteractiveProductionTopology(graph);
   return topology.nodes.map((node) =>
-    createAggregateNode(node, graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageByScriptId, onOpenStage, worldProfile, onOpenWorldProfile),
+    createAggregateNode(node, graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageByScriptId, onOpenStage, onRetryStage, worldProfile, onOpenWorldProfile),
   );
 }
 
@@ -142,7 +147,14 @@ export function reconcileInteractiveStoryCanvasNodes<T extends Node>(current: T[
     : reconciled;
 }
 
-const coverageBackedStages = new Set<InteractiveProductionStage>(["blocking", "coverage", "previs", "formalGeneration", "multicamEdit"]);
+const coverageBackedStages = new Set<InteractiveProductionStage>([
+  "blocking",
+  "coverage",
+  "previs",
+  "previsValidation",
+  "formalGeneration",
+  "multicamEdit",
+]);
 
 export function patchInteractiveStoryCoverageNodes<T extends Node>(
   current: T[],
@@ -215,6 +227,7 @@ export function InteractiveStoryCanvas({
   trailingControls,
   onSelectNode,
   onOpenStage,
+  onRetryStage,
   onPositionsChange,
   worldProfile,
   onOpenWorldProfile,
@@ -226,7 +239,7 @@ export function InteractiveStoryCanvas({
   const openWorldProfile = useCallback(() => openWorldProfileRef.current(), []);
   const coverageRef = useRef(coverageByScriptId);
   const [initialNodes] = useState(() =>
-    createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageByScriptId, onOpenStage, worldProfileRef.current, openWorldProfile),
+    createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageByScriptId, onOpenStage, onRetryStage, worldProfileRef.current, openWorldProfile),
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<AggregateNode>(initialNodes);
   const edges = useMemo(() => createEdges(graph), [graph]);
@@ -240,9 +253,9 @@ export function InteractiveStoryCanvas({
   );
 
   useEffect(() => {
-    const desired = createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageRef.current, onOpenStage, worldProfileRef.current, openWorldProfile);
+    const desired = createNodes(graph, selectedNodeId, flowsByScriptId, generationByScriptId, coverageRef.current, onOpenStage, onRetryStage, worldProfileRef.current, openWorldProfile);
     setNodes((current) => reconcileInteractiveStoryCanvasNodes(current, desired));
-  }, [flowsByScriptId, generationByScriptId, graph, onOpenStage, openWorldProfile, selectedNodeId, setNodes]);
+  }, [flowsByScriptId, generationByScriptId, graph, onOpenStage, onRetryStage, openWorldProfile, selectedNodeId, setNodes]);
 
   useEffect(() => {
     const previous = coverageRef.current;

@@ -3,13 +3,15 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
-import { ArrowRight, Copy, Download, Expand, ImageIcon, LoaderCircle, Pencil, Play, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Copy, Download, Expand, FileOutput, ImageIcon, LoaderCircle, Pencil, Play, Plus, Trash2, X } from "lucide-react";
 
 import type { DerivedAsset, ProductionAsset, ProductionFlowData, StoryboardItem } from "./types";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
 import { ProductionTextNodeEditor } from "./production-text-node-editor";
 import { WorldProfileNode } from "@react/features/world-profile/world-profile-node";
 import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
+import type { SpatialProductionStage } from "./spatial-production-stages";
+import { isCanvasSpatialRetryStage, spatialStageActionLabel, type CanvasSpatialRetryStage } from "./spatial-production-retry";
 
 export interface ProductionNodeHandlers {
   onTextChange: (field: "script" | "scriptPlan" | "storyboardTable", value: string) => void;
@@ -29,6 +31,7 @@ export interface ProductionNodeHandlers {
   onPreviewStoryboards: () => void;
   onOpenWorkbench: () => void;
   onOpenWorldProfile: () => void;
+  onRetrySpatialStage: (stage: CanvasSpatialRetryStage) => Promise<void>;
 }
 
 export interface ProductionNodeData extends Record<string, unknown>, ProductionNodeHandlers {
@@ -36,6 +39,7 @@ export interface ProductionNodeData extends Record<string, unknown>, ProductionN
   position: { x: number; y: number };
   flow: ProductionFlowData;
   worldProfile: ProjectWorldProfile | null;
+  spatialStage?: SpatialProductionStage;
 }
 
 function stateLabel(state: DerivedAsset["state"] | StoryboardItem["state"]) {
@@ -361,6 +365,7 @@ function AssetsNode({ data }: NodeProps) {
   return (
     <NodeCard id="assets" position={nodeData.position} className="w-fit cursor-default select-text">
       <Handle id="assets-target" type="target" position={Position.Top} />
+      <Handle id="assets-source" type="source" position={Position.Right} />
       <NodeTitle label="衍生资产" />
       <div className="mt-2 flex flex-col">
         {nodeData.flow.assets.length
@@ -383,6 +388,76 @@ function AssetsNode({ data }: NodeProps) {
             ))
           : null}
       </div>
+    </NodeCard>
+  );
+}
+
+const spatialStageStateContent: Record<SpatialProductionStage["state"], { label: string; className: string }> = {
+  blocked: { label: "受阻", className: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+  running: { label: "处理中", className: "border-blue-500/40 bg-blue-500/10 text-blue-300" },
+  ready: { label: "就绪", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+  failed: { label: "失败", className: "border-red-500/40 bg-red-500/10 text-red-300" },
+};
+
+function SpatialStageNode({ data }: NodeProps) {
+  const nodeData = data as ProductionNodeData;
+  const spatialStage = nodeData.spatialStage;
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState("");
+  if (!spatialStage) return null;
+  const state = spatialStageStateContent[spatialStage.state];
+  const retryStage = isCanvasSpatialRetryStage(spatialStage.id) ? spatialStage.id : null;
+  return (
+    <NodeCard id={spatialStage.id} position={nodeData.position} className="w-[330px] cursor-default select-text">
+      <MainChainHandles id={spatialStage.id} />
+      <header className="production-node-drag-handle flex cursor-grab items-start justify-between gap-3 active:cursor-grabbing">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <FileOutput className="size-4 text-violet-300" />
+          {spatialStage.label}
+        </div>
+        <span className={`rounded border px-2 py-1 text-[11px] ${state.className}`}>{state.label}</span>
+      </header>
+      <p className="mt-3 text-xs leading-5 text-slate-300">{spatialStage.summary}</p>
+      {spatialStage.blockingReason ? (
+        <div role="alert" className="mt-3 flex gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-5 text-amber-200">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+          <span>{spatialStage.blockingReason}</span>
+        </div>
+      ) : null}
+      {spatialStage.artifacts.length ? (
+        <ul className="mt-3 grid gap-1.5" aria-label={`${spatialStage.label}产物`}>
+          {spatialStage.artifacts.slice(0, 4).map((artifact, index) => (
+            <li key={`${artifact.label}-${artifact.url ?? artifact.detail ?? index}`} className="min-w-0 rounded border border-slate-700 bg-slate-900/70 px-2.5 py-2 text-[11px] text-slate-300">
+              {artifact.url ? (
+                <a className="block truncate text-blue-300 hover:underline" href={artifact.url} target="_blank" rel="noreferrer" title={artifact.url}>
+                  {artifact.label}
+                </a>
+              ) : (
+                <span>{artifact.label}</span>
+              )}
+              {artifact.detail ? <span className="ml-1 text-slate-500">{artifact.detail}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {retryError ? <div role="alert" className="mt-3 text-xs text-red-300">{retryError}</div> : null}
+      {retryStage ? (
+        <button
+          type="button"
+          disabled={retrying}
+          aria-label={spatialStageActionLabel(retryStage, spatialStage.label)}
+          onClick={(event) => {
+            event.stopPropagation();
+            setRetrying(true);
+            setRetryError("");
+            void nodeData.onRetrySpatialStage(retryStage)
+              .catch((error) => setRetryError(error instanceof Error ? error.message : "阶段重试失败"))
+              .finally(() => setRetrying(false));
+          }}
+          className="nodrag mt-3 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50">
+          {retrying ? "处理中" : spatialStageActionLabel(retryStage, spatialStage.label)}
+        </button>
+      ) : null}
     </NodeCard>
   );
 }
@@ -614,6 +689,7 @@ function ProductionNodeComponent(props: NodeProps) {
   if (data.id === "storyboardTable") return <TextNode id="storyboardTable" data={data} label="分镜表" placeholder="暂无数据" />;
   if (data.id === "assets") return <AssetsNode {...props} />;
   if (data.id === "storyboard") return <StoryboardNode {...props} />;
+  if (data.spatialStage) return <SpatialStageNode {...props} />;
   return <WorkbenchNode {...props} />;
 }
 

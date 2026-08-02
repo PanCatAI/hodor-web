@@ -13,6 +13,24 @@ const emptyFlow: ProductionFlowData = {
 };
 
 describe("interactive production stage node", () => {
+  it("reads the scene master state from scene assets", () => {
+    expect(
+      describeInteractiveProductionStage({
+        storyNodeId: "scene-1",
+        storyTitle: "锁住的房间",
+        stage: "sceneMaster",
+        flow: {
+          ...emptyFlow,
+          assets: [{
+            id: 8, name: "房间母版", type: "scene", prompt: "", desc: "", src: "https://example.test/scene.jpg",
+            state: "completed", errorReason: "", derive: [],
+          }],
+        },
+        onOpenStage: () => undefined,
+      }),
+    ).toEqual({ state: "completed", summary: "1 个场景母版可用" });
+  });
+
   it("keeps Blender previs running while any camera is still queued", () => {
     const coverage = {
       status: "running",

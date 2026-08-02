@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { HodorApiClient } from "@react/lib/api/client";
 import { createProductionApi, normalizeProductionStatus, normalizeProductionVideoMode } from "./production-api";
+import type { SceneWorldRegistrationAnchor } from "./types";
 
 function createClient() {
   return {
@@ -56,11 +57,145 @@ function validCoverageAggregate() {
 }
 
 describe("production API adapter", () => {
+  it("exposes the injected spatial pipeline socket starter", async () => {
+    const client = createClient();
+    const startSpatialPipeline = vi.fn(async () => ({ success: true, accepted: true, projectId: 7, scriptId: 12, currentStage: "sceneMaster" } as const));
+    const api = createProductionApi(client, { startSpatialPipeline });
+
+    await expect(api.startSpatialPipeline?.(12, "启动场景母版")).resolves.toEqual(
+      expect.objectContaining({ accepted: true, currentStage: "sceneMaster" }),
+    );
+    expect(startSpatialPipeline).toHaveBeenCalledWith(12, "启动场景母版");
+    expect(client.request).not.toHaveBeenCalled();
+  });
+
+  it("connects Marble world and spatial registration commands to Director Desk routes", async () => {
+    const client = createClient();
+    const job = {
+      jobId: "job-81",
+      requestId: "production-world:7:12:31:11:start",
+      projectId: 7,
+      storyboardId: 31,
+      sourceSceneAssetId: 11,
+      provider: "worldlabs-marble",
+      model: "marble-1.1",
+      status: "running",
+      operationId: "operation-81",
+      prompt: "雨夜医院大厅",
+      displayName: "医院大厅",
+      sourceImageUrl: null,
+      sourceImage: null,
+      sourceIsPanorama: false,
+      progress: 25,
+      progressDescription: "重建空间",
+      sceneAsset: null,
+      error: null,
+      createdAt: "2026-08-03T00:00:00.000Z",
+      updatedAt: "2026-08-03T00:01:00.000Z",
+    };
+    const registration = {
+      schemaVersion: "1",
+      status: "calibrated",
+      coordinateSystem: "opengl",
+      worldToStage: { translation: [0, 0, 0], rotationEuler: [0, 0, 0] },
+      landmarks: [{ landmarkId: "scene-11", name: "医院大厅", position: [0, 0, 0], facing: [0, 1, 0] }],
+      stagingZones: [{ zoneId: "auto-staging", name: "自动表演区", min: [-2, -2, -0.5], max: [2, 2, 3] }],
+      cameraZones: [{ zoneId: "auto-camera", name: "自动机位区", min: [-6, -6, -1], max: [6, 6, 4] }],
+      provenance: {
+        provider: "worldlabs-marble",
+        providerWorldId: "world-81",
+        generatedAt: "2026-08-03T00:02:00.000Z",
+        semantics: { metricScaleFactor: 1, groundPlaneOffset: 0, coordinateSystem: "opengl" },
+        anchors: [{ landmarkId: "scene-11", evidence: { source: "scene-master", reference: "scene-asset:11" } }],
+      },
+    };
+    const receipt = {
+      worldAssetId: 81,
+      providerWorldId: "world-81",
+      status: "candidate",
+      registration,
+      worldAsset: {},
+    };
+    vi.mocked(client.request)
+      .mockResolvedValueOnce(job)
+      .mockResolvedValueOnce(job)
+      .mockResolvedValueOnce({ ...receipt, status: "incomplete", registration: null })
+      .mockResolvedValueOnce(receipt)
+      .mockResolvedValueOnce({ ...receipt, status: "completed" });
+    const api = createProductionApi(client);
+    const anchor = {
+      landmarkId: "scene-11",
+      name: "医院大厅",
+      position: [0, 0, 0],
+      facing: [0, 1, 0],
+      evidence: { source: "scene-master", reference: "scene-asset:11" },
+    } as SceneWorldRegistrationAnchor;
+
+    await api.startMarbleWorld({
+      projectId: 7,
+      storyboardId: 31,
+      sourceSceneAssetId: 11,
+      requestId: "production-world:7:12:31:11:start",
+      prompt: "雨夜医院大厅",
+      displayName: "医院大厅",
+      model: "marble-1.1",
+      sourceIsPanorama: false,
+    });
+    await api.refreshMarbleWorld(7, 31, "job-81");
+    await api.getWorldRegistration(7, 12, 81);
+    const candidate = await api.generateWorldRegistration({
+      projectId: 7,
+      scriptId: 12,
+      worldAssetId: 81,
+      expectedProviderWorldId: "world-81",
+      anchors: [anchor],
+    });
+    await api.saveWorldRegistration({
+      projectId: 7,
+      scriptId: 12,
+      worldAssetId: 81,
+      expectedProviderWorldId: "world-81",
+      registration: candidate.registration!,
+    });
+
+    expect(client.request).toHaveBeenNthCalledWith(1, "/directorDesk/startWorldGeneration", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: 7,
+        storyboardId: 31,
+        sourceSceneAssetId: 11,
+        requestId: "production-world:7:12:31:11:start",
+        prompt: "雨夜医院大厅",
+        displayName: "医院大厅",
+        model: "marble-1.1",
+        sourceIsPanorama: false,
+      }),
+    });
+    expect(client.request).toHaveBeenNthCalledWith(2, "/directorDesk/refreshWorldGeneration", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, storyboardId: 31, jobId: "job-81" }),
+    });
+    expect(client.request).toHaveBeenNthCalledWith(3, "/directorDesk/getWorldRegistration", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, scriptId: 12, worldAssetId: 81 }),
+    });
+    expect(client.request).toHaveBeenNthCalledWith(4, "/directorDesk/generateWorldRegistration", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, scriptId: 12, worldAssetId: 81, expectedProviderWorldId: "world-81", anchors: [anchor] }),
+    });
+    expect(client.request).toHaveBeenNthCalledWith(5, "/directorDesk/saveWorldRegistration", {
+      method: "POST",
+      body: JSON.stringify({ projectId: 7, scriptId: 12, worldAssetId: 81, expectedProviderWorldId: "world-81", registration }),
+    });
+  });
+
   it("keeps the existing Blender previs submit, status and local retry routes", async () => {
     const client = createClient();
     const render = {
       renderId: "render-1", jobId: "job-1", projectId: 7, scriptId: 12, storyboardId: 31,
       status: "rendering", progress: 35, attempt: 1, errorReason: "",
+      quality: { status: "passed", score: 0.94, issues: [] },
+      report: { key: "reports/render-1.json", url: "https://example.test/render-1-report.json", summary: "轴线与穿模检查通过" },
       contract: validPrevisContract(), result: null, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z",
     };
     vi.mocked(client.request).mockResolvedValueOnce(render).mockResolvedValueOnce([render]).mockResolvedValueOnce(render).mockResolvedValueOnce(render);
@@ -68,7 +203,7 @@ describe("production API adapter", () => {
     const contract = validPrevisContract() as never;
 
     await api.submitPrevis(contract);
-    await api.listPrevisRenders(7, 12);
+    const listed = await api.listPrevisRenders(7, 12);
     await api.getPrevisStatus(7, "render-1");
     await api.retryPrevis(7, "render-1");
 
@@ -76,6 +211,10 @@ describe("production API adapter", () => {
     expect(client.request).toHaveBeenNthCalledWith(2, "/production/workbench/previsList", { method: "POST", body: JSON.stringify({ projectId: 7, scriptId: 12 }) });
     expect(client.request).toHaveBeenNthCalledWith(3, "/production/workbench/previsStatus", { method: "POST", body: JSON.stringify({ projectId: 7, renderId: "render-1" }) });
     expect(client.request).toHaveBeenNthCalledWith(4, "/production/workbench/previsRetry", { method: "POST", body: JSON.stringify({ projectId: 7, renderId: "render-1" }) });
+    expect(listed[0]).toEqual(expect.objectContaining({
+      quality: { status: "passed", score: 0.94, issues: [] },
+      report: { key: "reports/render-1.json", url: "https://example.test/render-1-report.json", summary: "轴线与穿模检查通过" },
+    }));
   });
 
   it("maps cinematic coverage domain responses and scoped commands", async () => {

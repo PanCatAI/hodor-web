@@ -18,7 +18,7 @@ function flowData(): ProductionFlowData {
     ],
     worldAssets: [
       {
-        id: 81, projectId: 7, sourceSceneAssetId: 10, storyboardId: 31, provider: "worldlabs-marble", providerWorldId: "world-lobby", model: "marble-1.1", status: "succeeded", prompt: "雨夜医院大厅", displayName: "医院大厅", worldJobId: "job-81", panoramaUrl: "https://example.test/lobby-pano.jpg", colliderMeshUrl: "https://example.test/lobby.glb", spzUrls: { "500k": "https://example.test/lobby-500k.spz" }, thumbnailUrl: "https://example.test/lobby-thumb.jpg", caption: "医院大厅", semantics: { metricScaleFactor: 1.4, groundPlaneOffset: -0.25 }, error: "", createdAt: "2026-07-27T01:00:00.000Z", updatedAt: "2026-07-27T01:00:00.000Z",
+        id: 81, projectId: 7, sourceSceneAssetId: 10, storyboardId: 31, provider: "worldlabs-marble", providerWorldId: "world-lobby", model: "marble-1.1", status: "succeeded", prompt: "雨夜医院大厅", displayName: "医院大厅", worldJobId: "job-81", panoramaUrl: "https://example.test/lobby-pano.jpg", colliderMeshUrl: "https://example.test/lobby.glb", spzUrls: { "500k": "https://example.test/lobby-500k.spz" }, thumbnailUrl: "https://example.test/lobby-thumb.jpg", caption: "医院大厅", semantics: { metricScaleFactor: 1.4, groundPlaneOffset: -0.25, coordinateSystem: "opengl", registration: null }, error: "", createdAt: "2026-07-27T01:00:00.000Z", updatedAt: "2026-07-27T01:00:00.000Z",
       },
     ],
   };

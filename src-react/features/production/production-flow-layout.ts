@@ -3,7 +3,24 @@ import type { Edge, Node } from "@xyflow/react";
 import { topologyLevelLayout } from "@react/features/canvas";
 import type { FlowNodePosition } from "./types";
 
-export const productionNodeOrder = ["worldProfile", "script", "scriptPlan", "assets", "storyboardTable", "storyboard", "workbench"] as const;
+export const productionNodeOrder = [
+  "worldProfile",
+  "script",
+  "scriptPlan",
+  "assets",
+  "storyboardTable",
+  "storyboard",
+  "sceneMaster",
+  "marbleWorld",
+  "spatialRegistration",
+  "blocking",
+  "coverage",
+  "previs",
+  "previsValidation",
+  "formalGeneration",
+  "multicamEdit",
+  "workbench",
+] as const;
 
 export type ProductionFlowNodeId = (typeof productionNodeOrder)[number];
 
@@ -24,6 +41,15 @@ export const productionNodeLabels: Record<ProductionFlowNodeId, string> = {
   assets: "资产工厂",
   storyboardTable: "分镜表",
   storyboard: "分镜图",
+  sceneMaster: "场景母版",
+  marbleWorld: "Marble 世界",
+  spatialRegistration: "空间注册",
+  blocking: "场面调度",
+  coverage: "镜头覆盖",
+  previs: "Blender 预演",
+  previsValidation: "预演校验",
+  formalGeneration: "正式生成",
+  multicamEdit: "多机位剪辑",
   workbench: "视频工作台",
 };
 
@@ -71,12 +97,22 @@ export const productionConnections = [
     targetHandle: "storyboard-target",
   },
   {
-    id: "storyboard-workbench",
+    id: "storyboard-sceneMaster",
     source: "storyboard",
-    target: "workbench",
+    target: "sceneMaster",
     sourceHandle: "storyboard-source",
-    targetHandle: "workbench-target",
+    targetHandle: "sceneMaster-target",
   },
+  { id: "assets-sceneMaster", source: "assets", target: "sceneMaster", sourceHandle: "assets-source", targetHandle: "sceneMaster-target" },
+  { id: "sceneMaster-marbleWorld", source: "sceneMaster", target: "marbleWorld", sourceHandle: "sceneMaster-source", targetHandle: "marbleWorld-target" },
+  { id: "marbleWorld-spatialRegistration", source: "marbleWorld", target: "spatialRegistration", sourceHandle: "marbleWorld-source", targetHandle: "spatialRegistration-target" },
+  { id: "spatialRegistration-blocking", source: "spatialRegistration", target: "blocking", sourceHandle: "spatialRegistration-source", targetHandle: "blocking-target" },
+  { id: "blocking-coverage", source: "blocking", target: "coverage", sourceHandle: "blocking-source", targetHandle: "coverage-target" },
+  { id: "coverage-previs", source: "coverage", target: "previs", sourceHandle: "coverage-source", targetHandle: "previs-target" },
+  { id: "previs-previsValidation", source: "previs", target: "previsValidation", sourceHandle: "previs-source", targetHandle: "previsValidation-target" },
+  { id: "previsValidation-formalGeneration", source: "previsValidation", target: "formalGeneration", sourceHandle: "previsValidation-source", targetHandle: "formalGeneration-target" },
+  { id: "formalGeneration-multicamEdit", source: "formalGeneration", target: "multicamEdit", sourceHandle: "formalGeneration-source", targetHandle: "multicamEdit-target" },
+  { id: "multicamEdit-workbench", source: "multicamEdit", target: "workbench", sourceHandle: "multicamEdit-source", targetHandle: "workbench-target" },
 ] as const;
 
 const fallbackNodeSize: ProductionNodeSize = { width: 150, height: 50 };
@@ -89,7 +125,16 @@ const initialProductionLayout: Record<ProductionFlowNodeId, FlowNodePosition> = 
   assets: { x: 1_200, y: 4_000 },
   storyboardTable: { x: 1_800, y: 0 },
   storyboard: { x: 2_500, y: 0 },
-  workbench: { x: 3_000, y: 0 },
+  sceneMaster: { x: 3_000, y: 0 },
+  marbleWorld: { x: 3_390, y: 0 },
+  spatialRegistration: { x: 3_780, y: 0 },
+  blocking: { x: 4_170, y: 0 },
+  coverage: { x: 4_560, y: 0 },
+  previs: { x: 4_950, y: 0 },
+  previsValidation: { x: 5_340, y: 0 },
+  formalGeneration: { x: 5_730, y: 0 },
+  multicamEdit: { x: 6_120, y: 0 },
+  workbench: { x: 6_510, y: 0 },
 };
 
 function finitePositive(value: unknown, fallback: number): number {
