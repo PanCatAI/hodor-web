@@ -7,6 +7,7 @@ import type {
   ImageFlowData,
   ProductionState,
   ProductionVideoMode,
+  ProductionVideoReferenceMode,
   ProductionVideoModelDetail,
   ProductionVideoModelOption,
   ScriptSummary,
@@ -106,13 +107,12 @@ function asNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(number) ? number : fallback;
 }
 
-const referenceModes = new Set(["videoReference", "imageReference", "audioReference", "textReference"]);
+const referenceModePattern = /^(videoReference|imageReference|audioReference|textReference)(?::[1-9]\d*)?$/;
 
 export function normalizeProductionVideoMode(value: unknown): ProductionVideoMode | null {
   if (Array.isArray(value)) {
     const modes = value.filter(
-      (item): item is "videoReference" | "imageReference" | "audioReference" | "textReference" =>
-        typeof item === "string" && referenceModes.has(item),
+      (item): item is ProductionVideoReferenceMode => typeof item === "string" && referenceModePattern.test(item),
     );
     return modes.length ? modes : null;
   }

@@ -59,6 +59,16 @@ describe("production API adapter", () => {
     expect(normalizeProductionVideoMode("singleImage")).toBe("singleImage");
     expect(normalizeProductionVideoMode(["imageReference", "audioReference"])).toEqual(["imageReference", "audioReference"]);
     expect(normalizeProductionVideoMode('["videoReference","textReference"]')).toEqual(["videoReference", "textReference"]);
+    expect(normalizeProductionVideoMode(["imageReference:9", "videoReference:3", "audioReference:3"])).toEqual([
+      "imageReference:9",
+      "videoReference:3",
+      "audioReference:3",
+    ]);
+    expect(normalizeProductionVideoMode('["imageReference:9","audioReference:3"]')).toEqual([
+      "imageReference:9",
+      "audioReference:3",
+    ]);
+    expect(normalizeProductionVideoMode(["imageReference:0", "audioReference:-1"])).toBeNull();
     expect(normalizeProductionVideoMode(["unknownReference"])).toBeNull();
   });
 

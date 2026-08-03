@@ -12,7 +12,8 @@ export interface ProductionProject {
   videoAudio?: boolean;
 }
 
-export type ProductionVideoReferenceMode = "videoReference" | "imageReference" | "audioReference" | "textReference";
+export type ProductionVideoReferenceKind = "videoReference" | "imageReference" | "audioReference" | "textReference";
+export type ProductionVideoReferenceMode = ProductionVideoReferenceKind | `${ProductionVideoReferenceKind}:${number}`;
 export type ProductionVideoMode = string | ProductionVideoReferenceMode[];
 
 export interface ProductionVideoModelOption {
