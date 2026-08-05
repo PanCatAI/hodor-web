@@ -39,7 +39,10 @@ export default defineConfig({
       "Origin-Agent-Cluster": "?1",
     },
     proxy: {
-      "/api": "http://127.0.0.1:10588",
+      "/api": {
+        target: "http://127.0.0.1:10588",
+        ws: true,
+      },
       "/assets": "http://127.0.0.1:10588",
       "/oss": "http://127.0.0.1:10588",
       "/skills": "http://127.0.0.1:10588",

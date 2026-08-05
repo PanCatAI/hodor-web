@@ -421,7 +421,8 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
     if (socket) return socket;
     socket = (options.socketFactory ?? defaultSocketFactory)(resolveAgentSocketUrl(options.apiBaseUrl, options.agentType), {
       autoConnect: false,
-      transports: ["websocket", "polling"],
+      path: "/api/socket.io",
+      transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: Number.POSITIVE_INFINITY,
       reconnectionDelay: 1000,

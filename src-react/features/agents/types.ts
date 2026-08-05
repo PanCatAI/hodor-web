@@ -45,7 +45,8 @@ export interface AgentSocket {
 
 export interface AgentSocketOptions {
   autoConnect: false;
-  transports: ["websocket", "polling"];
+  path: "/api/socket.io";
+  transports: ["polling", "websocket"];
   reconnection: true;
   reconnectionAttempts: number;
   reconnectionDelay: number;

@@ -68,6 +68,8 @@ describe("agent chat client", () => {
       "http://localhost:10588/api/socket/scriptAgent",
       expect.objectContaining({
         autoConnect: false,
+        path: "/api/socket.io",
+        transports: ["polling", "websocket"],
         auth: { token: "Bearer pancat-session", isolationKey: "7:scriptAgent", projectId: 7 },
       }),
     );
