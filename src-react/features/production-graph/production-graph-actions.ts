@@ -12,8 +12,8 @@ import {
  * 六项动作派发器（前端）。
  *
  * 这是网页动作与 Agent 动作的共同入口：UI 按钮和 Agent 适配器都只能调用本函数，
- * 服务端在收到 emit("productionGraph:action", input, context) 后必须通过同一 ProductionActionRegistry
- * 处理。前端不实现业务规则，只负责：
+ * 服务端在收到 emit("productionGraph:action", { graphId, revision, selectedNodeId, checkpointId, action }) 后
+ * 必须通过同一 ProductionActionRegistry 处理。前端不实现业务规则，只负责：
  * - 校验 feature flag
  * - 校验 idempotencyKey/expectedRevision 形状
  * - 通过 store.beginDispatch 防止重复派发
@@ -148,16 +148,26 @@ export function createProductionGraphActionDispatcher(
             });
           }, 30_000);
           try {
-            socket.emit(ACTION_EVENT, { input, context }, (response: ProductionActionAck | undefined) => {
-              if (settled) return;
-              settled = true;
-              clearTimeout(timer);
-              if (!response) {
-                resolve({ ok: false, error: { code: "PRODUCTION_ACTION_UNBOUND", message: "未收到 ack", status: 502 } });
-                return;
-              }
-              resolve(response);
-            });
+            socket.emit(
+              ACTION_EVENT,
+              {
+                graphId: context.graphId,
+                revision: context.revision,
+                selectedNodeId: context.selectedNodeId,
+                checkpointId: context.checkpointId,
+                action: input,
+              },
+              (response: ProductionActionAck | undefined) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                if (!response) {
+                  resolve({ ok: false, error: { code: "PRODUCTION_ACTION_UNBOUND", message: "未收到 ack", status: 502 } });
+                  return;
+                }
+                resolve(response);
+              },
+            );
           } catch (error) {
             if (settled) return;
             settled = true;

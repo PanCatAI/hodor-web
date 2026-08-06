@@ -73,7 +73,7 @@ describe("ProductionGraphActionDispatcher", () => {
     expect(socket.emitted).toHaveLength(0);
   });
 
-  it("emits action event with input + context and accepts ack result", async () => {
+  it("emits action event with flat payload expected by backend and accepts ack result", async () => {
     const store = createProductionGraphStore();
     store.applySnapshot(fixture.snapshots.p1Initial);
     const socket = createRecordingSocket();
@@ -104,15 +104,20 @@ describe("ProductionGraphActionDispatcher", () => {
     expect(ack.result?.action).toBe("startReady");
     expect(socket.emitted).toHaveLength(1);
     expect(socket.emitted[0].event).toBe("productionGraph:action");
-    const payload = socket.emitted[0].payload as { input: unknown; context: unknown };
-    expect(payload.input).toMatchObject({ action: "startReady", nodeIds: ["node-a"] });
-    expect(payload.context).toMatchObject({
-      graphId: "graph-p1",
-      revision: 1,
-      selectedNodeId: "node-a",
-      featureEnabled: true,
-      paidGenerationUsd: 0,
-    });
+    const payload = socket.emitted[0].payload as {
+      graphId: string;
+      revision: number;
+      selectedNodeId: string | null;
+      checkpointId: string | null;
+      action: { action: string; idempotencyKey: string; expectedRevision: number; nodeIds: string[] };
+    };
+    expect(payload.graphId).toBe("graph-p1");
+    expect(payload.revision).toBe(1);
+    expect(payload.selectedNodeId).toBe("node-a");
+    expect(payload.checkpointId).toBeNull();
+    expect(payload.action).toMatchObject({ action: "startReady", nodeIds: ["node-a"] });
+    expect(payload.action.idempotencyKey).toBe("key-1");
+    expect(payload.action.expectedRevision).toBe(1);
 
     expect(store.getSnapshot().appliedIdempotencyKeys.has("key-1")).toBe(true);
   });

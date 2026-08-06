@@ -98,7 +98,7 @@ describe("ProductionGraph v1 reconnect contract", () => {
     const adapter = createProductionGraphSocketAdapter({
       store,
       socket,
-      requestSnapshotOnReconnect: (target) => target.emit("productionGraph:readGraph"),
+      requestSnapshotOnReconnect: (target) => target.emit("productionGraph:read", { graphId: "graph-p1" }),
     });
     adapter.attach();
 

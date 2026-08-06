@@ -396,6 +396,15 @@ export function ProductionGraphConsole({
   const snapshot = state.snapshot;
   const [notice, setNotice] = useState<{ action: ProductionGraphActionName; ok: boolean; error?: string } | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Local React state mirrors contextBridge so clicking a node actually triggers a re-render
+  // and the Inspector panel updates. The contextBridge remains the single source of truth for
+  // chat context; we sync it back whenever the selection changes.
+  const [selectedNodeId, setSelectedNodeIdState] = useState<string | null>(
+    () => contextBridge.getSelection().selectedNodeId,
+  );
+  const [checkpointId, setCheckpointIdState] = useState<string | null>(
+    () => contextBridge.getSelection().checkpointId,
+  );
 
   useEffect(() => {
     return () => {
@@ -408,7 +417,6 @@ export function ProductionGraphConsole({
     return topologicalOrder(snapshot.nodes, snapshot.edges);
   }, [snapshot]);
 
-  const selectedNodeId = contextBridge.getSelection().selectedNodeId;
   const selectedNode = useMemo(() => {
     if (!snapshot || !selectedNodeId) return null;
     return snapshot.nodes.find((node) => node.id === selectedNodeId) ?? null;
@@ -416,12 +424,15 @@ export function ProductionGraphConsole({
 
   const selectNode = useCallback(
     (node: ProductionGraphNode) => {
+      const nextCheckpointId = node.checkpointId ?? checkpointId;
+      setSelectedNodeIdState(node.id);
+      setCheckpointIdState(nextCheckpointId);
       contextBridge.setSelection({
         selectedNodeId: node.id,
-        checkpointId: node.checkpointId ?? contextBridge.getSelection().checkpointId,
+        checkpointId: nextCheckpointId,
       });
     },
-    [contextBridge],
+    [checkpointId, contextBridge],
   );
 
   const handleAction = useCallback((action: ProductionGraphActionName, ack: { ok: boolean; error?: string }) => {

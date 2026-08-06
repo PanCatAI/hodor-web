@@ -193,7 +193,7 @@ describe("ProductionGraphSocketAdapter reconnect", () => {
       socket,
       requestSnapshotOnReconnect: (target) => {
         requestSpy();
-        target.emit("productionGraph:readGraph");
+        target.emit("productionGraph:read", { graphId: "graph-p1" });
       },
     });
     adapter.attach();
@@ -219,14 +219,50 @@ describe("ProductionGraphSocketAdapter reconnect", () => {
     expect(socket.emitted).not.toContainEqual({ event: "productionGraph:patch", data: expect.anything() });
   });
 
-  it("after reconnect, the adapter exposes requestSnapshot which emits productionGraph:readGraph", () => {
+  it("after a snapshot arrives, requestSnapshot emits productionGraph:read with graphId", () => {
     const store = createProductionGraphStore();
     const socket = new FakeSocket();
     const adapter = createProductionGraphSocketAdapter({ store, socket });
     adapter.attach();
 
+    socket.trigger("productionGraph:snapshot", fixture.snapshots.p1Initial);
+    socket.emitted.length = 0;
+
     adapter.requestSnapshot();
-    expect(socket.emitted).toContainEqual({ event: "productionGraph:readGraph", data: undefined });
+    expect(socket.emitted).toContainEqual({ event: "productionGraph:read", data: { graphId: "graph-p1" } });
+  });
+
+  it("on socket connect/reconnect, emits productionGraph:read with current graphId when feature is enabled", () => {
+    const store = createProductionGraphStore();
+    const socket = new FakeSocket();
+    const adapter = createProductionGraphSocketAdapter({ store, socket });
+    adapter.attach();
+
+    socket.trigger("productionGraph:snapshot", fixture.snapshots.p1Initial);
+    socket.emitted.length = 0;
+
+    socket.trigger("connect");
+    expect(socket.emitted).toContainEqual({ event: "productionGraph:read", data: { graphId: "graph-p1" } });
+
+    socket.emitted.length = 0;
+    socket.trigger("reconnect");
+    expect(socket.emitted).toContainEqual({ event: "productionGraph:read", data: { graphId: "graph-p1" } });
+  });
+
+  it("does not auto-request snapshot when feature flag has been disabled by a null snapshot", () => {
+    const store = createProductionGraphStore();
+    const socket = new FakeSocket();
+    const adapter = createProductionGraphSocketAdapter({ store, socket });
+    adapter.attach();
+
+    // Server signals "no persistent graph yet" — adapter must fall back, not throw.
+    socket.trigger("productionGraph:snapshot", null);
+    expect(store.getSnapshot().featureEnabled).toBe(false);
+    expect(store.getSnapshot().snapshot).toBeNull();
+
+    socket.emitted.length = 0;
+    socket.trigger("connect");
+    expect(socket.emitted).toEqual([]);
   });
 
   it("applies late patches that build on the post-reconnect snapshot", () => {

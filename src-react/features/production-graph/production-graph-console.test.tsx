@@ -101,6 +101,38 @@ describe("ProductionGraphConsole", () => {
     expect(screen.getByText(/capabilityId: internal.mergeCandidate/)).toBeInTheDocument();
   });
 
+  it("re-renders Inspector when a different node is selected after first render", () => {
+    const store = createProductionGraphStore();
+    store.applySnapshot(fixture.snapshots.p1CheckpointWaiting);
+    const socket = createAckSocket();
+    const dispatcher = createProductionGraphActionDispatcher({
+      store,
+      socket,
+      buildContext: () => ({ actorRef: null, graphId: "graph-p1", selectedNodeId: null, checkpointId: null }),
+    });
+    const bridge = createProductionGraphContextBridge({ store });
+
+    render(<ProductionGraphConsole store={store} dispatcher={dispatcher} contextBridge={bridge} />);
+
+    // Initially no node is selected — Inspector shows the empty hint.
+    expect(screen.getByText(/选择左侧节点以查看证据/)).toBeInTheDocument();
+
+    // Select node C — Inspector header must show C's title and its evidence code.
+    fireEvent.click(screen.getByLabelText("选择节点 C：合并 A、B 的交付节点"));
+    expect(screen.getByRole("heading", { name: "C：合并 A、B 的交付节点" })).toBeInTheDocument();
+    expect(screen.getByText("upstream.succeeded")).toBeInTheDocument();
+
+    // Switch to node A — Inspector must update on the same render tree to show A's content.
+    fireEvent.click(screen.getByLabelText("选择节点 A：零成本工作节点"));
+    expect(screen.getByRole("heading", { name: "A：零成本工作节点" })).toBeInTheDocument();
+    expect(screen.getByText("该节点暂无证据。")).toBeInTheDocument();
+    // C's evidence must not linger after switching.
+    expect(screen.queryByText("upstream.succeeded")).not.toBeInTheDocument();
+
+    // The context bridge must reflect the latest selection so chat context stays in sync.
+    expect(bridge()).toMatchObject({ selectedNodeId: "node-a" });
+  });
+
   it("starts a ready node through the dispatcher and remembers idempotencyKey", async () => {
     const store = createProductionGraphStore();
     store.applySnapshot(fixture.snapshots.p1Initial);
@@ -127,8 +159,14 @@ describe("ProductionGraphConsole", () => {
     await vi.waitFor(() => expect(screen.getByLabelText(/动作 startReady 结果/)).toBeInTheDocument());
 
     expect(socket.emitted[0]?.event).toBe("productionGraph:action");
-    const payload = socket.emitted[0]?.payload as { input: { idempotencyKey: string } };
-    expect(payload.input.idempotencyKey).toBeTruthy();
+    const payload = socket.emitted[0]?.payload as {
+      graphId: string;
+      revision: number;
+      action: { action: string; idempotencyKey: string };
+    };
+    expect(payload.action.idempotencyKey).toBeTruthy();
+    expect(payload.graphId).toBe("graph-p1");
+    expect(payload.revision).toBe(1);
     expect(store.getSnapshot().appliedIdempotencyKeys.size).toBe(1);
   });
 

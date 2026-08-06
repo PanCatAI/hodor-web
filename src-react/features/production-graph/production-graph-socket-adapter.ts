@@ -11,7 +11,7 @@ import {
  * ProductionGraph Socket 适配器。
  *
  * 把以下事件映射到 ProductionGraphStore：
- * - productionGraph:snapshot -> store.applySnapshot
+ * - productionGraph:snapshot -> store.applySnapshot；payload 为 null 时进入 disabled 回退
  * - productionGraph:patch   -> store.applyPatch（受 baseRevision/revision 守护）
  * - productionRun:update    -> store.recordLegacyProductionRun（兼容迁移期）
  * - productionRun:restore   -> 选择活跃或可重试运行并写入 legacyProductionRun
@@ -20,6 +20,8 @@ import {
  * - 断线重连只触发 readGraph 重新读取快照；前端绝不向服务端补发本地 patch。
  * - 已应用的 idempotencyKey 在重连后不会被再次派发。
  * - 旧 productionRun 事件不得改写真实节点状态。
+ * - 当服务端发送 productionGraph:snapshot=null（项目没有持久图），适配器关闭功能开关，
+ *   让旧固定拓扑继续工作；不向上抛出 PRODUCTION_GRAPH_DISABLED。
  */
 
 export interface ProductionGraphSocket {
@@ -32,23 +34,30 @@ export interface ProductionGraphSocket {
 export interface ProductionGraphSocketAdapterOptions {
   store: ProductionGraphStore;
   socket: ProductionGraphSocket;
-  /** 用于在重连后请求最新快照；测试可注入，生产环境通常为 () => socket.emit("productionGraph:readGraph")。 */
-  requestSnapshotOnReconnect?: (socket: ProductionGraphSocket) => void;
+  /**
+   * 用于在重连后请求最新快照；测试可注入。
+   * 生产环境默认为 () => socket.emit("productionGraph:read", { graphId: store.getSnapshot().graphId })。
+   */
+  requestSnapshotOnReconnect?: (socket: ProductionGraphSocket, graphId: string | null) => void;
 }
 
 const SNAPSHOT_EVENT = "productionGraph:snapshot";
 const PATCH_EVENT = "productionGraph:patch";
 const LEGACY_UPDATE_EVENT = "productionRun:update";
 const LEGACY_RESTORE_EVENT = "productionRun:restore";
+const READ_EVENT = "productionGraph:read";
 
 function asObject(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
   return null;
 }
 
-function asSnapshot(value: unknown): ProductionGraphSnapshot {
+function asSnapshot(value: unknown): ProductionGraphSnapshot | null {
+  if (value === null || value === undefined) return null;
   const record = asObject(value);
-  if (!record) throw new ProductionGraphBusinessError("PRODUCTION_GRAPH_DISABLED", "无效的 productionGraph:snapshot 事件", 422);
+  if (!record) {
+    throw new ProductionGraphBusinessError("PRODUCTION_GRAPH_DISABLED", "无效的 productionGraph:snapshot 事件", 422);
+  }
   return record as unknown as ProductionGraphSnapshot;
 }
 
@@ -81,6 +90,11 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
 
   const handleSnapshot = (raw: unknown) => {
     const snapshot = asSnapshot(raw);
+    if (!snapshot) {
+      // 服务端发送 null 表示项目尚未拥有持久图；切回旧固定拓扑而不是抛错。
+      store.setFeatureEnabled(false);
+      return;
+    }
     store.applySnapshot(snapshot);
   };
   const handlePatch = (raw: unknown) => {
@@ -110,6 +124,13 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
     }
     handleLegacyUpdate(candidate);
   };
+  const handleConnect = () => {
+    if (!store.getSnapshot().featureEnabled) return;
+    const graphId = store.getSnapshot().graphId;
+    const fallback = options.requestSnapshotOnReconnect;
+    if (fallback) fallback(socket, graphId);
+    else if (graphId) socket.emit(READ_EVENT, { graphId });
+  };
 
   return {
     attach() {
@@ -119,6 +140,8 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
       socket.on(PATCH_EVENT, handlePatch);
       socket.on(LEGACY_UPDATE_EVENT, handleLegacyUpdate);
       socket.on(LEGACY_RESTORE_EVENT, handleLegacyRestore);
+      socket.on("connect", handleConnect);
+      socket.on("reconnect", handleConnect);
     },
     detach() {
       if (!attached) return;
@@ -128,12 +151,15 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
         socket.off(PATCH_EVENT, handlePatch);
         socket.off(LEGACY_UPDATE_EVENT, handleLegacyUpdate);
         socket.off(LEGACY_RESTORE_EVENT, handleLegacyRestore);
+        socket.off("connect", handleConnect);
+        socket.off("reconnect", handleConnect);
       }
     },
     requestSnapshot() {
+      const graphId = store.getSnapshot().graphId;
       const fallback = options.requestSnapshotOnReconnect;
-      if (fallback) fallback(socket);
-      else socket.emit("productionGraph:readGraph");
+      if (fallback) fallback(socket, graphId);
+      else if (graphId) socket.emit(READ_EVENT, { graphId });
     },
   };
 }
