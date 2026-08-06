@@ -106,23 +106,31 @@ describe("ProductionGraphStore", () => {
     expect(store.getSnapshot().snapshot?.nodes.find((node) => node.id === "node-a")?.status).toBe("running");
   });
 
-  it("prevents duplicate dispatch via beginDispatch + idempotency key", () => {
+  it("prevents duplicate dispatch but allows two independent nodes to dispatch concurrently", () => {
     const store = createProductionGraphStore();
     store.applySnapshot(fixture.snapshots.p1Initial);
 
     expect(store.beginDispatch("key-1", 1)).toBe(true);
-    // Concurrent second dispatch is blocked while the first is pending.
-    expect(store.beginDispatch("key-2", 1)).toBe(false);
-    // Duplicate of the in-flight key is also blocked.
+    // Distinct idempotency key is allowed to dispatch concurrently — this is the
+    // concurrency contract: two independent nodes can enter running side-by-side.
+    expect(store.beginDispatch("key-2", 1)).toBe(true);
+    // Duplicate of an in-flight key is blocked.
     expect(store.beginDispatch("key-1", 1)).toBe(false);
-    store.endDispatch("key-1");
+    expect(store.beginDispatch("key-2", 1)).toBe(false);
+    expect(store.getSnapshot().pendingDispatchCount).toBe(2);
+    expect(store.getSnapshot().inflightIdempotencyKeys.has("key-1")).toBe(true);
+    expect(store.getSnapshot().inflightIdempotencyKeys.has("key-2")).toBe(true);
 
+    store.endDispatch("key-1");
     expect(store.getSnapshot().appliedIdempotencyKeys.has("key-1")).toBe(true);
+    expect(store.getSnapshot().inflightIdempotencyKeys.has("key-1")).toBe(false);
     // After endDispatch the dedup still kicks in for an already-applied key.
     expect(store.beginDispatch("key-1", 1)).toBe(false);
-    // A new key is now allowed because pendingDispatchCount dropped to 0.
-    expect(store.beginDispatch("key-2", 1)).toBe(true);
+    // The second in-flight key is still pending and remains a duplicate of itself.
+    expect(store.beginDispatch("key-2", 1)).toBe(false);
     store.endDispatch("key-2");
+    expect(store.getSnapshot().pendingDispatchCount).toBe(0);
+    expect(store.getSnapshot().inflightIdempotencyKeys).toEqual(new Set());
   });
 
   it("toggles feature flag and keeps the snapshot intact for rollback", () => {
@@ -143,6 +151,7 @@ describe("ProductionGraphStore", () => {
       snapshot: null,
       pendingPatches: [],
       pendingDispatchCount: 0,
+      inflightIdempotencyKeys: expect.any(Set),
       appliedIdempotencyKeys: expect.any(Set),
       legacyProductionRun: null,
       featureEnabled: true,

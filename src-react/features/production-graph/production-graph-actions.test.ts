@@ -271,3 +271,200 @@ describe("ProductionGraphActionDispatcher", () => {
     expect(ack.error?.code).toBe("PRODUCTION_ACTION_UNBOUND");
   });
 });
+
+describe("ProductionGraph v1 six-action parity (UI ⇄ Agent)", () => {
+  // The contract requires that UI buttons and the Agent adapter both go through
+  // the same createProductionGraphActionDispatcher.dispatch() entry point and
+  // produce the same flat payload shape for every frozen action. This test
+  // exercises each of the six actions through the dispatcher and asserts the
+  // wire-format the backend route parses.
+  function buildDispatcher() {
+    const store = createProductionGraphStore();
+    store.applySnapshot(fixture.snapshots.p1Initial);
+    const emitted: Array<{ event: string; payload: unknown; ack?: (response: ProductionActionAck) => void }> = [];
+    let nextRevision = fixture.snapshots.p1Initial.revision;
+    const socket: ProductionGraphActionSocket = {
+      connected: true,
+      emit(event, payload, ack) {
+        emitted.push({ event, payload, ack });
+        nextRevision += 1;
+        const input = (payload as { action: { action: string; idempotencyKey?: string } }).action;
+        ack?.({
+          ok: true,
+          result: {
+            action: input.action as never,
+            snapshot: { ...fixture.snapshots.p1Initial, revision: nextRevision },
+            paidGenerationUsd: 0,
+            idempotencyKey: input.idempotencyKey,
+          },
+        });
+      },
+    };
+    const dispatcher = createProductionGraphActionDispatcher({
+      store,
+      socket,
+      buildContext: () => ({ actorRef: "founder@example.com", graphId: "graph-p1", selectedNodeId: "node-a", checkpointId: null }),
+    });
+    return { dispatcher, emitted, store };
+  }
+
+  it("each of the six frozen actions dispatches through the same handler with the same payload shape", async () => {
+    const { dispatcher, emitted } = buildDispatcher();
+    const expectedRevision = fixture.snapshots.p1Initial.revision;
+
+    // 1. readGraph — no idempotencyKey needed; safe to interleave with change actions.
+    await dispatcher.dispatch({ action: "readGraph" });
+
+    // 2. changeScope — empty delta at the same revision.
+    await dispatcher.dispatch({
+      action: "changeScope",
+      idempotencyKey: "scope-1",
+      expectedRevision,
+      nodesUpsert: [],
+      nodeIdsRemoved: [],
+      edgesUpsert: [],
+      edgeIdsRemoved: [],
+    });
+
+    // 3. startReady — single-node dispatch; the dual-dispatch case is covered below.
+    await dispatcher.dispatch({
+      action: "startReady",
+      idempotencyKey: "start-a",
+      expectedRevision,
+      nodeIds: ["node-a"],
+    });
+
+    // 4. pause.
+    await dispatcher.dispatch({
+      action: "pause",
+      idempotencyKey: "pause-a",
+      expectedRevision,
+      nodeIds: ["node-a"],
+    });
+
+    // 5. resumeOrRetry with a checkpoint decision.
+    await dispatcher.dispatch({
+      action: "resumeOrRetry",
+      idempotencyKey: "resume-a",
+      expectedRevision,
+      nodeIds: ["node-a"],
+      checkpointDecision: {
+        checkpointId: "checkpoint-cost-1",
+        outcome: "approved",
+        reason: "cost",
+        note: "",
+      },
+    });
+
+    // 6. adoptCandidate using node-c's candidate/asset refs from the fixture.
+    await dispatcher.dispatch({
+      action: "adoptCandidate",
+      idempotencyKey: "adopt-c",
+      expectedRevision,
+      nodeId: "node-c",
+      candidate: { authority: "pancat", kind: "candidate", ref: "pancat://candidate/c-1" },
+      target: { authority: "pancat", kind: "asset", ref: "pancat://asset/adopted-1" },
+    });
+
+    // All six actions emitted exactly one productionGraph:action event each.
+    expect(emitted.filter((entry) => entry.event === "productionGraph:action")).toHaveLength(6);
+    // Each emission uses the same flat payload shape (graphId/revision/selectedNodeId/checkpointId/action).
+    for (const entry of emitted) {
+      if (entry.event !== "productionGraph:action") continue;
+      const payload = entry.payload as Record<string, unknown>;
+      expect(Object.keys(payload).sort()).toEqual(["action", "checkpointId", "graphId", "revision", "selectedNodeId"]);
+    }
+  });
+
+  it("two independent startReady dispatches with distinct idempotency keys both reach the socket and both keys are remembered", async () => {
+    const { dispatcher, emitted, store } = buildDispatcher();
+    const expectedRevision = fixture.snapshots.p1Initial.revision;
+
+    const [ackA, ackB] = await Promise.all([
+      dispatcher.dispatch({
+        action: "startReady",
+        idempotencyKey: "start-a",
+        expectedRevision,
+        nodeIds: ["node-a"],
+      }),
+      dispatcher.dispatch({
+        action: "startReady",
+        idempotencyKey: "start-b",
+        expectedRevision,
+        nodeIds: ["node-b"],
+      }),
+    ]);
+
+    expect(ackA.ok).toBe(true);
+    expect(ackB.ok).toBe(true);
+    expect(ackA.result?.idempotencyKey).toBe("start-a");
+    expect(ackB.result?.idempotencyKey).toBe("start-b");
+
+    const actionEmits = emitted.filter((entry) => entry.event === "productionGraph:action");
+    expect(actionEmits).toHaveLength(2);
+    expect((actionEmits[0].payload as { action: { idempotencyKey: string } }).action.idempotencyKey).toBe("start-a");
+    expect((actionEmits[1].payload as { action: { idempotencyKey: string } }).action.idempotencyKey).toBe("start-b");
+
+    // Both keys are persisted so a reconnect-time duplicate is suppressed.
+    expect(store.getSnapshot().appliedIdempotencyKeys.has("start-a")).toBe(true);
+    expect(store.getSnapshot().appliedIdempotencyKeys.has("start-b")).toBe(true);
+  });
+
+  it("duplicate dispatch of the same idempotency key while in flight is a no-op that does not reach the socket", async () => {
+    const store = createProductionGraphStore();
+    store.applySnapshot(fixture.snapshots.p1Initial);
+    const expectedRevision = fixture.snapshots.p1Initial.revision;
+
+    const emitted: Array<{ event: string; payload: unknown; ack?: (response: ProductionActionAck) => void }> = [];
+    const release: { current: ((response: ProductionActionAck) => void) | null } = { current: null };
+    const socket: ProductionGraphActionSocket = {
+      connected: true,
+      emit(event, payload, ack) {
+        emitted.push({ event, payload, ack });
+        // Hold the ack until the test releases it; this lets us observe the
+        // in-flight window during which a duplicate must be suppressed.
+        if (!release.current) {
+          release.current = (response) => ack?.(response);
+        }
+      },
+    };
+    const dispatcher = createProductionGraphActionDispatcher({
+      store,
+      socket,
+      buildContext: () => ({ actorRef: null, graphId: "graph-p1", selectedNodeId: "node-a", checkpointId: null }),
+    });
+
+    const promiseA = dispatcher.dispatch({
+      action: "startReady",
+      idempotencyKey: "dup-key",
+      expectedRevision,
+      nodeIds: ["node-a"],
+    });
+    // Allow the microtask queue to settle so promiseA has entered the await window.
+    await Promise.resolve();
+    const duplicate = await dispatcher.dispatch({
+      action: "startReady",
+      idempotencyKey: "dup-key",
+      expectedRevision,
+      nodeIds: ["node-a"],
+    });
+    expect(duplicate.ok).toBe(true);
+    expect(duplicate.result?.action).toBe("startReady");
+
+    release.current?.({
+      ok: true,
+      result: {
+        action: "startReady",
+        snapshot: { ...fixture.snapshots.p1Initial, revision: expectedRevision + 1 },
+        paidGenerationUsd: 0,
+        idempotencyKey: "dup-key",
+      },
+    });
+    const ackA = await promiseA;
+    expect(ackA.ok).toBe(true);
+
+    // Only the first dispatch actually reached the socket; the duplicate was a no-op.
+    const actionEmits = emitted.filter((entry) => entry.event === "productionGraph:action");
+    expect(actionEmits).toHaveLength(1);
+  });
+});

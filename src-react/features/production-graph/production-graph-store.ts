@@ -23,8 +23,10 @@ export interface ProductionGraphStoreSnapshot {
   graphId: string | null;
   snapshot: ProductionGraphSnapshot | null;
   pendingPatches: ProductionGraphPatch[];
-  /** 本地未完成的 patch 派发数；用于在并发提交时阻止重复派发。 */
+  /** 本地未完成的 patch 派发数；用于诊断与 UI 反馈，不再作为并发闸门。 */
   pendingDispatchCount: number;
+  /** 已经进入派发但尚未收到 ack 的 idempotencyKey；用于阻止同一动作的重复派发。 */
+  inflightIdempotencyKeys: ReadonlySet<string>;
   /** 已应用过的 idempotencyKey，用于在断线重连后跳过重复派发。 */
   appliedIdempotencyKeys: ReadonlySet<string>;
   /** 兼容 productionRun 事件提供的辅助进度，仅用于在 UI 中展示错误重试提示。 */
@@ -46,6 +48,7 @@ export const INITIAL_PRODUCTION_GRAPH_STORE: ProductionGraphStoreSnapshot = {
   snapshot: null,
   pendingPatches: [],
   pendingDispatchCount: 0,
+  inflightIdempotencyKeys: new Set<string>(),
   appliedIdempotencyKeys: new Set<string>(),
   legacyProductionRun: null,
   featureEnabled: true,
@@ -77,6 +80,15 @@ export interface ProductionGraphStore {
   clearError(): void;
   reset(): void;
 }
+
+/**
+ * 并发合同：两个无依赖节点必须能同时进入 running。
+ *
+ * store 通过 inflightIdempotencyKeys 阻止「同一 idempotencyKey」重复派发，
+ * 但绝不阻止「不同 idempotencyKey」并发派发。这样网页可以同时启动 node-a 与 node-b，
+ * 也可以在 startReady 派发进行中查询 readGraph。appliedIdempotencyKeys 守护断线重连
+ * 后的幂等性。
+ */
 
 function isFresherSnapshot(current: ProductionGraphSnapshot | null, next: ProductionGraphSnapshot): boolean {
   if (!current) return true;
@@ -163,6 +175,7 @@ export function createProductionGraphStore(initial?: Partial<ProductionGraphStor
   let state: ProductionGraphStoreSnapshot = { ...INITIAL_PRODUCTION_GRAPH_STORE, ...initial };
   const listeners = new Set<ProductionGraphStoreListener>();
   const appliedKeys = new Set<string>(initial?.appliedIdempotencyKeys ?? []);
+  const inflightKeys = new Set<string>(initial?.inflightIdempotencyKeys ?? []);
 
   function setState(next: ProductionGraphStoreSnapshot) {
     state = next;
@@ -173,6 +186,12 @@ export function createProductionGraphStore(initial?: Partial<ProductionGraphStor
     if (state.appliedIdempotencyKeys === appliedKeys) return appliedKeys;
     for (const key of state.appliedIdempotencyKeys) appliedKeys.add(key);
     return appliedKeys;
+  }
+
+  function ensureInflightKeysSet(): Set<string> {
+    if (state.inflightIdempotencyKeys === inflightKeys) return inflightKeys;
+    for (const key of state.inflightIdempotencyKeys) inflightKeys.add(key);
+    return inflightKeys;
   }
 
   return {
@@ -188,6 +207,7 @@ export function createProductionGraphStore(initial?: Partial<ProductionGraphStor
     applySnapshot(snapshot) {
       if (!isFresherSnapshot(state.snapshot, snapshot)) return;
       ensureAppliedKeysSet();
+      ensureInflightKeysSet();
       setState({
         ...state,
         graphId: snapshot.graphId,
@@ -231,14 +251,26 @@ export function createProductionGraphStore(initial?: Partial<ProductionGraphStor
       if (state.snapshot.graphId !== state.graphId) return false;
       if (expectedRevision !== state.snapshot.revision) return false;
       if (idempotencyKey && appliedKeys.has(idempotencyKey)) return false;
-      if (state.pendingDispatchCount > 0) return false;
-      setState({ ...state, pendingDispatchCount: state.pendingDispatchCount + 1 });
+      // Block only true duplicates: same key already in flight.
+      // Distinct keys must be allowed to dispatch concurrently so two independent
+      // ready nodes can enter running side-by-side.
+      if (idempotencyKey && inflightKeys.has(idempotencyKey)) return false;
+      if (idempotencyKey) inflightKeys.add(idempotencyKey);
+      setState({
+        ...state,
+        inflightIdempotencyKeys: new Set(inflightKeys),
+        pendingDispatchCount: state.pendingDispatchCount + 1,
+      });
       return true;
     },
     endDispatch(idempotencyKey) {
-      if (idempotencyKey) appliedKeys.add(idempotencyKey);
+      if (idempotencyKey) {
+        appliedKeys.add(idempotencyKey);
+        inflightKeys.delete(idempotencyKey);
+      }
       setState({
         ...state,
+        inflightIdempotencyKeys: new Set(inflightKeys),
         pendingDispatchCount: Math.max(0, state.pendingDispatchCount - 1),
         appliedIdempotencyKeys: new Set(appliedKeys),
       });
@@ -252,6 +284,7 @@ export function createProductionGraphStore(initial?: Partial<ProductionGraphStor
     },
     reset() {
       appliedKeys.clear();
+      inflightKeys.clear();
       setState({ ...INITIAL_PRODUCTION_GRAPH_STORE, featureEnabled: state.featureEnabled });
     },
   };

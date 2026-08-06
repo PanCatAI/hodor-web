@@ -214,7 +214,7 @@ describe("ProductionGraph v1 reconnect contract", () => {
 });
 
 describe("ProductionGraph v1 dual-project concurrency acceptance", () => {
-  it("two independent work nodes are both ready and ready-state does not depend on sibling nodes", () => {
+  it("two independent work nodes are both ready and can dispatch concurrently without serializing on each other", () => {
     const store = createProductionGraphStore();
     store.applySnapshot(fixture.snapshots.p1Initial);
 
@@ -222,15 +222,20 @@ describe("ProductionGraph v1 dual-project concurrency acceptance", () => {
     expect(snapshot.nodes.find((n) => n.id === "node-a")?.status).toBe("ready");
     expect(snapshot.nodes.find((n) => n.id === "node-b")?.status).toBe("ready");
     // Both A and B can be started simultaneously without serializing on each other.
+    // The store must allow distinct idempotency keys to dispatch concurrently.
     expect(store.beginDispatch("start-a", 1)).toBe(true);
-    expect(store.beginDispatch("start-b", 1)).toBe(false); // pendingDispatchCount gate blocks until endDispatch
+    expect(store.beginDispatch("start-b", 1)).toBe(true);
+    expect(store.getSnapshot().pendingDispatchCount).toBe(2);
+    // The same key remains a duplicate while in flight.
+    expect(store.beginDispatch("start-a", 1)).toBe(false);
+    expect(store.beginDispatch("start-b", 1)).toBe(false);
 
     store.endDispatch("start-a");
-    expect(store.beginDispatch("start-b", 1)).toBe(true);
     store.endDispatch("start-b");
+    expect(store.getSnapshot().pendingDispatchCount).toBe(0);
   });
 
-  it("node C remains blocked until both A and B have succeeded", () => {
+  it("dependent node C remains blocked until both A and B have succeeded", () => {
     const store = createProductionGraphStore();
     store.applySnapshot(fixture.snapshots.p1Initial);
     const snapshot = () => store.getSnapshot().snapshot!;
