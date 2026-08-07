@@ -72,7 +72,7 @@ describe("production flow storyboard node", () => {
         expect.any(Number),
       ),
     );
-    expect(screen.getByText("已选 0 项")).toBeInTheDocument();
+    expect(await screen.findByText("已选 0 项")).toBeInTheDocument();
   });
 
   it("inserts after a frame, persists the reordered flow and deletes selected frames through mounted endpoints", async () => {
