@@ -17,7 +17,11 @@ import {
   type ProductionGraphSocketAdapter,
 } from "./production-graph-socket-adapter";
 import { createProductionGraphStore, type ProductionGraphStore } from "./production-graph-store";
-import { getProductionGraphFeatureFlag, type ProductionGraphFeatureFlag } from "./feature-flag";
+import {
+  getProductionGraphFeatureFlag,
+  type ProductionGraphFeatureFlag,
+  type ProductionGraphServerAvailability,
+} from "./feature-flag";
 
 /**
  * ProductionGraph wiring for the project workspace.
@@ -88,6 +92,8 @@ export interface UseProductionGraphWiring {
   dispatcher: ProductionGraphActionDispatcher;
   contextBridge: ProductionGraphContextBridge;
   featureEnabled: boolean;
+  serverAvailability: ProductionGraphServerAvailability;
+  requestServerRecovery(): void;
 }
 
 /**
@@ -177,6 +183,7 @@ export function useProductionGraphWiring(options: ProductionGraphWiringOptions):
     const adapter = createProductionGraphSocketAdapter({
       store: storeRef.current!,
       socket,
+      onServerAvailabilityChange: (availability) => featureFlag.setServerAvailability(availability),
     });
     adapter.attach();
     adapterRef.current = adapter;
@@ -190,13 +197,19 @@ export function useProductionGraphWiring(options: ProductionGraphWiringOptions):
         // ignore
       }
     };
-  }, [apiBaseUrl, featureEnabled, getToken, projectId, socketFactory]);
+  }, [apiBaseUrl, featureEnabled, featureFlag, getToken, projectId, socketFactory]);
+
+  const requestServerRecovery = useCallback(() => {
+    featureFlag.requestServerRecovery();
+  }, [featureFlag]);
 
   return {
     store: storeRef.current,
     dispatcher: dispatcherRef.current,
     contextBridge: bridgeRef.current,
     featureEnabled,
+    serverAvailability: featureFlag.getServerAvailability(),
+    requestServerRecovery,
   };
 }
 

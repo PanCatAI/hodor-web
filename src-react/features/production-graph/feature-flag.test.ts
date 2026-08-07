@@ -51,6 +51,35 @@ describe("ProductionGraphFeatureFlag", () => {
     setProductionGraphEnabled(false);
     expect(getProductionGraphFeatureFlag().isEnabled()).toBe(false);
   });
+
+  it("lets the server authority disable the graph without overwriting the client preference", () => {
+    const storage = memoryStorage();
+    const flag = createProductionGraphFeatureFlag({}, { localStorage: storage });
+    const calls: boolean[] = [];
+    flag.subscribe(() => calls.push(flag.isEnabled()));
+
+    flag.setServerAvailability("unavailable");
+    expect(flag.isEnabled()).toBe(false);
+    expect(flag.getServerAvailability()).toBe("unavailable");
+    expect(storage.getItem("hodor.productionGraph.v1.enabled")).toBeNull();
+
+    // Repeating the same server signal must be idempotent.
+    flag.setServerAvailability("unavailable");
+    expect(calls).toEqual([false]);
+
+    flag.requestServerRecovery();
+    expect(flag.isEnabled()).toBe(true);
+    expect(flag.getServerAvailability()).toBe("unknown");
+    expect(calls).toEqual([false, true]);
+  });
+
+  it("does not let explicit server recovery override a disabled client preference", () => {
+    const flag = createProductionGraphFeatureFlag({}, { localStorage: memoryStorage() });
+    flag.setEnabled(false);
+    flag.setServerAvailability("unavailable");
+    flag.requestServerRecovery();
+    expect(flag.isEnabled()).toBe(false);
+  });
 });
 
 function memoryStorage(): { getItem(key: string): string | null; setItem(key: string, value: string): void } {

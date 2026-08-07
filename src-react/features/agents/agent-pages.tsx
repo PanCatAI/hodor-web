@@ -3,7 +3,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { HodorApiClient } from "@react/lib/api/client";
 import { createStoryApi } from "../story/story-api";
 import { parseNovelText, readImportFile } from "../story/import-parser";
-import { ProductionGraphConsole, useProductionGraphWiring, useResumeOrRetryOnLegacyFailure } from "../production-graph";
+import {
+  ProductionGraphConsole,
+  useProductionGraphWiring,
+  useResumeOrRetryOnLegacyFailure,
+  type ProductionGraphSocketAdapterSocket,
+} from "../production-graph";
 import { AgentConsole } from "./agent-console";
 import type { SourceImportRequest, SourceImportResult } from "./agent-console";
 import { createAgentChatClient } from "./agent-chat-client";
@@ -29,6 +34,7 @@ interface ProductionAgentPageProps extends AgentPageProps {
 interface ScriptAgentPanelProps extends AgentPageProps {
   onBusyChange?: (busy: boolean) => void;
   selectedNodeId?: string | null;
+  productionGraphSocketFactory?: (url: string, auth: Record<string, unknown>) => ProductionGraphSocketAdapterSocket;
 }
 
 const productionWelcomeMessages = [
@@ -213,6 +219,7 @@ export function ScriptAgentPanel({
   handlers,
   onBusyChange,
   selectedNodeId,
+  productionGraphSocketFactory,
 }: ScriptAgentPanelProps) {
   // ProductionGraph v1 wiring — connects to /api/socket/productionGraph, carries
   // graphId/revision/selectedNodeId/checkpointId into the chat context, and renders
@@ -223,6 +230,7 @@ export function ScriptAgentPanel({
     apiBaseUrl,
     getToken,
     initialSelectedNodeId: selectedNodeId ?? null,
+    socketFactory: productionGraphSocketFactory,
   });
 
   // Bridge the production graph context into the chat client. The callback reads the
@@ -266,6 +274,18 @@ export function ScriptAgentPanel({
     <>
       <AgentBusyReporter client={client} onBusyChange={onBusyChange} />
       <AgentConsole client={client} title="互动剧智能体" showThink={showThink} display="panel" onImportSource={importSource} />
+      {!productionGraph.featureEnabled && productionGraph.serverAvailability === "unavailable" ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" role="status">
+          <span>制作图服务当前不可用，已回退到原制作流程。</span>
+          <button
+            className="rounded-md border border-amber-400/40 px-3 py-1.5 font-medium hover:bg-amber-400/10"
+            type="button"
+            onClick={productionGraph.requestServerRecovery}
+          >
+            重新连接制作图
+          </button>
+        </div>
+      ) : null}
       {productionGraph.featureEnabled ? (
         <ProductionGraphConsole
           store={productionGraph.store}

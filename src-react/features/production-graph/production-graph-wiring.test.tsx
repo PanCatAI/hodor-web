@@ -81,6 +81,7 @@ function Harness(props: {
   return (
     <div>
       <span data-testid="feature-enabled">{wiring.featureEnabled ? "on" : "off"}</span>
+      <button data-testid="recover-server" onClick={wiring.requestServerRecovery}>recover</button>
       <StoreSubscriber
         store={wiring.store}
         format={(store) => store.getSnapshot().graphId ?? "empty"}
@@ -147,10 +148,30 @@ describe("useProductionGraphWiring", () => {
     );
 
     act(() => socket.trigger("productionGraph:snapshot", null));
-    // Snapshot=null must disable the local store flag (not the global feature flag) so the
-    // console shows the disabled fallback and the legacy fixed-stage path runs for this project.
+    // Snapshot=null is a server-authoritative fallback signal.
     expect(view.getAllByTestId("store-format")[0].textContent).toBe("empty");
+    expect(view.getByTestId("feature-enabled").textContent).toBe("off");
+    view.unmount();
+  });
+
+  it("falls back on invalid namespace and explicitly recovers with one listener set", () => {
+    const feature = createProductionGraphFeatureFlag({}, {});
+    const socket = new FakeProductionGraphSocket({ token: "tok", projectId: "9" });
+    const view = render(
+      <Harness projectId={9} apiBaseUrl="/api" getToken={() => "tok"} socket={socket} feature={feature} />,
+    );
+
+    act(() => socket.trigger("connect_error", new Error("Invalid namespace")));
+    expect(view.getByTestId("feature-enabled").textContent).toBe("off");
+    expect(socket.listeners.get("productionGraph:snapshot")?.size ?? 0).toBe(0);
+
+    act(() => view.getByTestId("recover-server").click());
     expect(view.getByTestId("feature-enabled").textContent).toBe("on");
+    expect(socket.listeners.get("productionGraph:snapshot")?.size).toBe(1);
+
+    act(() => socket.trigger("productionGraph:snapshot", fixture.snapshots.p1Initial));
+    expect(feature.getServerAvailability()).toBe("available");
+    expect(view.getAllByTestId("store-format")[0].textContent).toBe("graph-p1");
     view.unmount();
   });
 
