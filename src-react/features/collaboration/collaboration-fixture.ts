@@ -71,6 +71,7 @@ export interface CollaborationSceneFixture {
   location: string;
   timeOfDay: string;
   prompt: string;
+  responsibilityGraphRevision: number;
   roles: CollaborationRole[];
   timeline: CollaborationTimelineEvent[];
   responsibilities: ResponsibilityAssignment[];
@@ -99,6 +100,7 @@ export const COLLABORATION_SCENE = {
   location: "老公寓厨房",
   timeOfDay: "23:40 / 雨夜",
   prompt: "把“钥匙落桌”的动作拆成可拍镜头，保持人物手位、台面方位和情绪连续。",
+  responsibilityGraphRevision: 1,
   roles: [
     {
       id: "shot-planner",
