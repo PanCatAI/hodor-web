@@ -9,6 +9,7 @@ import { createHodorDirectorDeskAdapter, DirectorDeskPage, type DirectorDeskEdit
 import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type ProductionProject, type StoryboardItem } from "@react/features/production";
 import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createInteractiveStoryApi, InteractiveStoryPage } from "@react/features/interactive-story";
+import { ProductionCollaborationDashboard } from "@react/features/collaboration";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
@@ -413,6 +414,12 @@ const tasksRoute = createRoute({
   component: TasksRoutePage,
 });
 
+const collaborationRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: "/collaboration",
+  component: ProductionCollaborationDashboard,
+});
+
 function SettingsRoutePage() {
   const router = useRouter();
   const { apiClient, apiBaseUrl, getToken } = settingsRoute.useRouteContext();
@@ -652,6 +659,7 @@ const routeTree = rootRoute.addChildren([
   protectedRoute.addChildren([
     projectsRoute,
     tasksRoute,
+    collaborationRoute,
     settingsRoute,
     projectNovelRoute,
     projectScriptRoute,

@@ -1,6 +1,6 @@
 # Hodor Web 系统状态
 
-更新时间：2026-07-20
+更新时间：2026-08-08
 
 ## 运行结构
 
@@ -29,6 +29,7 @@ Hodor Web 使用 React 单入口。浏览器直接连接云端 Hodor API；Elect
 | `/projects/$projectId/production` | 产线图、图片和视频任务、轨道、结果选择、WebAV | `/production/*` |
 | `/projects/$projectId/director-desk` | 3D 导演工程保存、冲突处理、截图素材回写 | `/directorDesk/*` |
 | `/tasks` | 生成任务筛选、状态和完整失败原因 | `/task/*` |
+| `/collaboration` | 只读单场景协作证据、角色合同、责任图和空间决策 | 本地固定夹具；不写业务状态 |
 | `/settings` | 供应商、模型、智能体、提示词、数据库、文件和会话 | `/setting/*` |
 
 旧路径只负责把已有书签跳转到带项目作用域的新路径，不承载独立业务状态。
@@ -42,20 +43,37 @@ Hodor Web 使用 React 单入口。浏览器直接连接云端 Hodor API；Elect
 - WebAV 时间线按 `projectId + scriptId` 隔离并在页面会话内保活；当前后端没有剪辑工程保存接口，因此长期产物以导出的 MP4 为准，不会把浏览器草稿伪装成数据库合同。
 - 图片与视频错误保留 HTTP 状态、请求编号和供应商原因，页面不会把业务错误显示成成功。
 
+## 电影级多角色协作状态视图
+
+协作仪表盘位于 `/collaboration`，它是受保护布局下的只读状态视图。当前验证使用 `film-zero-cost-001` 的 `scene-kitchen-007` 本地夹具，前端不建立第二份生产真相，也不向供应商发起调用。
+
+数据分成四个互相独立的边界：
+
+| 边界 | 当前证据 | 保护条件 |
+| --- | --- | --- |
+| 角色合同 | `shot-planner.v2`、`continuity-supervisor.v3`，分别列出职责、知识、私有记忆、工具、质量规则和禁写项 | 角色只能读取自己的合同与工作记忆摘要 |
+| 影片知识图谱 | `blocking.geometry`、`character.hands`、已采用镜头等事实节点 | 知识节点不携带 `roleId`、`assignee` 或责任状态 |
+| 动态责任图 | revision 04，将空间验证从规划职责中拆出并重排到连续性监修 | 图变更带 `EV-GRAPH-004`，可以独立演化 |
+| 镜头证据 | `EV-SPACE-003`、`EV-PATCH-003`、`EV-ARB-001` | patch 只作用于 `shot-003`，保留其他已采用镜头 |
+
+单场景记录的时间线从一条用户消息开始，先并行启动两个角色，再按 capability 选择供应商知识，依据空间风险决定白模调用，最后由证据裁决并局部采用。`shot-003` 风险为 `0.92`，调用本地 mock Blender 白模；`shot-001` 风险为 `0.18`，保留跳过理由。连续性监修返场时继续使用 `film-zero-cost-001` 和自己的 private memory namespace。
+
+页面底部 readiness 使用证据集合计算展示状态：证据齐全、上下文连续、边界安全、零成本四项均满足才显示 `READY`。页面本身不包含写入按钮，也不改变 ProductionGraph 的业务代码。
+
 ## 验证
 
 ```bash
-corepack yarn test
-corepack yarn build
-corepack yarn test:release
+bun run test
+bun run build
+bun run test:release
 ```
 
 后端验证在 Hodor 仓库执行：
 
 ```bash
-corepack yarn lint
-corepack yarn test:cloud
-corepack yarn build
+bun run lint
+bun run test:cloud
+bun run build
 ```
 
 ## 法定来源
