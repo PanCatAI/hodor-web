@@ -21,6 +21,7 @@ function createClient(overrides: Partial<AgentChatSnapshot> = {}): AgentChatClie
       },
     ],
     error: null,
+    productionRun: null,
     loadingHistory: false,
     clearingMemory: null,
     ...overrides,
@@ -153,6 +154,38 @@ describe("AgentConsole", () => {
     expect(screen.getByLabelText("发送指令")).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "停止生成" }));
     expect(client.stop).toHaveBeenCalledOnce();
+  });
+
+  it("shows the live production stage instead of an unexplained loading indicator", () => {
+    const client = createClient({
+      activity: "streaming",
+      currentMessageId: "assistant-running",
+      productionRun: {
+        runId: "production-run-1",
+        stage: "generateAssets",
+        status: "running",
+        attempt: 3,
+        objective: "生成年幼 Evelyn 的衍生资产图片",
+        updatedAt: "2026-08-01T03:53:41.876Z",
+        error: null,
+      },
+      messages: [
+        {
+          id: "assistant-running",
+          role: "assistant",
+          name: "执行导演",
+          status: "streaming",
+          datetime: "2026-08-01T03:53:41.876Z",
+          content: [],
+        },
+      ],
+    });
+
+    render(<AgentConsole client={client} title="童年圣像" display="panel" />);
+
+    expect(screen.getByRole("status", { name: "生产阶段进度" })).toHaveTextContent("资产生成");
+    expect(screen.getByRole("status", { name: "生产阶段进度" })).toHaveTextContent("第 3 次尝试");
+    expect(screen.getByRole("status", { name: "生产阶段进度" })).toHaveTextContent("生成年幼 Evelyn 的衍生资产图片");
   });
 
   it("lets a new instruction replace a stuck generation", async () => {

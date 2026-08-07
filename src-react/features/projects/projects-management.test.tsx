@@ -80,9 +80,9 @@ describe("Projects management", () => {
     await waitFor(() => expect(api.deleteProject).toHaveBeenCalledWith("7"));
   });
 
-  it("blocks entry and opens settings when a configured model is unavailable", async () => {
+  it("enters project details even when model discovery is temporarily unavailable", async () => {
     const user = userEvent.setup();
-    const project = { id: "7", name: "模型失效项目", projectType: "novel", artStyle: "realistic", directorManual: "crime", imageModel: "offline:image", videoModel: "pancat:pancat-video" };
+    const project = { id: "7", name: "模型失效项目", projectType: "interactive", artStyle: "realistic", directorManual: "crime", imageModel: "offline:image", videoModel: "pancat:pancat-video" };
     const api = createApi({
       listProjects: vi.fn().mockResolvedValue([project]),
       getModelDetail: vi.fn().mockRejectedValue(new Error("供应商已停用")),
@@ -92,9 +92,9 @@ describe("Projects management", () => {
 
     await user.click(await screen.findByRole("link", { name: "打开项目 模型失效项目" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("模型不可用");
-    expect(screen.getByRole("dialog", { name: "编辑项目" })).toBeInTheDocument();
-    expect(window.location.hash).toBe("#/projects");
+    expect(window.location.hash).toBe("#/projects/7/interactive");
+    expect(api.getModelDetail).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "编辑项目" })).not.toBeInTheDocument();
   });
 
   it("creates, edits and deletes visual manuals", async () => {

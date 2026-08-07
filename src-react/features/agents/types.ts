@@ -4,6 +4,16 @@ export type AgentActivityState = "idle" | "pending" | "streaming";
 export type AgentMessageStatus = "pending" | "streaming" | "complete" | "error" | "stop";
 export type MemoryType = "message" | "summary" | "all";
 
+export interface ProductionRunProgress {
+  runId: string;
+  stage: string;
+  status: string;
+  attempt: number;
+  objective: string;
+  updatedAt: string;
+  error: { message?: string; retryable?: boolean } | null;
+}
+
 export interface AgentMessageContent {
   id?: string;
   type: string;
@@ -29,6 +39,7 @@ export interface AgentChatSnapshot {
   currentMessageId: string | null;
   messages: AgentMessage[];
   error: string | null;
+  productionRun: ProductionRunProgress | null;
   loadingHistory: boolean;
   clearingMemory: MemoryType | null;
 }

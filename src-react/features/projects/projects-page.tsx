@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, BookOpen, FolderOpen, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { Button } from "@react/components/ui/button";
@@ -41,7 +41,6 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
   const [projects, setProjects] = useState<HodorProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modelError, setModelError] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<HodorProject | null>(null);
   const [manualsOpen, setManualsOpen] = useState(false);
@@ -63,33 +62,12 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
   useEffect(() => { void refresh(); }, [refresh]);
 
   function openEditor(project: HodorProject | null) {
-    setModelError(null);
     setEditingProject(project);
     setEditorOpen(true);
   }
 
-  async function openProject(event: MouseEvent<HTMLAnchorElement>, project: HodorProject) {
+  function selectProject(project: HodorProject) {
     localStorage.setItem("hodorSelectedProjectId", project.id);
-    if (!api) return;
-    event.preventDefault();
-    if (!project.imageModel || !project.videoModel) {
-      setModelError("模型不可用：请先为项目选择图片模型和视频模型");
-      setEditingProject(project);
-      setEditorOpen(true);
-      return;
-    }
-    try {
-      const [imageDetail, videoDetail] = await Promise.all([
-        api.getModelDetail(project.imageModel),
-        api.getModelDetail(project.videoModel),
-      ]);
-      if (!imageDetail || !videoDetail) throw new Error("模型配置已经失效");
-      window.location.hash = projectHref(project).slice(1);
-    } catch (requestError) {
-      setModelError(`模型不可用：${readError(requestError, "供应商或模型已停用")}。请更新项目配置。`);
-      setEditingProject(project);
-      setEditorOpen(true);
-    }
   }
 
   async function deleteProject(project: HodorProject) {
@@ -125,8 +103,6 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
         </div>
       </header>
 
-      {modelError ? <div role="alert" className="mt-6 flex items-start gap-3 rounded-xl border border-amber-800/70 bg-amber-950/30 p-4 text-sm text-amber-100"><AlertCircle aria-hidden="true" size={19} /><div><p className="font-medium">{modelError}</p><button type="button" className="mt-2 text-xs underline" onClick={() => setModelError(null)}>关闭提示</button></div></div> : null}
-
       {loading ? (
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="正在加载项目">
           {[0, 1, 2].map((item) => <div key={item} className="h-52 animate-pulse rounded-xl border border-border bg-white/[0.025]" />)}
@@ -146,7 +122,7 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
             const createdAt = formatCreatedAt(project.createTime);
             return (
               <article key={project.id} className="flex min-h-56 flex-col rounded-xl border border-border bg-[#10131b] transition-colors hover:border-blue-500/50">
-                <a href={projectHref(project)} onClick={(event) => void openProject(event, project)} aria-label={`打开项目 ${project.name}`} className="flex flex-1 flex-col p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                <a href={projectHref(project)} onClick={() => selectProject(project)} aria-label={`打开项目 ${project.name}`} className="flex flex-1 flex-col p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   <div className="flex items-start justify-between gap-3"><h2 className="text-lg font-semibold tracking-tight">{project.name}</h2><span className="shrink-0 rounded-full border border-blue-900/70 bg-blue-950/40 px-2.5 py-1 text-xs text-blue-300">{projectTypeLabel(project.projectType)}</span></div>
                   {project.artStyle ? <p className="mt-4 w-fit rounded-md bg-white/5 px-2 py-1 text-xs text-slate-300">{project.artStyle}</p> : null}
                   <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-400">{project.intro || "暂无项目简介"}</p>
