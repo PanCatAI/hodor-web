@@ -35,6 +35,56 @@ class FakeSocket implements ProductionGraphSocket {
 }
 
 describe("ProductionGraphSocketAdapter", () => {
+  it("treats invalid namespace, auth rejection, and server disconnect as authoritative fallback signals", () => {
+    const store = createProductionGraphStore();
+    const socket = new FakeSocket();
+    const availability: string[] = [];
+    const adapter = createProductionGraphSocketAdapter({
+      store,
+      socket,
+      onServerAvailabilityChange: (next) => availability.push(next),
+    });
+    adapter.attach();
+
+    socket.trigger("connect_error", new Error("Invalid namespace"));
+    socket.trigger("connect_error", { message: "Unauthorized", data: { status: 401 } });
+    socket.trigger("disconnect", "io server disconnect");
+    expect(availability).toEqual(["unavailable", "unavailable", "unavailable"]);
+  });
+
+  it("keeps transient network errors inside Socket.IO reconnect and marks a valid snapshot available", () => {
+    const store = createProductionGraphStore();
+    const socket = new FakeSocket();
+    const availability: string[] = [];
+    const adapter = createProductionGraphSocketAdapter({
+      store,
+      socket,
+      onServerAvailabilityChange: (next) => availability.push(next),
+    });
+    adapter.attach();
+
+    socket.trigger("connect_error", new Error("websocket transport error"));
+    expect(availability).toEqual([]);
+    socket.trigger("productionGraph:snapshot", fixture.snapshots.p1Initial);
+    expect(availability).toEqual(["available"]);
+  });
+
+  it("treats server disabled and project authorization errors as authoritative fallback signals", () => {
+    const store = createProductionGraphStore();
+    const socket = new FakeSocket();
+    const availability: string[] = [];
+    const adapter = createProductionGraphSocketAdapter({
+      store,
+      socket,
+      onServerAvailabilityChange: (next) => availability.push(next),
+    });
+    adapter.attach();
+
+    socket.trigger("productionGraph:error", { code: "PRODUCTION_GRAPH_DISABLED", status: 503, message: "disabled" });
+    socket.trigger("productionGraph:error", { code: "PRODUCTION_GRAPH_PROJECT_FORBIDDEN", status: 403, message: "forbidden" });
+    expect(availability).toEqual(["unavailable", "unavailable"]);
+  });
+
   it("forwards snapshot and patch events to the store with revision guard", () => {
     const store = createProductionGraphStore();
     const socket = new FakeSocket();

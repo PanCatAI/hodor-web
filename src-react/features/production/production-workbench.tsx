@@ -1476,7 +1476,7 @@ export function ProductionWorkbench({
   );
 
   useEffect(() => {
-    if (!runningStoryboardIds.length) return;
+    if (tab === "flow" || !runningStoryboardIds.length) return;
     let cancelled = false;
     let timer = 0;
     let failures = 0;
@@ -1493,12 +1493,12 @@ export function ProductionWorkbench({
       }
       if (!cancelled) timer = window.setTimeout(poll, nextPollDelay(pollIntervalMs, failures));
     };
-    timer = window.setTimeout(poll, pollIntervalMs);
+    void poll();
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, pollIntervalMs, runningStoryboardIds.join(",")]);
+  }, [api, pollIntervalMs, runningStoryboardIds.join(","), tab]);
 
   useEffect(() => {
     if (scriptId == null || !runningVideoIds.length) return;

@@ -13,8 +13,13 @@ const ENV_FLAG_NAME = "VITE_PRODUCTION_GRAPH_V1_ENABLED";
 export interface ProductionGraphFeatureFlag {
   isEnabled(): boolean;
   setEnabled(enabled: boolean): void;
+  getServerAvailability(): ProductionGraphServerAvailability;
+  setServerAvailability(availability: ProductionGraphServerAvailability): void;
+  requestServerRecovery(): void;
   subscribe(listener: () => void): () => void;
 }
+
+export type ProductionGraphServerAvailability = "unknown" | "available" | "unavailable";
 
 interface BrowserLike {
   localStorage?: { getItem(key: string): string | null; setItem(key: string, value: string): void };
@@ -39,21 +44,34 @@ export function createProductionGraphFeatureFlag(
   env: EnvLike = typeof import.meta !== "undefined" ? (import.meta as unknown as { env?: EnvLike }).env ?? {} : {},
   browser: BrowserLike = typeof window !== "undefined" ? window : {},
 ): ProductionGraphFeatureFlag {
-  let enabled = resolveInitialEnabled(env, browser);
+  let clientEnabled = resolveInitialEnabled(env, browser);
+  let serverAvailability: ProductionGraphServerAvailability = "unknown";
   const listeners = new Set<() => void>();
+  const notify = () => listeners.forEach((listener) => listener());
 
   return {
-    isEnabled: () => enabled,
+    isEnabled: () => clientEnabled && serverAvailability !== "unavailable",
     setEnabled(next) {
       const value = Boolean(next);
-      if (value === enabled) return;
-      enabled = value;
+      if (value === clientEnabled) return;
+      clientEnabled = value;
       try {
         browser.localStorage?.setItem(STORAGE_KEY, value ? "true" : "false");
       } catch {
         // localStorage 可能在隐私模式下抛出；忽略，只在内存中保留。
       }
-      listeners.forEach((listener) => listener());
+      notify();
+    },
+    getServerAvailability: () => serverAvailability,
+    setServerAvailability(next) {
+      if (next === serverAvailability) return;
+      serverAvailability = next;
+      notify();
+    },
+    requestServerRecovery() {
+      if (serverAvailability === "unknown") return;
+      serverAvailability = "unknown";
+      notify();
     },
     subscribe(listener) {
       listeners.add(listener);

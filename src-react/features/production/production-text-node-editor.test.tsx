@@ -17,11 +17,9 @@ beforeAll(() => {
   });
 });
 
-async function replaceEditorText(dialog: HTMLElement, value: string) {
+function replaceEditorText(dialog: HTMLElement, value: string) {
   const editor = within(dialog).getByRole("textbox");
-  await userEvent.click(editor);
-  await userEvent.keyboard("{Control>}a{/Control}");
-  await userEvent.keyboard(value);
+  fireEvent.input(editor, { data: value, inputType: "insertText", target: { textContent: value } });
 }
 
 describe("ProductionTextNodeEditor", () => {
@@ -43,7 +41,7 @@ describe("ProductionTextNodeEditor", () => {
     expect(within(dialog).getByRole("button", { name: "预览" })).toBeInTheDocument();
     expect(within(dialog).getAllByText("第一幕").length).toBeGreaterThan(0);
 
-    await replaceEditorText(dialog, "第二幕：医院走廊");
+    replaceEditorText(dialog, "第二幕：医院走廊");
     await user.click(within(dialog).getByRole("button", { name: "取消" }));
 
     expect(onSave).not.toHaveBeenCalled();
@@ -51,7 +49,7 @@ describe("ProductionTextNodeEditor", () => {
 
     await user.click(screen.getByRole("button", { name: "编辑拍摄计划" }));
     const reopened = screen.getByRole("dialog", { name: "编辑拍摄计划" });
-    await replaceEditorText(reopened, "第二幕：医院走廊");
+    replaceEditorText(reopened, "第二幕：医院走廊");
     await user.click(within(reopened).getByRole("button", { name: "保存" }));
 
     expect(onSave).toHaveBeenCalledOnce();

@@ -430,13 +430,26 @@ export function ProductionFlowBoard({
 
   useEffect(() => {
     if (!runningStoryboardIds.length) return;
-    const timer = window.setInterval(() => {
+    let cancelled = false;
+    let timer = 0;
+    const poll = async () => {
       void api
         .pollStoryboards(runningStoryboardIds)
-        .then((updates) => setData((current) => ({ ...current, storyboard: updateStoryboards(current.storyboard, updates) })))
-        .catch((error) => setNotice(`分镜轮询暂时失败：${errorMessage(error)}`));
-    }, pollIntervalMs);
-    return () => window.clearInterval(timer);
+        .then((updates) => {
+          if (!cancelled) setData((current) => ({ ...current, storyboard: updateStoryboards(current.storyboard, updates) }));
+        })
+        .catch((error) => {
+          if (!cancelled) setNotice(`分镜轮询暂时失败：${errorMessage(error)}`);
+        })
+        .finally(() => {
+          if (!cancelled) timer = window.setTimeout(poll, pollIntervalMs);
+        });
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [api, pollIntervalMs, runningStoryboardIds.join(",")]);
 
   function updateNodePosition(node: ProductionNode) {

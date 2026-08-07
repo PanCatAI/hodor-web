@@ -1,4 +1,5 @@
 import type { ProductionGraphStore } from "./production-graph-store";
+import type { ProductionGraphServerAvailability } from "./feature-flag";
 import {
   ProductionGraphBusinessError,
   type ProductionGraphPatch,
@@ -34,6 +35,7 @@ export interface ProductionGraphSocket {
 export interface ProductionGraphSocketAdapterOptions {
   store: ProductionGraphStore;
   socket: ProductionGraphSocket;
+  onServerAvailabilityChange?: (availability: ProductionGraphServerAvailability) => void;
   /**
    * 用于在重连后请求最新快照；测试可注入。
    * 生产环境默认为 () => socket.emit("productionGraph:read", { graphId: store.getSnapshot().graphId })。
@@ -46,6 +48,13 @@ const PATCH_EVENT = "productionGraph:patch";
 const LEGACY_UPDATE_EVENT = "productionRun:update";
 const LEGACY_RESTORE_EVENT = "productionRun:restore";
 const READ_EVENT = "productionGraph:read";
+const ERROR_EVENT = "productionGraph:error";
+
+const AUTHORITATIVE_UNAVAILABLE_CODES = new Set([
+  "PRODUCTION_GRAPH_DISABLED",
+  "PRODUCTION_GRAPH_PROJECT_FORBIDDEN",
+  "PANCAT_AUTH_REQUIRED",
+]);
 
 function asObject(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
@@ -65,6 +74,20 @@ function asPatch(value: unknown): ProductionGraphPatch {
   const record = asObject(value);
   if (!record) throw new ProductionGraphBusinessError("PRODUCTION_GRAPH_DISABLED", "无效的 productionGraph:patch 事件", 422);
   return record as unknown as ProductionGraphPatch;
+}
+
+function isAuthoritativeUnavailableError(value: unknown): boolean {
+  const record = asObject(value);
+  const nested = asObject(record?.data);
+  const status = Number(record?.status ?? nested?.status);
+  if (status === 401 || status === 403) return true;
+  const code = String(record?.code ?? nested?.code ?? "").toUpperCase();
+  if (AUTHORITATIVE_UNAVAILABLE_CODES.has(code)) return true;
+  const message = String(record?.message ?? value ?? "").toLowerCase();
+  return message.includes("invalid namespace")
+    || message.includes("unauthorized")
+    || message.includes("forbidden")
+    || message.includes("authentication required");
 }
 
 function selectRestoreCandidate(payload: ProductionRunRestorePayload): ProductionRunUpdatePayload | null {
@@ -93,8 +116,10 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
     if (!snapshot) {
       // 服务端发送 null 表示项目尚未拥有持久图；切回旧固定拓扑而不是抛错。
       store.setFeatureEnabled(false);
+      options.onServerAvailabilityChange?.("unavailable");
       return;
     }
+    options.onServerAvailabilityChange?.("available");
     store.applySnapshot(snapshot);
   };
   const handlePatch = (raw: unknown) => {
@@ -131,6 +156,21 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
     if (fallback) fallback(socket, graphId);
     else if (graphId) socket.emit(READ_EVENT, { graphId });
   };
+  const handleConnectError = (error: unknown) => {
+    if (isAuthoritativeUnavailableError(error)) {
+      options.onServerAvailabilityChange?.("unavailable");
+    }
+  };
+  const handleDisconnect = (reason: unknown) => {
+    if (reason === "io server disconnect") {
+      options.onServerAvailabilityChange?.("unavailable");
+    }
+  };
+  const handleServerError = (error: unknown) => {
+    if (isAuthoritativeUnavailableError(error)) {
+      options.onServerAvailabilityChange?.("unavailable");
+    }
+  };
 
   return {
     attach() {
@@ -140,8 +180,11 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
       socket.on(PATCH_EVENT, handlePatch);
       socket.on(LEGACY_UPDATE_EVENT, handleLegacyUpdate);
       socket.on(LEGACY_RESTORE_EVENT, handleLegacyRestore);
+      socket.on(ERROR_EVENT, handleServerError);
       socket.on("connect", handleConnect);
       socket.on("reconnect", handleConnect);
+      socket.on("connect_error", handleConnectError);
+      socket.on("disconnect", handleDisconnect);
     },
     detach() {
       if (!attached) return;
@@ -151,8 +194,11 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
         socket.off(PATCH_EVENT, handlePatch);
         socket.off(LEGACY_UPDATE_EVENT, handleLegacyUpdate);
         socket.off(LEGACY_RESTORE_EVENT, handleLegacyRestore);
+        socket.off(ERROR_EVENT, handleServerError);
         socket.off("connect", handleConnect);
         socket.off("reconnect", handleConnect);
+        socket.off("connect_error", handleConnectError);
+        socket.off("disconnect", handleDisconnect);
       }
     },
     requestSnapshot() {
