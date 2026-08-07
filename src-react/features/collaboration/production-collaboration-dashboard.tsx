@@ -97,7 +97,7 @@ function RoleContractCard({ role }: { role: CollaborationRole }) {
 function ResponsibilityGraph() {
   return (
     <div className="collab-graph-wrap" data-testid="responsibility-graph">
-      <div className="collab-graph-axis"><span>输入</span><span>责任图 revision 04</span><span>局部交付</span></div>
+      <div className="collab-graph-axis"><span>输入</span><span>责任图 revision 1</span><span>局部交付</span></div>
       <div className="collab-graph-flow">
         <div className="collab-graph-node collab-graph-node-source"><MessageSquare size={17} /><strong>制片消息</strong><small>scene-kitchen-007</small></div>
         <ChevronRight className="collab-graph-arrow" size={19} />
@@ -157,7 +157,7 @@ export function ProductionCollaborationDashboard() {
 
         <div className="collab-stat-strip" aria-label="协作摘要">
           <div><span>角色运行</span><strong>02</strong><small>同一场景真实并行</small></div>
-          <div><span>图谱修订</span><strong>04</strong><small>责任拆分 + 重排有证据</small></div>
+          <div><span>图谱修订</span><strong>1</strong><small>责任图 revision 1 · 拆分 + 重排有证据</small></div>
           <div><span>空间决策</span><strong>02</strong><small>1 invoke / 1 skip</small></div>
           <div><span>外部生成</span><strong>$0</strong><small>provider calls 0 · Pancat writes 0</small></div>
           <div className="collab-stat-ready"><span>READINESS</span><strong>READY</strong><small>不依赖阶段名判断</small></div>

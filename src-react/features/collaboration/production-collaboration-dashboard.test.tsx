@@ -11,7 +11,11 @@ describe("ProductionCollaborationDashboard", () => {
     expect(screen.getAllByText(COLLABORATION_SCENE.sceneId).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTestId("role-card-shot-planner")).toHaveTextContent("shot-planner.v1");
     expect(screen.getByTestId("role-card-continuity-supervisor")).toHaveTextContent("continuity-supervisor.v1");
+    expect(screen.getByTestId("responsibility-graph")).toHaveTextContent("责任图 revision 1");
+    expect(screen.getByTestId("responsibility-graph")).not.toHaveTextContent("revision 04");
     expect(screen.getByTestId("responsibility-graph")).toHaveTextContent("evidence:arbitration:shot-003");
+    expect(screen.getByText("图谱修订").parentElement).toHaveTextContent("1");
+    expect(screen.getByText("图谱修订").parentElement).toHaveTextContent("责任图 revision 1");
     expect(screen.getByTestId("spatial-shot-003")).toHaveTextContent("启用 Blender 白模");
     expect(screen.getByTestId("spatial-shot-001")).toHaveTextContent("有理由跳过");
     expect(screen.getByText("仅写入 shot-003；shot-001 / 002 / 004 的 adopted 版本保持不变。")).toBeInTheDocument();
