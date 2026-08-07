@@ -172,6 +172,39 @@ describe("agent pages", () => {
     await act(async () => view.unmount());
   });
 
+  it("falls back to the legacy panel on a server-authoritative graph rejection and explicitly reconnects once", async () => {
+    const socket = new PageSocket();
+    const socketFactory = vi.fn(() => socket);
+    const request = vi.fn(async (path: string) => {
+      if (path === "/agents/getMemory") return [];
+      if (path === "/project/getModelDetails") return { think: false };
+      throw new Error(`未预期接口 ${path}`);
+    });
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(
+        <ScriptAgentPanel
+          projectId={7}
+          apiClient={{ request } as unknown as HodorApiClient}
+          apiBaseUrl="/api"
+          getToken={() => "session-token"}
+          socketFactory={socketFactory}
+          productionGraphSocketFactory={socketFactory}
+        />,
+      );
+    });
+    const initialConnections = socketFactory.mock.calls.length;
+
+    await act(async () => socket.trigger("connect_error", new Error("Invalid namespace")));
+    expect(screen.getByText("制作图服务当前不可用，已回退到原制作流程。")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "互动剧智能体" })).toBeInTheDocument();
+
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "重新连接制作图" })));
+    expect(socketFactory).toHaveBeenCalledTimes(initialConnections + 1);
+    expect(screen.queryByRole("button", { name: "重新连接制作图" })).not.toBeInTheDocument();
+    await act(async () => view.unmount());
+  });
+
   it("writes markdown source imports from the interactive agent panel into the current project", async () => {
     const socket = new PageSocket();
     const request = vi.fn(async (path: string) => {
