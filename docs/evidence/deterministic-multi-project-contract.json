@@ -1,0 +1,57 @@
+{
+  "contractVersion": "deterministic-multi-project-v1",
+  "source": "hodor/tests/fixtures/deterministic-multi-project-contract.mjs",
+  "hodorEvidenceSummaryHash": "d36af65efa3ae1ec0879446bd6c964307937b067396dfd06891039cb16bac4be",
+  "fixture": {
+    "filmIds": ["film-alpha", "film-beta"],
+    "sceneCount": 4,
+    "shotCount": 16
+  },
+  "idempotency": {
+    "replaysPerFilm": 3,
+    "uniqueTaskCountPerFilm": 1,
+    "uniqueRoleRunCountPerFilm": 1,
+    "uniqueAssetCountPerFilm": 1,
+    "uniqueReferenceCountPerFilm": 1
+  },
+  "determinism": {
+    "randomizedCompletionRuns": 10,
+    "stableRoleRunIds": true,
+    "stableResponsibilityGraphRevision": true,
+    "stableEventSummary": true,
+    "stableEvidenceReferences": true
+  },
+  "isolation": {
+    "graphSnapshots": ["graph:film-alpha", "graph:film-beta"],
+    "crossFilmGraphLeaks": 0,
+    "crossFilmMemoryLeaks": 0,
+    "crossFilmAssetLeaks": 0,
+    "crossFilmResponsibilityLeaks": 0,
+    "returnContextPreserved": true,
+    "qualityContractVersion": "quality-v3"
+  },
+  "assets": {
+    "reusableIdentityAssetsHitBeforeMockGeneration": true,
+    "referenceCandidateCount": 16,
+    "compression": { "original": "4096x4096/4194304", "compressed": "1024x1024/262144" },
+    "adoptionReasonRecorded": true
+  },
+  "riskRouting": { "blender": 4, "3x3": 4, "model-direct": 8, "blockedHighRiskShots": 0 },
+  "vendorKnowledge": {
+    "task": true,
+    "modelCapability": true,
+    "filmConstraints": true,
+    "historicalEvidence": true,
+    "sourceVersion": "vendor-knowledge-source-v2",
+    "adoptedVersion": "vendor-adopted:<filmId>:v1"
+  },
+  "localRepair": {
+    "defectiveShot": "film-beta/scene-2/shot-3",
+    "defectiveShotVersionBefore": 1,
+    "defectiveShotVersionAfter": 2,
+    "unaffectedShotVersionsAndHashesUnchanged": true
+  },
+  "actionParity": { "dialogAndGraphShareRegistry": true, "sameResponsibilityChange": true, "sameEvidenceChain": true },
+  "readiness": { "stageIndependent": true, "storyboard": true, "review": true },
+  "guards": { "paidGenerationUsd": 0, "realProviderCalls": 0, "pancatWrites": 0 }
+}
