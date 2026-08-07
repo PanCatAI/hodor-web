@@ -21,7 +21,7 @@ async function replaceEditorText(dialog: HTMLElement, value: string) {
   const editor = within(dialog).getByRole("textbox");
   await userEvent.click(editor);
   await userEvent.keyboard("{Control>}a{/Control}");
-  await userEvent.keyboard(value);
+  await userEvent.paste(value);
 }
 
 describe("ProductionTextNodeEditor", () => {

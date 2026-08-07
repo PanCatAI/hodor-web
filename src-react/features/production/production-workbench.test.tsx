@@ -279,13 +279,14 @@ describe("ProductionWorkbench", () => {
       <ProductionWorkbench
         api={api}
         initialView="flow"
-        pollIntervalMs={1}
+        pollIntervalMs={60_000}
         project={{ id: 7, name: "雨夜", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
       />,
     );
 
-    expect(await screen.findByAltText("画布分镜 1")).toHaveAttribute("src", "https://example.test/31.jpg");
     await waitFor(() => expect(api.pollStoryboards).toHaveBeenCalledWith([31]));
+    expect(await screen.findByAltText("画布分镜 1")).toHaveAttribute("src", "https://example.test/31.jpg");
+    expect(api.pollStoryboards).toHaveBeenCalledTimes(1);
     expect(api.saveFlowData).not.toHaveBeenCalled();
   });
 
