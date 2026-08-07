@@ -107,7 +107,7 @@ function ResponsibilityGraph() {
         <ChevronRight className="collab-graph-arrow" size={19} />
         <div className="collab-graph-node collab-graph-node-patch"><Wrench size={17} /><strong>003 局部修复</strong><small>shot-scoped patch</small></div>
       </div>
-      <div className="collab-graph-change"><GitBranch size={14} /><span><strong>reorder</strong> 空间验证在候选采用前完成；责任字段没有写入影片知识节点。</span><EvidenceTag tone="green">EV-GRAPH-004</EvidenceTag></div>
+      <div className="collab-graph-change"><GitBranch size={14} /><span><strong>reorder</strong> 白模完成后再处理局部 patch；责任字段没有写入影片知识节点。</span><EvidenceTag tone="green">evidence:arbitration:shot-003</EvidenceTag></div>
     </div>
   );
 }
@@ -166,7 +166,7 @@ export function ProductionCollaborationDashboard() {
         <section className="collab-section" aria-labelledby="roles-heading">
           <SectionHeading eyebrow="01 / ROLE CONTRACTS" title="并行运行，各自带着自己的边界" detail="合同、知识范围、私有记忆、工具与质量规则在角色之间保持隔离。" icon={<LockKeyhole size={17} />} />
           <div className="collab-role-grid-large" id="roles-heading">{scene.roles.map((role) => <RoleContractCard key={role.id} role={role} />)}</div>
-          <div className="collab-return-ribbon"><div className="collab-return-icon"><ArrowRight size={17} /></div><div><strong>同角色返场已确认</strong><span>continuity-supervisor · {scene.filmId} · {scene.roles[1].memoryNamespace} · contract {scene.roles[1].contractVersion}</span></div><EvidenceTag tone="cyan">EV-CONTEXT-002</EvidenceTag></div>
+          <div className="collab-return-ribbon"><div className="collab-return-icon"><ArrowRight size={17} /></div><div><strong>同角色返场已确认</strong><span>shot-planner · {scene.filmId} · {scene.roles[0].memoryNamespace} · contract {scene.roles[0].contractVersion}</span></div><EvidenceTag tone="cyan">memory:film-zero-cost-001:shot-planner</EvidenceTag></div>
         </section>
 
         <section className="collab-section" aria-labelledby="graph-heading">

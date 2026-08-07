@@ -51,12 +51,12 @@ Hodor Web 使用 React 单入口。浏览器直接连接云端 Hodor API；Elect
 
 | 边界 | 当前证据 | 保护条件 |
 | --- | --- | --- |
-| 角色合同 | `shot-planner.v2`、`continuity-supervisor.v3`，分别列出职责、知识、私有记忆、工具、质量规则和禁写项 | 角色只能读取自己的合同与工作记忆摘要 |
+| 角色合同 | `shot-planner.v1`、`continuity-supervisor.v1`，分别列出职责、知识、私有记忆、工具、质量规则和禁写项 | 角色只能读取自己的合同与工作记忆摘要 |
 | 影片知识图谱 | `blocking.geometry`、`character.hands`、已采用镜头等事实节点 | 知识节点不携带 `roleId`、`assignee` 或责任状态 |
-| 动态责任图 | revision 04，将空间验证从规划职责中拆出并重排到连续性监修 | 图变更带 `EV-GRAPH-004`，可以独立演化 |
-| 镜头证据 | `EV-SPACE-003`、`EV-PATCH-003`、`EV-ARB-001` | patch 只作用于 `shot-003`，保留其他已采用镜头 |
+| 动态责任图 | revision 1，白模责任归连续性监修，局部 patch 责任归分镜规划师 | 图变更带 `evidence:*` 引用，可以独立演化 |
+| 镜头证据 | `evidence:shot-003:spatial-risk`、`evidence:shot-003:patch:2`、`evidence:arbitration:shot-003:1` | patch 只作用于 `shot-003`，保留其他已采用镜头 |
 
-单场景记录的时间线从一条用户消息开始，先并行启动两个角色，再按 capability 选择供应商知识，依据空间风险决定白模调用，最后由证据裁决并局部采用。`shot-003` 风险为 `0.92`，调用本地 mock Blender 白模；`shot-001` 风险为 `0.18`，保留跳过理由。连续性监修返场时继续使用 `film-zero-cost-001` 和自己的 private memory namespace。
+单场景记录的时间线从一条用户消息开始，先并行启动两个角色，再按 capability 选择供应商知识，依据空间风险决定白模调用，最后由证据裁决并局部采用。`shot-003` 风险为 `0.85`，调用本地 recording white-blockout；`shot-001` 风险为 `0`，保留固定机位的跳过理由。分镜规划师返场时继续使用 `film-zero-cost-001` 和自己的 `memory:film-zero-cost-001:shot-planner`。
 
 页面底部 readiness 使用证据集合计算展示状态：证据齐全、上下文连续、边界安全、零成本四项均满足才显示 `READY`。页面本身不包含写入按钮，也不改变 ProductionGraph 的业务代码。
 
