@@ -1,57 +1,3624 @@
 {
   "contractVersion": "deterministic-multi-project-v1",
-  "source": "hodor/tests/fixtures/deterministic-multi-project-contract.mjs",
-  "hodorEvidenceSummaryHash": "d36af65efa3ae1ec0879446bd6c964307937b067396dfd06891039cb16bac4be",
   "fixture": {
-    "filmIds": ["film-alpha", "film-beta"],
-    "sceneCount": 4,
-    "shotCount": 16
+    "films": [
+      {
+        "filmId": "film-alpha",
+        "title": "雨夜抉择",
+        "constraints": {
+          "aspectRatio": "16:9",
+          "palette": "cool-noir",
+          "rating": "PG-13"
+        },
+        "graphId": "graph:film-alpha",
+        "memoryNamespace": "memory:film-alpha"
+      },
+      {
+        "filmId": "film-beta",
+        "title": "沙丘回声",
+        "constraints": {
+          "aspectRatio": "2.39:1",
+          "palette": "warm-desert",
+          "rating": "PG-13"
+        },
+        "graphId": "graph:film-beta",
+        "memoryNamespace": "memory:film-beta"
+      }
+    ],
+    "scenes": [
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "title": "film-alpha:scene-1",
+        "sceneIndex": 0
+      },
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "title": "film-alpha:scene-2",
+        "sceneIndex": 1
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "title": "film-beta:scene-1",
+        "sceneIndex": 0
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "title": "film-beta:scene-2",
+        "sceneIndex": 1
+      }
+    ],
+    "shots": [
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "shotId": "shot-1",
+        "shotIndex": 0,
+        "risk": "low"
+      },
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "shotId": "shot-2",
+        "shotIndex": 1,
+        "risk": "medium"
+      },
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "shotId": "shot-3",
+        "shotIndex": 2,
+        "risk": "high"
+      },
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "shotId": "shot-4",
+        "shotIndex": 3,
+        "risk": "low"
+      },
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "shotId": "shot-1",
+        "shotIndex": 0,
+        "risk": "low"
+      },
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "shotId": "shot-2",
+        "shotIndex": 1,
+        "risk": "medium"
+      },
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "shotId": "shot-3",
+        "shotIndex": 2,
+        "risk": "high"
+      },
+      {
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "shotId": "shot-4",
+        "shotIndex": 3,
+        "risk": "low"
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "shotId": "shot-1",
+        "shotIndex": 0,
+        "risk": "low"
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "shotId": "shot-2",
+        "shotIndex": 1,
+        "risk": "medium"
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "shotId": "shot-3",
+        "shotIndex": 2,
+        "risk": "high"
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "shotId": "shot-4",
+        "shotIndex": 3,
+        "risk": "low"
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "shotId": "shot-1",
+        "shotIndex": 0,
+        "risk": "low"
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "shotId": "shot-2",
+        "shotIndex": 1,
+        "risk": "medium"
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "shotId": "shot-3",
+        "shotIndex": 2,
+        "risk": "high"
+      },
+      {
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "shotId": "shot-4",
+        "shotIndex": 3,
+        "risk": "low"
+      }
+    ]
   },
-  "idempotency": {
-    "replaysPerFilm": 3,
-    "uniqueTaskCountPerFilm": 1,
-    "uniqueRoleRunCountPerFilm": 1,
-    "uniqueAssetCountPerFilm": 1,
-    "uniqueReferenceCountPerFilm": 1
+  "execution": {
+    "promiseAllFilms": true,
+    "interleavedFilmEvents": true,
+    "implementation": "Promise.all"
   },
-  "determinism": {
-    "randomizedCompletionRuns": 10,
-    "stableRoleRunIds": true,
-    "stableResponsibilityGraphRevision": true,
-    "stableEventSummary": true,
-    "stableEvidenceReferences": true
-  },
-  "isolation": {
-    "graphSnapshots": ["graph:film-alpha", "graph:film-beta"],
-    "crossFilmGraphLeaks": 0,
-    "crossFilmMemoryLeaks": 0,
-    "crossFilmAssetLeaks": 0,
-    "crossFilmResponsibilityLeaks": 0,
-    "returnContextPreserved": true,
-    "qualityContractVersion": "quality-v3"
-  },
-  "assets": {
-    "reusableIdentityAssetsHitBeforeMockGeneration": true,
-    "referenceCandidateCount": 16,
-    "compression": { "original": "4096x4096/4194304", "compressed": "1024x1024/262144" },
-    "adoptionReasonRecorded": true
-  },
-  "riskRouting": { "blender": 4, "3x3": 4, "model-direct": 8, "blockedHighRiskShots": 0 },
-  "vendorKnowledge": {
-    "task": true,
-    "modelCapability": true,
-    "filmConstraints": true,
-    "historicalEvidence": true,
-    "sourceVersion": "vendor-knowledge-source-v2",
-    "adoptedVersion": "vendor-adopted:<filmId>:v1"
+  "graphSnapshots": [
+    {
+      "filmId": "film-alpha",
+      "graphId": "graph:film-alpha",
+      "logicalRevision": "responsibility-revision-cacdc104bd61",
+      "revision": 1,
+      "nodeRecords": [
+        {
+          "filmId": "film-alpha",
+          "sceneId": "scene-1",
+          "shotId": "shot-1"
+        },
+        {
+          "filmId": "film-alpha",
+          "sceneId": "scene-1",
+          "shotId": "shot-2"
+        },
+        {
+          "filmId": "film-alpha",
+          "sceneId": "scene-1",
+          "shotId": "shot-3"
+        },
+        {
+          "filmId": "film-alpha",
+          "sceneId": "scene-1",
+          "shotId": "shot-4"
+        },
+        {
+          "filmId": "film-alpha",
+          "sceneId": "scene-2",
+          "shotId": "shot-1"
+        },
+        {
+          "filmId": "film-alpha",
+          "sceneId": "scene-2",
+          "shotId": "shot-2"
+        },
+        {
+          "filmId": "film-alpha",
+          "sceneId": "scene-2",
+          "shotId": "shot-3"
+        },
+        {
+          "filmId": "film-alpha",
+          "sceneId": "scene-2",
+          "shotId": "shot-4"
+        }
+      ],
+      "nodeIds": [
+        "scene-1/shot-1",
+        "scene-1/shot-2",
+        "scene-1/shot-3",
+        "scene-1/shot-4",
+        "scene-2/shot-1",
+        "scene-2/shot-2",
+        "scene-2/shot-3",
+        "scene-2/shot-4"
+      ],
+      "memoryNamespace": "memory:film-alpha"
+    },
+    {
+      "filmId": "film-beta",
+      "graphId": "graph:film-beta",
+      "logicalRevision": "responsibility-revision-cacdc104bd61",
+      "revision": 1,
+      "nodeRecords": [
+        {
+          "filmId": "film-beta",
+          "sceneId": "scene-1",
+          "shotId": "shot-1"
+        },
+        {
+          "filmId": "film-beta",
+          "sceneId": "scene-1",
+          "shotId": "shot-2"
+        },
+        {
+          "filmId": "film-beta",
+          "sceneId": "scene-1",
+          "shotId": "shot-3"
+        },
+        {
+          "filmId": "film-beta",
+          "sceneId": "scene-1",
+          "shotId": "shot-4"
+        },
+        {
+          "filmId": "film-beta",
+          "sceneId": "scene-2",
+          "shotId": "shot-1"
+        },
+        {
+          "filmId": "film-beta",
+          "sceneId": "scene-2",
+          "shotId": "shot-2"
+        },
+        {
+          "filmId": "film-beta",
+          "sceneId": "scene-2",
+          "shotId": "shot-3"
+        },
+        {
+          "filmId": "film-beta",
+          "sceneId": "scene-2",
+          "shotId": "shot-4"
+        }
+      ],
+      "nodeIds": [
+        "scene-1/shot-1",
+        "scene-1/shot-2",
+        "scene-1/shot-3",
+        "scene-1/shot-4",
+        "scene-2/shot-1",
+        "scene-2/shot-2",
+        "scene-2/shot-3",
+        "scene-2/shot-4"
+      ],
+      "memoryNamespace": "memory:film-beta"
+    }
+  ],
+  "ledger": [
+    {
+      "idempotencyKey": "create:film-alpha:v1",
+      "taskId": "task_7bb1b2eeccb37200",
+      "roleRunId": "role-run_032a4fdfba42de9f",
+      "assetId": "asset_714f7386b65a9a0d",
+      "referenceId": "reference_714f7386b65a9a0d"
+    },
+    {
+      "idempotencyKey": "create:film-beta:v1",
+      "taskId": "task_0bb7016a5b4e0cee",
+      "roleRunId": "role-run_0351993c871df314",
+      "assetId": "asset_cf64ee85008d5783",
+      "referenceId": "reference_cf64ee85008d5783"
+    }
+  ],
+  "replaySummaries": [
+    {
+      "filmId": "film-alpha",
+      "replay": 1,
+      "replayCount": 3,
+      "uniqueRecordCounts": {
+        "task": 1,
+        "roleRun": 1,
+        "asset": 1,
+        "reference": 1
+      },
+      "recordIds": [
+        "task_7bb1b2eeccb37200",
+        "role-run_032a4fdfba42de9f",
+        "asset_714f7386b65a9a0d",
+        "reference_714f7386b65a9a0d"
+      ]
+    },
+    {
+      "filmId": "film-alpha",
+      "replay": 2,
+      "replayCount": 3,
+      "uniqueRecordCounts": {
+        "task": 1,
+        "roleRun": 1,
+        "asset": 1,
+        "reference": 1
+      },
+      "recordIds": [
+        "task_7bb1b2eeccb37200",
+        "role-run_032a4fdfba42de9f",
+        "asset_714f7386b65a9a0d",
+        "reference_714f7386b65a9a0d"
+      ]
+    },
+    {
+      "filmId": "film-alpha",
+      "replay": 3,
+      "replayCount": 3,
+      "uniqueRecordCounts": {
+        "task": 1,
+        "roleRun": 1,
+        "asset": 1,
+        "reference": 1
+      },
+      "recordIds": [
+        "task_7bb1b2eeccb37200",
+        "role-run_032a4fdfba42de9f",
+        "asset_714f7386b65a9a0d",
+        "reference_714f7386b65a9a0d"
+      ]
+    },
+    {
+      "filmId": "film-beta",
+      "replay": 1,
+      "replayCount": 3,
+      "uniqueRecordCounts": {
+        "task": 1,
+        "roleRun": 1,
+        "asset": 1,
+        "reference": 1
+      },
+      "recordIds": [
+        "task_0bb7016a5b4e0cee",
+        "role-run_0351993c871df314",
+        "asset_cf64ee85008d5783",
+        "reference_cf64ee85008d5783"
+      ]
+    },
+    {
+      "filmId": "film-beta",
+      "replay": 2,
+      "replayCount": 3,
+      "uniqueRecordCounts": {
+        "task": 1,
+        "roleRun": 1,
+        "asset": 1,
+        "reference": 1
+      },
+      "recordIds": [
+        "task_0bb7016a5b4e0cee",
+        "role-run_0351993c871df314",
+        "asset_cf64ee85008d5783",
+        "reference_cf64ee85008d5783"
+      ]
+    },
+    {
+      "filmId": "film-beta",
+      "replay": 3,
+      "replayCount": 3,
+      "uniqueRecordCounts": {
+        "task": 1,
+        "roleRun": 1,
+        "asset": 1,
+        "reference": 1
+      },
+      "recordIds": [
+        "task_0bb7016a5b4e0cee",
+        "role-run_0351993c871df314",
+        "asset_cf64ee85008d5783",
+        "reference_cf64ee85008d5783"
+      ]
+    }
+  ],
+  "roleRuns": [
+    {
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "role": "director",
+      "roleIndex": 0,
+      "roleRunId": "role-run_1a4493d565972160",
+      "privateMemoryNamespace": "memory:film-alpha:director",
+      "qualityContractVersion": "quality-v3",
+      "returnContext": {
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "privateMemoryNamespace": "memory:film-alpha:director",
+        "qualityContractVersion": "quality-v3"
+      }
+    },
+    {
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "role": "asset",
+      "roleIndex": 1,
+      "roleRunId": "role-run_642c7b98226732da",
+      "privateMemoryNamespace": "memory:film-alpha:asset",
+      "qualityContractVersion": "quality-v3",
+      "returnContext": {
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "privateMemoryNamespace": "memory:film-alpha:asset",
+        "qualityContractVersion": "quality-v3"
+      }
+    },
+    {
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "role": "verifier",
+      "roleIndex": 2,
+      "roleRunId": "role-run_89c6b72394236b4a",
+      "privateMemoryNamespace": "memory:film-alpha:verifier",
+      "qualityContractVersion": "quality-v3",
+      "returnContext": {
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "privateMemoryNamespace": "memory:film-alpha:verifier",
+        "qualityContractVersion": "quality-v3"
+      }
+    },
+    {
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "role": "asset",
+      "roleIndex": 1,
+      "roleRunId": "role-run_a93b7bf8c8806fee",
+      "privateMemoryNamespace": "memory:film-beta:asset",
+      "qualityContractVersion": "quality-v3",
+      "returnContext": {
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "privateMemoryNamespace": "memory:film-beta:asset",
+        "qualityContractVersion": "quality-v3"
+      }
+    },
+    {
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "role": "verifier",
+      "roleIndex": 2,
+      "roleRunId": "role-run_d56ef9c599e459d1",
+      "privateMemoryNamespace": "memory:film-beta:verifier",
+      "qualityContractVersion": "quality-v3",
+      "returnContext": {
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "privateMemoryNamespace": "memory:film-beta:verifier",
+        "qualityContractVersion": "quality-v3"
+      }
+    },
+    {
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "role": "director",
+      "roleIndex": 0,
+      "roleRunId": "role-run_e0fdd82f3ed1eb24",
+      "privateMemoryNamespace": "memory:film-beta:director",
+      "qualityContractVersion": "quality-v3",
+      "returnContext": {
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "privateMemoryNamespace": "memory:film-beta:director",
+        "qualityContractVersion": "quality-v3"
+      }
+    }
+  ],
+  "completionOrder": [
+    "role-run_1a4493d565972160",
+    "role-run_642c7b98226732da",
+    "role-run_89c6b72394236b4a",
+    "role-run_a93b7bf8c8806fee",
+    "role-run_d56ef9c599e459d1",
+    "role-run_e0fdd82f3ed1eb24"
+  ],
+  "references": [
+    {
+      "referenceId": "reference_30e5171ddbc162b6",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "shotId": "shot-1",
+      "shotIndex": 0,
+      "risk": "low",
+      "shotKey": "film-alpha/scene-1/shot-1",
+      "assetHits": [
+        {
+          "filmId": "film-alpha",
+          "identity": "lead",
+          "assetId": "asset_5d240558dd7d22cf",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-alpha",
+          "identity": "support",
+          "assetId": "asset_74352de4dd7a7a46",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "referenceId": "reference_32cbdeca9e2f1234",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "shotId": "shot-2",
+      "shotIndex": 1,
+      "risk": "medium",
+      "shotKey": "film-alpha/scene-1/shot-2",
+      "assetHits": [
+        {
+          "filmId": "film-alpha",
+          "identity": "lead",
+          "assetId": "asset_5d240558dd7d22cf",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-alpha",
+          "identity": "support",
+          "assetId": "asset_74352de4dd7a7a46",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "3x3 路由采用 film-alpha 的 medium 风险候选",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "referenceId": "reference_23ad7124172b958d",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "shotId": "shot-3",
+      "shotIndex": 2,
+      "risk": "high",
+      "shotKey": "film-alpha/scene-1/shot-3",
+      "assetHits": [
+        {
+          "filmId": "film-alpha",
+          "identity": "lead",
+          "assetId": "asset_5d240558dd7d22cf",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-alpha",
+          "identity": "support",
+          "assetId": "asset_74352de4dd7a7a46",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "blender 路由采用 film-alpha 的 high 风险候选",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "referenceId": "reference_2bb48b9e59b48813",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "shotId": "shot-4",
+      "shotIndex": 3,
+      "risk": "low",
+      "shotKey": "film-alpha/scene-1/shot-4",
+      "assetHits": [
+        {
+          "filmId": "film-alpha",
+          "identity": "lead",
+          "assetId": "asset_5d240558dd7d22cf",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-alpha",
+          "identity": "support",
+          "assetId": "asset_74352de4dd7a7a46",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "referenceId": "reference_dcc39a1f2d7af42b",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "shotId": "shot-1",
+      "shotIndex": 0,
+      "risk": "low",
+      "shotKey": "film-alpha/scene-2/shot-1",
+      "assetHits": [
+        {
+          "filmId": "film-alpha",
+          "identity": "lead",
+          "assetId": "asset_5d240558dd7d22cf",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-alpha",
+          "identity": "support",
+          "assetId": "asset_74352de4dd7a7a46",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "referenceId": "reference_992b4db6cb3f9027",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "shotId": "shot-2",
+      "shotIndex": 1,
+      "risk": "medium",
+      "shotKey": "film-alpha/scene-2/shot-2",
+      "assetHits": [
+        {
+          "filmId": "film-alpha",
+          "identity": "lead",
+          "assetId": "asset_5d240558dd7d22cf",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-alpha",
+          "identity": "support",
+          "assetId": "asset_74352de4dd7a7a46",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "3x3 路由采用 film-alpha 的 medium 风险候选",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "referenceId": "reference_4c7efad2156bc0c5",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "shotId": "shot-3",
+      "shotIndex": 2,
+      "risk": "high",
+      "shotKey": "film-alpha/scene-2/shot-3",
+      "assetHits": [
+        {
+          "filmId": "film-alpha",
+          "identity": "lead",
+          "assetId": "asset_5d240558dd7d22cf",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-alpha",
+          "identity": "support",
+          "assetId": "asset_74352de4dd7a7a46",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "blender 路由采用 film-alpha 的 high 风险候选",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "referenceId": "reference_a36662c8920bf711",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "shotId": "shot-4",
+      "shotIndex": 3,
+      "risk": "low",
+      "shotKey": "film-alpha/scene-2/shot-4",
+      "assetHits": [
+        {
+          "filmId": "film-alpha",
+          "identity": "lead",
+          "assetId": "asset_5d240558dd7d22cf",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-alpha",
+          "identity": "support",
+          "assetId": "asset_74352de4dd7a7a46",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "referenceId": "reference_66a6d495ae5c7e66",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "shotId": "shot-1",
+      "shotIndex": 0,
+      "risk": "low",
+      "shotKey": "film-beta/scene-1/shot-1",
+      "assetHits": [
+        {
+          "filmId": "film-beta",
+          "identity": "lead",
+          "assetId": "asset_6122f28ed292cfa5",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-beta",
+          "identity": "support",
+          "assetId": "asset_cc2ddf31deeb287d",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "referenceId": "reference_f5f5972e1c67559a",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "shotId": "shot-2",
+      "shotIndex": 1,
+      "risk": "medium",
+      "shotKey": "film-beta/scene-1/shot-2",
+      "assetHits": [
+        {
+          "filmId": "film-beta",
+          "identity": "lead",
+          "assetId": "asset_6122f28ed292cfa5",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-beta",
+          "identity": "support",
+          "assetId": "asset_cc2ddf31deeb287d",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "3x3 路由采用 film-beta 的 medium 风险候选",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "referenceId": "reference_32c8885f7497ac43",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "shotId": "shot-3",
+      "shotIndex": 2,
+      "risk": "high",
+      "shotKey": "film-beta/scene-1/shot-3",
+      "assetHits": [
+        {
+          "filmId": "film-beta",
+          "identity": "lead",
+          "assetId": "asset_6122f28ed292cfa5",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-beta",
+          "identity": "support",
+          "assetId": "asset_cc2ddf31deeb287d",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "blender 路由采用 film-beta 的 high 风险候选",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "referenceId": "reference_03dc6e37732a1a12",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "shotId": "shot-4",
+      "shotIndex": 3,
+      "risk": "low",
+      "shotKey": "film-beta/scene-1/shot-4",
+      "assetHits": [
+        {
+          "filmId": "film-beta",
+          "identity": "lead",
+          "assetId": "asset_6122f28ed292cfa5",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-beta",
+          "identity": "support",
+          "assetId": "asset_cc2ddf31deeb287d",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "referenceId": "reference_f207e2f2ab25723f",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-1",
+      "shotIndex": 0,
+      "risk": "low",
+      "shotKey": "film-beta/scene-2/shot-1",
+      "assetHits": [
+        {
+          "filmId": "film-beta",
+          "identity": "lead",
+          "assetId": "asset_6122f28ed292cfa5",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-beta",
+          "identity": "support",
+          "assetId": "asset_cc2ddf31deeb287d",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "referenceId": "reference_99c0f4068ebbbaec",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-2",
+      "shotIndex": 1,
+      "risk": "medium",
+      "shotKey": "film-beta/scene-2/shot-2",
+      "assetHits": [
+        {
+          "filmId": "film-beta",
+          "identity": "lead",
+          "assetId": "asset_6122f28ed292cfa5",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-beta",
+          "identity": "support",
+          "assetId": "asset_cc2ddf31deeb287d",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "3x3 路由采用 film-beta 的 medium 风险候选",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "referenceId": "reference_8551a4ac751906ec",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-3",
+      "shotIndex": 2,
+      "risk": "high",
+      "shotKey": "film-beta/scene-2/shot-3",
+      "assetHits": [
+        {
+          "filmId": "film-beta",
+          "identity": "lead",
+          "assetId": "asset_6122f28ed292cfa5",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-beta",
+          "identity": "support",
+          "assetId": "asset_cc2ddf31deeb287d",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "blender 路由采用 film-beta 的 high 风险候选",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "referenceId": "reference_039f82c57a896386",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-4",
+      "shotIndex": 3,
+      "risk": "low",
+      "shotKey": "film-beta/scene-2/shot-4",
+      "assetHits": [
+        {
+          "filmId": "film-beta",
+          "identity": "lead",
+          "assetId": "asset_6122f28ed292cfa5",
+          "source": "fixture://identity-library",
+          "reusable": true
+        },
+        {
+          "filmId": "film-beta",
+          "identity": "support",
+          "assetId": "asset_cc2ddf31deeb287d",
+          "source": "fixture://identity-library",
+          "reusable": true
+        }
+      ],
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "compressionRatio": 0.0625,
+      "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    }
+  ],
+  "routing": [
+    {
+      "shotId": "shot-1",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "shotId": "shot-2",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "shotId": "shot-3",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "shotId": "shot-4",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "shotId": "shot-1",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "shotId": "shot-2",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "shotId": "shot-3",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "shotId": "shot-4",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "shotId": "shot-1",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "shotId": "shot-2",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "shotId": "shot-3",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "shotId": "shot-4",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "shotId": "shot-1",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "shotId": "shot-2",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "shotId": "shot-3",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "shotId": "shot-4",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    }
+  ],
+  "assetReuse": {
+    "allReusableIdentityAssetsHitBeforeMockGeneration": true,
+    "mockGeneration": [
+      {
+        "shotId": "shot-1",
+        "filmId": "film-alpha",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-2",
+        "filmId": "film-alpha",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-3",
+        "filmId": "film-alpha",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-4",
+        "filmId": "film-alpha",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-1",
+        "filmId": "film-alpha",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-2",
+        "filmId": "film-alpha",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-3",
+        "filmId": "film-alpha",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-4",
+        "filmId": "film-alpha",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-1",
+        "filmId": "film-beta",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-2",
+        "filmId": "film-beta",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-3",
+        "filmId": "film-beta",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-4",
+        "filmId": "film-beta",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-1",
+        "filmId": "film-beta",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-2",
+        "filmId": "film-beta",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-3",
+        "filmId": "film-beta",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      },
+      {
+        "shotId": "shot-4",
+        "filmId": "film-beta",
+        "reusableIdentityAssetHits": [
+          "lead",
+          "support"
+        ],
+        "providerCalls": 0
+      }
+    ],
+    "mockGenerationCount": 16,
+    "providerCalls": 0
   },
   "localRepair": {
     "defectiveShot": "film-beta/scene-2/shot-3",
-    "defectiveShotVersionBefore": 1,
-    "defectiveShotVersionAfter": 2,
-    "unaffectedShotVersionsAndHashesUnchanged": true
+    "reviewEvent": {
+      "type": "automatic-review",
+      "shotKey": "film-beta/scene-2/shot-3",
+      "defect": "occluded-face",
+      "action": "local-repair",
+      "createdVersion": 2
+    },
+    "versionChain": [
+      {
+        "version": 1,
+        "shotKey": "film-beta/scene-2/shot-3",
+        "hash": "8b6dc037f0264c3991e8380c95f24a5be73ae4d5dc7349aa667a7921be8669cc"
+      },
+      {
+        "version": 2,
+        "shotKey": "film-beta/scene-2/shot-3",
+        "hash": "910612eb7c361526e8b931fc758226eb3f317e56cb9425f5da02bcf85c272936"
+      }
+    ],
+    "initialVersions": {
+      "film-alpha/scene-1/shot-1": {
+        "version": 1,
+        "hash": "5aa68a9f2bc1d04fb962cde617a14ce22fa6f154b08ff548c978973ec95ca715"
+      },
+      "film-alpha/scene-1/shot-2": {
+        "version": 1,
+        "hash": "ab32d7222fef4a40d1d0d7a8392149fd4f7dae30481cbe45e71e724ce7abb59e"
+      },
+      "film-alpha/scene-1/shot-3": {
+        "version": 1,
+        "hash": "2b84ab2373864b616cab2c34aa477c9d0d155f9251345f9f958cf23306805db0"
+      },
+      "film-alpha/scene-1/shot-4": {
+        "version": 1,
+        "hash": "625b885bc681b52d2085329d98c2d1dc7c37fe0a06cc13129b389e7ab4762926"
+      },
+      "film-alpha/scene-2/shot-1": {
+        "version": 1,
+        "hash": "6c848ad5405ebba7e5b3c083c4dcbd5fc97a92045f495d7d3bf8e7f0f0477fa4"
+      },
+      "film-alpha/scene-2/shot-2": {
+        "version": 1,
+        "hash": "af4342291b491b0986d88de0759b527d2f06c8be9223925fd7d3036aec6ec4d0"
+      },
+      "film-alpha/scene-2/shot-3": {
+        "version": 1,
+        "hash": "6afe4e2efddce11f387d8e91d477642f3cea0d3910b9efe1e788a1bf0f48e3cd"
+      },
+      "film-alpha/scene-2/shot-4": {
+        "version": 1,
+        "hash": "dbfa7f6fb734fac3ec72dbd395a3efbbc70a16f61fa4779e8a8382575c90efcc"
+      },
+      "film-beta/scene-1/shot-1": {
+        "version": 1,
+        "hash": "a4a4630d28acfd04911338cd69f59c92d434423ed734b0951ed457f217565d86"
+      },
+      "film-beta/scene-1/shot-2": {
+        "version": 1,
+        "hash": "f7bb9561ba60e8eccf66f3ad62ce02348c250a1a8657b944e1fa94ea43aae590"
+      },
+      "film-beta/scene-1/shot-3": {
+        "version": 1,
+        "hash": "4650e50b708e26423dfc62b9f002c668548793032027724f6b5a566a23f54245"
+      },
+      "film-beta/scene-1/shot-4": {
+        "version": 1,
+        "hash": "628759cbe439b3580a5ec6cb86756d4d6fdc3433dab571b5c0ec72740461b4dd"
+      },
+      "film-beta/scene-2/shot-1": {
+        "version": 1,
+        "hash": "ecccd5ea2e196b3fd54bb9bcd9aa26a7a168a0e31dc25388e3dfb98bb901dd6a"
+      },
+      "film-beta/scene-2/shot-2": {
+        "version": 1,
+        "hash": "1622def8defab2fd91352b450fd121cd577bf7cceddb033b62d32280b50b28b8"
+      },
+      "film-beta/scene-2/shot-3": {
+        "version": 1,
+        "hash": "8b6dc037f0264c3991e8380c95f24a5be73ae4d5dc7349aa667a7921be8669cc"
+      },
+      "film-beta/scene-2/shot-4": {
+        "version": 1,
+        "hash": "6bffed57fa74cd10b4bc4af2a5aa47a4f03f20174ce87ffaf34ae67466327105"
+      }
+    },
+    "repairedVersions": {
+      "film-alpha/scene-1/shot-1": {
+        "version": 1,
+        "hash": "5aa68a9f2bc1d04fb962cde617a14ce22fa6f154b08ff548c978973ec95ca715"
+      },
+      "film-alpha/scene-1/shot-2": {
+        "version": 1,
+        "hash": "ab32d7222fef4a40d1d0d7a8392149fd4f7dae30481cbe45e71e724ce7abb59e"
+      },
+      "film-alpha/scene-1/shot-3": {
+        "version": 1,
+        "hash": "2b84ab2373864b616cab2c34aa477c9d0d155f9251345f9f958cf23306805db0"
+      },
+      "film-alpha/scene-1/shot-4": {
+        "version": 1,
+        "hash": "625b885bc681b52d2085329d98c2d1dc7c37fe0a06cc13129b389e7ab4762926"
+      },
+      "film-alpha/scene-2/shot-1": {
+        "version": 1,
+        "hash": "6c848ad5405ebba7e5b3c083c4dcbd5fc97a92045f495d7d3bf8e7f0f0477fa4"
+      },
+      "film-alpha/scene-2/shot-2": {
+        "version": 1,
+        "hash": "af4342291b491b0986d88de0759b527d2f06c8be9223925fd7d3036aec6ec4d0"
+      },
+      "film-alpha/scene-2/shot-3": {
+        "version": 1,
+        "hash": "6afe4e2efddce11f387d8e91d477642f3cea0d3910b9efe1e788a1bf0f48e3cd"
+      },
+      "film-alpha/scene-2/shot-4": {
+        "version": 1,
+        "hash": "dbfa7f6fb734fac3ec72dbd395a3efbbc70a16f61fa4779e8a8382575c90efcc"
+      },
+      "film-beta/scene-1/shot-1": {
+        "version": 1,
+        "hash": "a4a4630d28acfd04911338cd69f59c92d434423ed734b0951ed457f217565d86"
+      },
+      "film-beta/scene-1/shot-2": {
+        "version": 1,
+        "hash": "f7bb9561ba60e8eccf66f3ad62ce02348c250a1a8657b944e1fa94ea43aae590"
+      },
+      "film-beta/scene-1/shot-3": {
+        "version": 1,
+        "hash": "4650e50b708e26423dfc62b9f002c668548793032027724f6b5a566a23f54245"
+      },
+      "film-beta/scene-1/shot-4": {
+        "version": 1,
+        "hash": "628759cbe439b3580a5ec6cb86756d4d6fdc3433dab571b5c0ec72740461b4dd"
+      },
+      "film-beta/scene-2/shot-1": {
+        "version": 1,
+        "hash": "ecccd5ea2e196b3fd54bb9bcd9aa26a7a168a0e31dc25388e3dfb98bb901dd6a"
+      },
+      "film-beta/scene-2/shot-2": {
+        "version": 1,
+        "hash": "1622def8defab2fd91352b450fd121cd577bf7cceddb033b62d32280b50b28b8"
+      },
+      "film-beta/scene-2/shot-3": {
+        "version": 2,
+        "hash": "910612eb7c361526e8b931fc758226eb3f317e56cb9425f5da02bcf85c272936"
+      },
+      "film-beta/scene-2/shot-4": {
+        "version": 1,
+        "hash": "6bffed57fa74cd10b4bc4af2a5aa47a4f03f20174ce87ffaf34ae67466327105"
+      }
+    },
+    "unaffectedHashProof": [
+      {
+        "shotKey": "film-alpha/scene-1/shot-1",
+        "initialHash": "5aa68a9f2bc1d04fb962cde617a14ce22fa6f154b08ff548c978973ec95ca715",
+        "repairedHash": "5aa68a9f2bc1d04fb962cde617a14ce22fa6f154b08ff548c978973ec95ca715",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-alpha/scene-1/shot-2",
+        "initialHash": "ab32d7222fef4a40d1d0d7a8392149fd4f7dae30481cbe45e71e724ce7abb59e",
+        "repairedHash": "ab32d7222fef4a40d1d0d7a8392149fd4f7dae30481cbe45e71e724ce7abb59e",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-alpha/scene-1/shot-3",
+        "initialHash": "2b84ab2373864b616cab2c34aa477c9d0d155f9251345f9f958cf23306805db0",
+        "repairedHash": "2b84ab2373864b616cab2c34aa477c9d0d155f9251345f9f958cf23306805db0",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-alpha/scene-1/shot-4",
+        "initialHash": "625b885bc681b52d2085329d98c2d1dc7c37fe0a06cc13129b389e7ab4762926",
+        "repairedHash": "625b885bc681b52d2085329d98c2d1dc7c37fe0a06cc13129b389e7ab4762926",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-alpha/scene-2/shot-1",
+        "initialHash": "6c848ad5405ebba7e5b3c083c4dcbd5fc97a92045f495d7d3bf8e7f0f0477fa4",
+        "repairedHash": "6c848ad5405ebba7e5b3c083c4dcbd5fc97a92045f495d7d3bf8e7f0f0477fa4",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-alpha/scene-2/shot-2",
+        "initialHash": "af4342291b491b0986d88de0759b527d2f06c8be9223925fd7d3036aec6ec4d0",
+        "repairedHash": "af4342291b491b0986d88de0759b527d2f06c8be9223925fd7d3036aec6ec4d0",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-alpha/scene-2/shot-3",
+        "initialHash": "6afe4e2efddce11f387d8e91d477642f3cea0d3910b9efe1e788a1bf0f48e3cd",
+        "repairedHash": "6afe4e2efddce11f387d8e91d477642f3cea0d3910b9efe1e788a1bf0f48e3cd",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-alpha/scene-2/shot-4",
+        "initialHash": "dbfa7f6fb734fac3ec72dbd395a3efbbc70a16f61fa4779e8a8382575c90efcc",
+        "repairedHash": "dbfa7f6fb734fac3ec72dbd395a3efbbc70a16f61fa4779e8a8382575c90efcc",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-beta/scene-1/shot-1",
+        "initialHash": "a4a4630d28acfd04911338cd69f59c92d434423ed734b0951ed457f217565d86",
+        "repairedHash": "a4a4630d28acfd04911338cd69f59c92d434423ed734b0951ed457f217565d86",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-beta/scene-1/shot-2",
+        "initialHash": "f7bb9561ba60e8eccf66f3ad62ce02348c250a1a8657b944e1fa94ea43aae590",
+        "repairedHash": "f7bb9561ba60e8eccf66f3ad62ce02348c250a1a8657b944e1fa94ea43aae590",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-beta/scene-1/shot-3",
+        "initialHash": "4650e50b708e26423dfc62b9f002c668548793032027724f6b5a566a23f54245",
+        "repairedHash": "4650e50b708e26423dfc62b9f002c668548793032027724f6b5a566a23f54245",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-beta/scene-1/shot-4",
+        "initialHash": "628759cbe439b3580a5ec6cb86756d4d6fdc3433dab571b5c0ec72740461b4dd",
+        "repairedHash": "628759cbe439b3580a5ec6cb86756d4d6fdc3433dab571b5c0ec72740461b4dd",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-beta/scene-2/shot-1",
+        "initialHash": "ecccd5ea2e196b3fd54bb9bcd9aa26a7a168a0e31dc25388e3dfb98bb901dd6a",
+        "repairedHash": "ecccd5ea2e196b3fd54bb9bcd9aa26a7a168a0e31dc25388e3dfb98bb901dd6a",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-beta/scene-2/shot-2",
+        "initialHash": "1622def8defab2fd91352b450fd121cd577bf7cceddb033b62d32280b50b28b8",
+        "repairedHash": "1622def8defab2fd91352b450fd121cd577bf7cceddb033b62d32280b50b28b8",
+        "unchanged": true
+      },
+      {
+        "shotKey": "film-beta/scene-2/shot-4",
+        "initialHash": "6bffed57fa74cd10b4bc4af2a5aa47a4f03f20174ce87ffaf34ae67466327105",
+        "repairedHash": "6bffed57fa74cd10b4bc4af2a5aa47a4f03f20174ce87ffaf34ae67466327105",
+        "unchanged": true
+      }
+    ]
   },
-  "actionParity": { "dialogAndGraphShareRegistry": true, "sameResponsibilityChange": true, "sameEvidenceChain": true },
-  "readiness": { "stageIndependent": true, "storyboard": true, "review": true },
-  "guards": { "paidGenerationUsd": 0, "realProviderCalls": 0, "pancatWrites": 0 }
+  "actionParity": {
+    "dialog": {
+      "action": "reviewShot",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-3",
+      "defect": "occluded-face",
+      "responsibilityGraphChange": {
+        "graphId": "graph:film-beta",
+        "operation": "replace-shot-version",
+        "shotId": "shot-3",
+        "logicalRevision": "responsibility-revision-v1"
+      },
+      "evidenceChain": [
+        "evidence://film-beta/review/scene-2/shot-3",
+        "ledger://film-beta/local-repair"
+      ]
+    },
+    "graph": {
+      "action": "reviewShot",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-3",
+      "defect": "occluded-face",
+      "responsibilityGraphChange": {
+        "graphId": "graph:film-beta",
+        "operation": "replace-shot-version",
+        "shotId": "shot-3",
+        "logicalRevision": "responsibility-revision-v1"
+      },
+      "evidenceChain": [
+        "evidence://film-beta/review/scene-2/shot-3",
+        "ledger://film-beta/local-repair"
+      ]
+    },
+    "equal": true,
+    "responsibilityGraphChange": {
+      "graphId": "graph:film-beta",
+      "operation": "replace-shot-version",
+      "shotId": "shot-3",
+      "logicalRevision": "responsibility-revision-v1"
+    },
+    "evidenceChain": [
+      "evidence://film-beta/review/scene-2/shot-3",
+      "ledger://film-beta/local-repair"
+    ]
+  },
+  "readiness": {
+    "storyboard": {
+      "ready": true,
+      "reason": "所有阶段共享同一事实快照",
+      "factsHash": "06aca6377be3d26b683f61957dd096cf728c0efe06b36942be45c9a379c4772d"
+    },
+    "review": {
+      "ready": true,
+      "reason": "所有阶段共享同一事实快照",
+      "factsHash": "06aca6377be3d26b683f61957dd096cf728c0efe06b36942be45c9a379c4772d"
+    }
+  },
+  "events": [
+    {
+      "type": "role-completed",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "role": "asset",
+      "roleRunId": "role-run_642c7b98226732da",
+      "responsibilityGraphRevision": "responsibility-revision-cacdc104bd61",
+      "evidenceRefs": [
+        "evidence://film-alpha/role/asset"
+      ],
+      "timestampOrder": 10
+    },
+    {
+      "type": "role-completed",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "role": "director",
+      "roleRunId": "role-run_1a4493d565972160",
+      "responsibilityGraphRevision": "responsibility-revision-cacdc104bd61",
+      "evidenceRefs": [
+        "evidence://film-alpha/role/director"
+      ],
+      "timestampOrder": 11
+    },
+    {
+      "type": "role-completed",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "role": "verifier",
+      "roleRunId": "role-run_89c6b72394236b4a",
+      "responsibilityGraphRevision": "responsibility-revision-cacdc104bd61",
+      "evidenceRefs": [
+        "evidence://film-alpha/role/verifier"
+      ],
+      "timestampOrder": 12
+    },
+    {
+      "type": "role-completed",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "role": "asset",
+      "roleRunId": "role-run_a93b7bf8c8806fee",
+      "responsibilityGraphRevision": "responsibility-revision-cacdc104bd61",
+      "evidenceRefs": [
+        "evidence://film-beta/role/asset"
+      ],
+      "timestampOrder": 13
+    },
+    {
+      "type": "role-completed",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "role": "director",
+      "roleRunId": "role-run_e0fdd82f3ed1eb24",
+      "responsibilityGraphRevision": "responsibility-revision-cacdc104bd61",
+      "evidenceRefs": [
+        "evidence://film-beta/role/director"
+      ],
+      "timestampOrder": 14
+    },
+    {
+      "type": "role-completed",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "role": "verifier",
+      "roleRunId": "role-run_d56ef9c599e459d1",
+      "responsibilityGraphRevision": "responsibility-revision-cacdc104bd61",
+      "evidenceRefs": [
+        "evidence://film-beta/role/verifier"
+      ],
+      "timestampOrder": 15
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-1",
+      "timestampOrder": 100,
+      "assetIds": [
+        "asset_5d240558dd7d22cf",
+        "asset_74352de4dd7a7a46"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-1",
+      "timestampOrder": 101,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-1",
+      "timestampOrder": 102,
+      "referenceId": "reference_30e5171ddbc162b6",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "shotId": "shot-1",
+      "shotKey": "film-alpha/scene-1/shot-1",
+      "timestampOrder": 103,
+      "referenceId": "reference_30e5171ddbc162b6",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-2",
+      "timestampOrder": 104,
+      "assetIds": [
+        "asset_5d240558dd7d22cf",
+        "asset_74352de4dd7a7a46"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-2",
+      "timestampOrder": 105,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-2",
+      "timestampOrder": 106,
+      "referenceId": "reference_32cbdeca9e2f1234",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "3x3 路由采用 film-alpha 的 medium 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "shotId": "shot-2",
+      "shotKey": "film-alpha/scene-1/shot-2",
+      "timestampOrder": 107,
+      "referenceId": "reference_32cbdeca9e2f1234",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-3",
+      "timestampOrder": 108,
+      "assetIds": [
+        "asset_5d240558dd7d22cf",
+        "asset_74352de4dd7a7a46"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-3",
+      "timestampOrder": 109,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-3",
+      "timestampOrder": 110,
+      "referenceId": "reference_23ad7124172b958d",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "blender 路由采用 film-alpha 的 high 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "shotId": "shot-3",
+      "shotKey": "film-alpha/scene-1/shot-3",
+      "timestampOrder": 111,
+      "referenceId": "reference_23ad7124172b958d",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-4",
+      "timestampOrder": 112,
+      "assetIds": [
+        "asset_5d240558dd7d22cf",
+        "asset_74352de4dd7a7a46"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-4",
+      "timestampOrder": 113,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-1/shot-4",
+      "timestampOrder": 114,
+      "referenceId": "reference_2bb48b9e59b48813",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-alpha",
+      "sceneId": "scene-1",
+      "shotId": "shot-4",
+      "shotKey": "film-alpha/scene-1/shot-4",
+      "timestampOrder": 115,
+      "referenceId": "reference_2bb48b9e59b48813",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-1",
+      "timestampOrder": 116,
+      "assetIds": [
+        "asset_5d240558dd7d22cf",
+        "asset_74352de4dd7a7a46"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-1",
+      "timestampOrder": 117,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-1",
+      "timestampOrder": 118,
+      "referenceId": "reference_dcc39a1f2d7af42b",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "shotId": "shot-1",
+      "shotKey": "film-alpha/scene-2/shot-1",
+      "timestampOrder": 119,
+      "referenceId": "reference_dcc39a1f2d7af42b",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-2",
+      "timestampOrder": 120,
+      "assetIds": [
+        "asset_5d240558dd7d22cf",
+        "asset_74352de4dd7a7a46"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-2",
+      "timestampOrder": 121,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-2",
+      "timestampOrder": 122,
+      "referenceId": "reference_992b4db6cb3f9027",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "3x3 路由采用 film-alpha 的 medium 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "shotId": "shot-2",
+      "shotKey": "film-alpha/scene-2/shot-2",
+      "timestampOrder": 123,
+      "referenceId": "reference_992b4db6cb3f9027",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-3",
+      "timestampOrder": 124,
+      "assetIds": [
+        "asset_5d240558dd7d22cf",
+        "asset_74352de4dd7a7a46"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-3",
+      "timestampOrder": 125,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-3",
+      "timestampOrder": 126,
+      "referenceId": "reference_4c7efad2156bc0c5",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "blender 路由采用 film-alpha 的 high 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "shotId": "shot-3",
+      "shotKey": "film-alpha/scene-2/shot-3",
+      "timestampOrder": 127,
+      "referenceId": "reference_4c7efad2156bc0c5",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-4",
+      "timestampOrder": 128,
+      "assetIds": [
+        "asset_5d240558dd7d22cf",
+        "asset_74352de4dd7a7a46"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-4",
+      "timestampOrder": 129,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-alpha",
+      "shotKey": "film-alpha/scene-2/shot-4",
+      "timestampOrder": 130,
+      "referenceId": "reference_a36662c8920bf711",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-alpha",
+      "sceneId": "scene-2",
+      "shotId": "shot-4",
+      "shotKey": "film-alpha/scene-2/shot-4",
+      "timestampOrder": 131,
+      "referenceId": "reference_a36662c8920bf711",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-alpha",
+        "historicalEvidence": "evidence:film-alpha:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-alpha:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-1",
+      "timestampOrder": 132,
+      "assetIds": [
+        "asset_6122f28ed292cfa5",
+        "asset_cc2ddf31deeb287d"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-1",
+      "timestampOrder": 133,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-1",
+      "timestampOrder": 134,
+      "referenceId": "reference_66a6d495ae5c7e66",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "shotId": "shot-1",
+      "shotKey": "film-beta/scene-1/shot-1",
+      "timestampOrder": 135,
+      "referenceId": "reference_66a6d495ae5c7e66",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-2",
+      "timestampOrder": 136,
+      "assetIds": [
+        "asset_6122f28ed292cfa5",
+        "asset_cc2ddf31deeb287d"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-2",
+      "timestampOrder": 137,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-2",
+      "timestampOrder": 138,
+      "referenceId": "reference_f5f5972e1c67559a",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "3x3 路由采用 film-beta 的 medium 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "shotId": "shot-2",
+      "shotKey": "film-beta/scene-1/shot-2",
+      "timestampOrder": 139,
+      "referenceId": "reference_f5f5972e1c67559a",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-3",
+      "timestampOrder": 140,
+      "assetIds": [
+        "asset_6122f28ed292cfa5",
+        "asset_cc2ddf31deeb287d"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-3",
+      "timestampOrder": 141,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-3",
+      "timestampOrder": 142,
+      "referenceId": "reference_32c8885f7497ac43",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "blender 路由采用 film-beta 的 high 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "shotId": "shot-3",
+      "shotKey": "film-beta/scene-1/shot-3",
+      "timestampOrder": 143,
+      "referenceId": "reference_32c8885f7497ac43",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-4",
+      "timestampOrder": 144,
+      "assetIds": [
+        "asset_6122f28ed292cfa5",
+        "asset_cc2ddf31deeb287d"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-4",
+      "timestampOrder": 145,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-1/shot-4",
+      "timestampOrder": 146,
+      "referenceId": "reference_03dc6e37732a1a12",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-beta",
+      "sceneId": "scene-1",
+      "shotId": "shot-4",
+      "shotKey": "film-beta/scene-1/shot-4",
+      "timestampOrder": 147,
+      "referenceId": "reference_03dc6e37732a1a12",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-1",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-1",
+      "timestampOrder": 148,
+      "assetIds": [
+        "asset_6122f28ed292cfa5",
+        "asset_cc2ddf31deeb287d"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-1",
+      "timestampOrder": 149,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-1",
+      "timestampOrder": 150,
+      "referenceId": "reference_f207e2f2ab25723f",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-1",
+      "shotKey": "film-beta/scene-2/shot-1",
+      "timestampOrder": 151,
+      "referenceId": "reference_f207e2f2ab25723f",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-1",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-2",
+      "timestampOrder": 152,
+      "assetIds": [
+        "asset_6122f28ed292cfa5",
+        "asset_cc2ddf31deeb287d"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-2",
+      "timestampOrder": 153,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-2",
+      "timestampOrder": 154,
+      "referenceId": "reference_99c0f4068ebbbaec",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "3x3 路由采用 film-beta 的 medium 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-2",
+      "shotKey": "film-beta/scene-2/shot-2",
+      "timestampOrder": 155,
+      "referenceId": "reference_99c0f4068ebbbaec",
+      "route": {
+        "route": "3x3",
+        "reason": "中等空间风险，九宫格候选足以锁定构图"
+      },
+      "knowledge": {
+        "task": "shot:shot-2",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-3",
+      "timestampOrder": 156,
+      "assetIds": [
+        "asset_6122f28ed292cfa5",
+        "asset_cc2ddf31deeb287d"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-3",
+      "timestampOrder": 157,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-3",
+      "timestampOrder": 158,
+      "referenceId": "reference_8551a4ac751906ec",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "blender 路由采用 film-beta 的 high 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-3",
+      "shotKey": "film-beta/scene-2/shot-3",
+      "timestampOrder": 159,
+      "referenceId": "reference_8551a4ac751906ec",
+      "route": {
+        "route": "blender",
+        "reason": "高空间风险，需要可回放的相机与遮挡约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-3",
+        "modelCapability": "spatial-consistency",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "type": "asset-hit",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-4",
+      "timestampOrder": 160,
+      "assetIds": [
+        "asset_6122f28ed292cfa5",
+        "asset_cc2ddf31deeb287d"
+      ],
+      "mockGeneration": false
+    },
+    {
+      "type": "mock-generation-skipped",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-4",
+      "timestampOrder": 161,
+      "reason": "reusable-identity-assets-hit",
+      "providerCalls": 0
+    },
+    {
+      "type": "reference-compressed",
+      "filmId": "film-beta",
+      "shotKey": "film-beta/scene-2/shot-4",
+      "timestampOrder": 162,
+      "referenceId": "reference_039f82c57a896386",
+      "original": {
+        "width": 4096,
+        "height": 4096,
+        "bytes": 4194304
+      },
+      "compressed": {
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262144
+      },
+      "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选"
+    },
+    {
+      "type": "shot-planned",
+      "filmId": "film-beta",
+      "sceneId": "scene-2",
+      "shotId": "shot-4",
+      "shotKey": "film-beta/scene-2/shot-4",
+      "timestampOrder": 163,
+      "referenceId": "reference_039f82c57a896386",
+      "route": {
+        "route": "model-direct",
+        "reason": "低空间风险，无需额外空间约束"
+      },
+      "knowledge": {
+        "task": "shot:shot-4",
+        "modelCapability": "image-composition",
+        "filmConstraints": "constraints:film-beta",
+        "historicalEvidence": "evidence:film-beta:scene-2",
+        "sourceVersion": "vendor-knowledge-source-v2",
+        "adoptedVersion": "vendor-adopted:film-beta:v1"
+      }
+    },
+    {
+      "type": "automatic-review",
+      "shotKey": "film-beta/scene-2/shot-3",
+      "defect": "occluded-face",
+      "action": "local-repair",
+      "createdVersion": 2
+    },
+    {
+      "filmId": "film-alpha",
+      "type": "create-replay",
+      "replay": 1,
+      "idempotencyKey": "create:film-alpha:v1",
+      "record": {
+        "taskId": "task_7bb1b2eeccb37200",
+        "roleRunId": "role-run_032a4fdfba42de9f",
+        "assetId": "asset_714f7386b65a9a0d",
+        "referenceId": "reference_714f7386b65a9a0d"
+      }
+    },
+    {
+      "filmId": "film-alpha",
+      "type": "create-replay",
+      "replay": 2,
+      "idempotencyKey": "create:film-alpha:v1",
+      "record": {
+        "taskId": "task_7bb1b2eeccb37200",
+        "roleRunId": "role-run_032a4fdfba42de9f",
+        "assetId": "asset_714f7386b65a9a0d",
+        "referenceId": "reference_714f7386b65a9a0d"
+      }
+    },
+    {
+      "filmId": "film-alpha",
+      "type": "create-replay",
+      "replay": 3,
+      "idempotencyKey": "create:film-alpha:v1",
+      "record": {
+        "taskId": "task_7bb1b2eeccb37200",
+        "roleRunId": "role-run_032a4fdfba42de9f",
+        "assetId": "asset_714f7386b65a9a0d",
+        "referenceId": "reference_714f7386b65a9a0d"
+      }
+    },
+    {
+      "filmId": "film-beta",
+      "type": "create-replay",
+      "replay": 1,
+      "idempotencyKey": "create:film-beta:v1",
+      "record": {
+        "taskId": "task_0bb7016a5b4e0cee",
+        "roleRunId": "role-run_0351993c871df314",
+        "assetId": "asset_cf64ee85008d5783",
+        "referenceId": "reference_cf64ee85008d5783"
+      }
+    },
+    {
+      "filmId": "film-beta",
+      "type": "create-replay",
+      "replay": 2,
+      "idempotencyKey": "create:film-beta:v1",
+      "record": {
+        "taskId": "task_0bb7016a5b4e0cee",
+        "roleRunId": "role-run_0351993c871df314",
+        "assetId": "asset_cf64ee85008d5783",
+        "referenceId": "reference_cf64ee85008d5783"
+      }
+    },
+    {
+      "filmId": "film-beta",
+      "type": "create-replay",
+      "replay": 3,
+      "idempotencyKey": "create:film-beta:v1",
+      "record": {
+        "taskId": "task_0bb7016a5b4e0cee",
+        "roleRunId": "role-run_0351993c871df314",
+        "assetId": "asset_cf64ee85008d5783",
+        "referenceId": "reference_cf64ee85008d5783"
+      }
+    }
+  ],
+  "snapshot": {
+    "films": 2,
+    "scenes": 4,
+    "shots": 16,
+    "graphSnapshots": [
+      {
+        "filmId": "film-alpha",
+        "graphId": "graph:film-alpha",
+        "logicalRevision": "responsibility-revision-cacdc104bd61"
+      },
+      {
+        "filmId": "film-beta",
+        "graphId": "graph:film-beta",
+        "logicalRevision": "responsibility-revision-cacdc104bd61"
+      }
+    ],
+    "roleRuns": [
+      {
+        "roleRunId": "role-run_1a4493d565972160",
+        "filmId": "film-alpha",
+        "privateMemoryNamespace": "memory:film-alpha:director",
+        "qualityContractVersion": "quality-v3"
+      },
+      {
+        "roleRunId": "role-run_642c7b98226732da",
+        "filmId": "film-alpha",
+        "privateMemoryNamespace": "memory:film-alpha:asset",
+        "qualityContractVersion": "quality-v3"
+      },
+      {
+        "roleRunId": "role-run_89c6b72394236b4a",
+        "filmId": "film-alpha",
+        "privateMemoryNamespace": "memory:film-alpha:verifier",
+        "qualityContractVersion": "quality-v3"
+      },
+      {
+        "roleRunId": "role-run_a93b7bf8c8806fee",
+        "filmId": "film-beta",
+        "privateMemoryNamespace": "memory:film-beta:asset",
+        "qualityContractVersion": "quality-v3"
+      },
+      {
+        "roleRunId": "role-run_d56ef9c599e459d1",
+        "filmId": "film-beta",
+        "privateMemoryNamespace": "memory:film-beta:verifier",
+        "qualityContractVersion": "quality-v3"
+      },
+      {
+        "roleRunId": "role-run_e0fdd82f3ed1eb24",
+        "filmId": "film-beta",
+        "privateMemoryNamespace": "memory:film-beta:director",
+        "qualityContractVersion": "quality-v3"
+      }
+    ],
+    "references": [
+      {
+        "referenceId": "reference_30e5171ddbc162b6",
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "shotId": "shot-1",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选"
+      },
+      {
+        "referenceId": "reference_32cbdeca9e2f1234",
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "shotId": "shot-2",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "3x3 路由采用 film-alpha 的 medium 风险候选"
+      },
+      {
+        "referenceId": "reference_23ad7124172b958d",
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "shotId": "shot-3",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "blender 路由采用 film-alpha 的 high 风险候选"
+      },
+      {
+        "referenceId": "reference_2bb48b9e59b48813",
+        "filmId": "film-alpha",
+        "sceneId": "scene-1",
+        "shotId": "shot-4",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选"
+      },
+      {
+        "referenceId": "reference_dcc39a1f2d7af42b",
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "shotId": "shot-1",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选"
+      },
+      {
+        "referenceId": "reference_992b4db6cb3f9027",
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "shotId": "shot-2",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "3x3 路由采用 film-alpha 的 medium 风险候选"
+      },
+      {
+        "referenceId": "reference_4c7efad2156bc0c5",
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "shotId": "shot-3",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "blender 路由采用 film-alpha 的 high 风险候选"
+      },
+      {
+        "referenceId": "reference_a36662c8920bf711",
+        "filmId": "film-alpha",
+        "sceneId": "scene-2",
+        "shotId": "shot-4",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "model-direct 路由采用 film-alpha 的 low 风险候选"
+      },
+      {
+        "referenceId": "reference_66a6d495ae5c7e66",
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "shotId": "shot-1",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选"
+      },
+      {
+        "referenceId": "reference_f5f5972e1c67559a",
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "shotId": "shot-2",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "3x3 路由采用 film-beta 的 medium 风险候选"
+      },
+      {
+        "referenceId": "reference_32c8885f7497ac43",
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "shotId": "shot-3",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "blender 路由采用 film-beta 的 high 风险候选"
+      },
+      {
+        "referenceId": "reference_03dc6e37732a1a12",
+        "filmId": "film-beta",
+        "sceneId": "scene-1",
+        "shotId": "shot-4",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选"
+      },
+      {
+        "referenceId": "reference_f207e2f2ab25723f",
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "shotId": "shot-1",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选"
+      },
+      {
+        "referenceId": "reference_99c0f4068ebbbaec",
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "shotId": "shot-2",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "3x3 路由采用 film-beta 的 medium 风险候选"
+      },
+      {
+        "referenceId": "reference_8551a4ac751906ec",
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "shotId": "shot-3",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "blender 路由采用 film-beta 的 high 风险候选"
+      },
+      {
+        "referenceId": "reference_039f82c57a896386",
+        "filmId": "film-beta",
+        "sceneId": "scene-2",
+        "shotId": "shot-4",
+        "original": {
+          "width": 4096,
+          "height": 4096,
+          "bytes": 4194304
+        },
+        "compressed": {
+          "width": 1024,
+          "height": 1024,
+          "bytes": 262144
+        },
+        "adoptionReason": "model-direct 路由采用 film-beta 的 low 风险候选"
+      }
+    ],
+    "computedIsolation": {
+      "graphLeaks": 0,
+      "memoryLeaks": 0,
+      "assetLeaks": 0,
+      "responsibilityLeaks": 0
+    },
+    "crossFilmLeaks": 0,
+    "guards": {
+      "paidGenerationUsd": 0,
+      "realProviderCalls": 0,
+      "pancatWrites": 0
+    },
+    "factsHash": "06aca6377be3d26b683f61957dd096cf728c0efe06b36942be45c9a379c4772d"
+  },
+  "guards": {
+    "paidGenerationUsd": 0,
+    "realProviderCalls": 0,
+    "pancatWrites": 0
+  },
+  "determinism": {
+    "logicalRevision": "responsibility-revision-cacdc104bd61",
+    "comparisons": [
+      {
+        "seed": 1,
+        "completionOrder": [
+          "role-run_a93b7bf8c8806fee",
+          "role-run_e0fdd82f3ed1eb24",
+          "role-run_642c7b98226732da",
+          "role-run_d56ef9c599e459d1",
+          "role-run_89c6b72394236b4a",
+          "role-run_1a4493d565972160"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 2,
+        "completionOrder": [
+          "role-run_d56ef9c599e459d1",
+          "role-run_642c7b98226732da",
+          "role-run_1a4493d565972160",
+          "role-run_a93b7bf8c8806fee",
+          "role-run_89c6b72394236b4a",
+          "role-run_e0fdd82f3ed1eb24"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 3,
+        "completionOrder": [
+          "role-run_642c7b98226732da",
+          "role-run_a93b7bf8c8806fee",
+          "role-run_e0fdd82f3ed1eb24",
+          "role-run_1a4493d565972160",
+          "role-run_89c6b72394236b4a",
+          "role-run_d56ef9c599e459d1"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 4,
+        "completionOrder": [
+          "role-run_1a4493d565972160",
+          "role-run_d56ef9c599e459d1",
+          "role-run_e0fdd82f3ed1eb24",
+          "role-run_642c7b98226732da",
+          "role-run_89c6b72394236b4a",
+          "role-run_a93b7bf8c8806fee"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 5,
+        "completionOrder": [
+          "role-run_642c7b98226732da",
+          "role-run_a93b7bf8c8806fee",
+          "role-run_1a4493d565972160",
+          "role-run_d56ef9c599e459d1",
+          "role-run_e0fdd82f3ed1eb24",
+          "role-run_89c6b72394236b4a"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 6,
+        "completionOrder": [
+          "role-run_1a4493d565972160",
+          "role-run_e0fdd82f3ed1eb24",
+          "role-run_d56ef9c599e459d1",
+          "role-run_a93b7bf8c8806fee",
+          "role-run_89c6b72394236b4a",
+          "role-run_642c7b98226732da"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 7,
+        "completionOrder": [
+          "role-run_d56ef9c599e459d1",
+          "role-run_a93b7bf8c8806fee",
+          "role-run_642c7b98226732da",
+          "role-run_e0fdd82f3ed1eb24",
+          "role-run_89c6b72394236b4a",
+          "role-run_1a4493d565972160"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 8,
+        "completionOrder": [
+          "role-run_89c6b72394236b4a",
+          "role-run_a93b7bf8c8806fee",
+          "role-run_1a4493d565972160",
+          "role-run_d56ef9c599e459d1",
+          "role-run_642c7b98226732da",
+          "role-run_e0fdd82f3ed1eb24"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 9,
+        "completionOrder": [
+          "role-run_a93b7bf8c8806fee",
+          "role-run_1a4493d565972160",
+          "role-run_e0fdd82f3ed1eb24",
+          "role-run_89c6b72394236b4a",
+          "role-run_642c7b98226732da",
+          "role-run_d56ef9c599e459d1"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      },
+      {
+        "seed": 10,
+        "completionOrder": [
+          "role-run_89c6b72394236b4a",
+          "role-run_d56ef9c599e459d1",
+          "role-run_1a4493d565972160",
+          "role-run_e0fdd82f3ed1eb24",
+          "role-run_642c7b98226732da",
+          "role-run_a93b7bf8c8806fee"
+        ],
+        "logicalRevision": "responsibility-revision-cacdc104bd61",
+        "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c",
+        "matchesCanonical": true,
+        "eventSummaryHash": "b81ef5aee593662343337fb1921eb12b91062a293cd8daad344763739c44fe1c",
+        "evidenceHash": "52b781603fa7e6544a76470661d55a445ad12112ad17f2440c8efee625662bfc"
+      }
+    ]
+  },
+  "summaryHash": "fbec8b53833825efeeed8a82bf62e8e74c6ef825a0fc2c88da72736d71ae064c"
 }
