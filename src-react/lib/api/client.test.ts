@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createApiClient, resolveApiBaseUrl } from "./client";
+import { createApiClient, createAuthenticatedDownloadRequest, resolveApiBaseUrl } from "./client";
 
 describe("Hodor API client", () => {
   it("uses the local backend in development and the current origin in cloud deployments", () => {
@@ -93,6 +93,18 @@ describe("Hodor API client", () => {
     await expect(client.request("/setting/fileManagement/openFolder")).rejects.toEqual(
       expect.objectContaining({ status: 400, message: "目录不存在" }),
     );
+  });
+
+  it("keeps the authorization header on database downloads and handles expired sessions", async () => {
+    const onUnauthorized = vi.fn();
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer pancat-session");
+      return new Response(JSON.stringify({ message: "登录已过期" }), { status: 401 });
+    });
+    const download = createAuthenticatedDownloadRequest({ baseUrl: "http://localhost:10588/api", getToken: () => "Bearer pancat-session", onUnauthorized, fetchImpl });
+
+    await expect(download("/setting/dbConfig/exportData")).rejects.toEqual(expect.objectContaining({ status: 401, message: "登录已过期" }));
+    expect(onUnauthorized).toHaveBeenCalledOnce();
   });
 
   it("surfaces legacy error data instead of the wrapper success label", async () => {

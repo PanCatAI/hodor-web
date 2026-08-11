@@ -185,6 +185,33 @@ describe("Hodor React router", () => {
     expect(screen.getByText(/项目 #7/)).toBeInTheDocument();
   });
 
+  it("mounts the project-group Studio OS control room from the authoritative snapshot", async () => {
+    authenticate();
+    openRoute("/projects/7/studio-os?groupId=group-fixture");
+    const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const data = url.endsWith("/project/getProject")
+        ? [{ id: 7, name: "夜航项目", projectType: "novel" }]
+        : url.endsWith("/studio-os-vnext/groups/group-fixture/snapshot")
+          ? {
+              revision: 2,
+              snapshot: {
+                schemaVersion: "1",
+                groups: [{ schemaVersion: "1", groupId: "group-fixture", projectId: "7", name: "夜航项目组", status: "active", revision: 2, createdAt: "2026-08-11T00:00:00.000Z", updatedAt: "2026-08-11T00:00:00.000Z" }],
+                assets: [], tasks: [], decisions: [], packets: [], leases: [], batches: [], verifications: [], events: [], idempotency: [],
+              },
+            }
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    render(<HodorApp />);
+
+    expect(await screen.findByRole("heading", { name: "夜航项目组" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "控制室" })).toBeInTheDocument();
+    expect(request.mock.calls.some(([input]) => String(input).endsWith("/studio-os-vnext/groups/group-fixture/snapshot"))).toBe(true);
+  });
+
   it("mounts the interactive story canvas and project navigation", async () => {
     authenticate();
     openRoute("/projects/7/interactive");

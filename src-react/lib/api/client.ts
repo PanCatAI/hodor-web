@@ -15,6 +15,11 @@ interface ResolveApiBaseUrlOptions {
   location: Pick<URL, "hostname" | "origin">;
 }
 
+export interface AuthenticatedDownload {
+  blob: Blob;
+  filename: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -70,6 +75,39 @@ function readBusinessErrorStatus(body: unknown): number | null {
   if (!body || typeof body !== "object") return null;
   const code = Number((body as Record<string, unknown>).code);
   return Number.isInteger(code) && code >= 400 ? code : null;
+}
+
+export function createAuthenticatedDownloadRequest({
+  baseUrl,
+  getToken,
+  onUnauthorized,
+  fetchImpl = fetch,
+}: {
+  baseUrl: string;
+  getToken: () => string | null;
+  onUnauthorized?: () => void;
+  fetchImpl?: typeof fetch;
+}) {
+  const normalizedBaseUrl = trimTrailingSlash(baseUrl);
+  return async (path: string, init: RequestInit = {}): Promise<AuthenticatedDownload> => {
+    const headers = new Headers(init.headers);
+    headers.set("Accept", "application/octet-stream");
+    if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    const token = getToken();
+    if (token) headers.set("Authorization", token);
+    const response = await fetchImpl(`${normalizedBaseUrl}/${path.replace(/^\/+/, "")}`, { ...init, headers });
+    if (!response.ok) {
+      const body = await readResponseBody(response);
+      if (response.status === 401) onUnauthorized?.();
+      throw new ApiError(readErrorMessage(body, response.status), response.status, body);
+    }
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const encodedName = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i)?.[1];
+    return {
+      blob: await response.blob(),
+      filename: encodedName ? decodeURIComponent(encodedName.replace(/\"/g, "")) : `hodor-backup-${Date.now()}.json`,
+    };
+  };
 }
 
 export function resolveApiBaseUrl({ envBaseUrl, storedBaseUrl, location }: ResolveApiBaseUrlOptions): string {

@@ -22,7 +22,7 @@ describe("Hodor Electron release contract", () => {
       scripts: Record<string, string>;
     };
 
-    expect(packageJson.scripts["publish:hodor"]).toContain("yarn build");
+    expect(packageJson.scripts["publish:hodor"]).toContain("bun run build");
     expect(packageJson.scripts["publish:hodor"]).toContain("scripts/publish-to-hodor.mjs");
   });
 });
