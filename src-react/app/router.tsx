@@ -11,10 +11,11 @@ import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createInteractiveStoryApi, InteractiveStoryPage } from "@react/features/interactive-story";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
+import { createStudioOsApi, StudioOsPage } from "@react/features/studio-os";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
 import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
 import { TasksPage } from "@react/features/tasks";
-import { createApiClient, resolveApiBaseUrl, type HodorApiClient } from "@react/lib/api/client";
+import { createApiClient, createAuthenticatedDownloadRequest, resolveApiBaseUrl, type HodorApiClient } from "@react/lib/api/client";
 import { clearSession, getSessionToken } from "@react/lib/auth/session";
 import { PlaceholderPage } from "./placeholder-page";
 import { ProtectedLayout } from "./protected-layout";
@@ -358,6 +359,15 @@ function ProductionRoutePage() {
   return <ProductionWorkbenchRoutePage projectId={projectId} initialScriptId={episodeId} />;
 }
 
+function StudioOsRoutePage() {
+  const projectId = readProjectId();
+  const { groupId } = projectStudioOsRoute.useSearch();
+  const { apiClient } = projectStudioOsRoute.useRouteContext();
+  if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
+  const resolvedGroupId = groupId ?? `project-${projectId}`;
+  return <StudioOsPage projectId={projectId} groupId={resolvedGroupId} api={createStudioOsApi(apiClient)} />;
+}
+
 function InteractiveStoryRoutePage() {
   const projectId = readProjectId();
   const { apiClient, apiBaseUrl, getToken } = projectInteractiveStoryRoute.useRouteContext();
@@ -416,25 +426,21 @@ const tasksRoute = createRoute({
 function SettingsRoutePage() {
   const router = useRouter();
   const { apiClient, apiBaseUrl, getToken } = settingsRoute.useRouteContext();
+  const authenticatedToken = getToken();
   const api = useMemo(
     () =>
       createSettingsApi({
         request: apiClient.request,
-        async requestBlob(path, init = {}) {
-          const headers = new Headers(init.headers);
-          const token = getToken();
-          if (token) headers.set("Authorization", token);
-          const response = await fetch(`${apiBaseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`, { ...init, headers });
-          if (!response.ok) throw new Error((await response.text()) || `数据库导出失败 (${response.status})`);
-          const disposition = response.headers.get("content-disposition") ?? "";
-          const encodedName = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i)?.[1];
-          return {
-            blob: await response.blob(),
-            filename: encodedName ? decodeURIComponent(encodedName.replace(/\"/g, "")) : `hodor-backup-${Date.now()}.json`,
-          };
-        },
+        requestBlob: createAuthenticatedDownloadRequest({
+          baseUrl: apiBaseUrl,
+          getToken: () => authenticatedToken,
+          onUnauthorized: () => {
+            clearSession();
+            window.location.hash = "#/login";
+          },
+        }),
       }),
-    [apiBaseUrl, apiClient, getToken],
+    [apiBaseUrl, apiClient, authenticatedToken],
   );
   return (
     <SettingsPage api={api} apiBaseUrl={apiBaseUrl} onLoggedOut={() => void router.navigate({ to: "/login" }).then(() => router.invalidate())} />
@@ -480,6 +486,15 @@ const projectProductionRoute = createRoute({
     episodeId: positiveInteger(search.episodeId),
   }),
   component: ProductionRoutePage,
+});
+
+const projectStudioOsRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: "/projects/$projectId/studio-os",
+  validateSearch: (search: Record<string, unknown>) => ({
+    groupId: typeof search.groupId === "string" && search.groupId.trim() ? search.groupId.trim() : undefined,
+  }),
+  component: StudioOsRoutePage,
 });
 
 const projectInteractiveStoryRoute = createRoute({
@@ -658,6 +673,7 @@ const routeTree = rootRoute.addChildren([
     projectAssetsRoute,
     projectStoryboardsRoute,
     projectProductionRoute,
+    projectStudioOsRoute,
     projectInteractiveStoryRoute,
     projectAgentsRoute,
     projectCastingRoute,
