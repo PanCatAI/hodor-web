@@ -47,7 +47,7 @@ Hodor Web 使用 React 单入口。浏览器直接连接云端 Hodor API；Elect
 ## 验证
 
 ```bash
-bun test
+bun run test
 bun run type-check
 bun run build
 bun run test:release

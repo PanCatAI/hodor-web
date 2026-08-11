@@ -38,7 +38,7 @@ Open [http://127.0.0.1:50288/](http://127.0.0.1:50288/). Vite proxies `/api`, `/
 ## Verification and release
 
 ```bash
-bun test
+bun run test
 bun run type-check
 bun run build
 bun run test:release

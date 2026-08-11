@@ -38,7 +38,7 @@ bun run dev --host 127.0.0.1
 ## 验证与发布
 
 ```bash
-bun test
+bun run test
 bun run type-check
 bun run build
 bun run test:release
