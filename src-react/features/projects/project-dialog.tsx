@@ -74,6 +74,17 @@ function modelOptions(models: ModelOption[], current: string, fallbackLabel: str
   );
 }
 
+function visualManualOptions(manuals: VisualManual[], current: string) {
+  const hasCurrent = !current || manuals.some((manual) => manual.stylePath === current);
+  return (
+    <>
+      <option value="">选择视觉风格包</option>
+      {!hasCurrent ? <option value={current}>{current === "western_fantasy" ? "欧美玄幻预设（当前配置）" : `${current}（当前配置）`}</option> : null}
+      {manuals.map((manual) => <option key={manual.stylePath} value={manual.stylePath}>{manual.name}</option>)}
+    </>
+  );
+}
+
 export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals }: ProjectDialogProps) {
   const [form, setForm] = useState(() => defaultInput(project));
   const [imageModels, setImageModels] = useState<ModelOption[]>([]);
@@ -131,9 +142,7 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
 
   function useWesternFantasyPreset() {
     updateWorldProfile(createWesternFantasyWorldProfile());
-    if (visualManuals.some((manual) => manual.stylePath === "western_fantasy")) {
-      update("artStyle", "western_fantasy");
-    }
+    update("artStyle", "western_fantasy");
   }
 
   async function extractWorldProfile(mode: "merge" | "replace") {
@@ -213,8 +222,7 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
                 updateWorldProfile(createWesternFantasyWorldProfile());
               }
             }}>
-            <option value="">选择视觉风格包</option>
-            {visualManuals.map((manual) => <option key={manual.stylePath} value={manual.stylePath}>{manual.name}</option>)}
+            {visualManualOptions(visualManuals, form.artStyle)}
           </SelectField>
           <SelectField label="导演手册" value={form.directorManual} onChange={(value) => update("directorManual", value)}>
             <option value="">选择导演手册</option>

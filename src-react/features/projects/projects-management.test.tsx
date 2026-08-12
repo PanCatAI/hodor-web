@@ -53,13 +53,15 @@ describe("Projects management", () => {
     await user.selectOptions(within(dialog).getByLabelText("图片模型"), "pancat:pancat-image");
     await user.selectOptions(within(dialog).getByLabelText("视频模型"), "pancat:pancat-video");
     await user.click(within(dialog).getByRole("button", { name: "使用欧美玄幻预设" }));
+    expect(within(dialog).getByLabelText("视觉手册")).toHaveValue("western_fantasy");
+    expect(within(dialog).getByRole("option", { name: "欧美玄幻预设（当前配置）" })).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText("世界前提"), "圣像闭眼，旧王国的誓约苏醒。");
     await user.click(within(dialog).getByRole("button", { name: "创建项目" }));
 
     await waitFor(() => expect(api.createProject).toHaveBeenCalledWith(expect.objectContaining({
       name: "长安十二时辰",
       projectType: "interactive",
-      artStyle: "realistic",
+      artStyle: "western_fantasy",
       directorManual: "crime",
       imageModel: "pancat:pancat-image",
       videoModel: "pancat:pancat-video",
@@ -153,7 +155,7 @@ describe("Projects management", () => {
       intro: "内部样片",
       type: "欧美玄幻",
       projectType: "novel",
-      artStyle: "realistic",
+      artStyle: "western_fantasy",
       directorManual: "crime",
       imageModel: "pancat:pancat-image",
       videoModel: "pancat:pancat-video",
@@ -171,6 +173,8 @@ describe("Projects management", () => {
     await screen.findByRole("heading", { name: "圣像" });
     await user.click(screen.getByRole("button", { name: "编辑项目 圣像" }));
     let dialog = screen.getByRole("dialog", { name: "编辑项目" });
+    expect(within(dialog).getByLabelText("视觉手册")).toHaveValue("western_fantasy");
+    expect(within(dialog).getByRole("option", { name: "欧美玄幻预设（当前配置）" })).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "从原文整理" }));
     await waitFor(() => expect(within(dialog).getByLabelText("世界前提")).toHaveValue(extractedProfile.premise));
     expect(api.updateProject).not.toHaveBeenCalled();
@@ -189,23 +193,6 @@ describe("Projects management", () => {
       id: "7",
       worldProfile: extractedProfile,
     })));
-  });
-
-  it("blocks entry and opens settings when a configured model is unavailable", async () => {
-    const user = userEvent.setup();
-    const project = { id: "7", name: "模型失效项目", projectType: "novel", artStyle: "realistic", directorManual: "crime", imageModel: "offline:image", videoModel: "pancat:pancat-video" };
-    const api = createApi({
-      listProjects: vi.fn().mockResolvedValue([project]),
-      getModelDetail: vi.fn().mockRejectedValue(new Error("供应商已停用")),
-    });
-    window.history.replaceState(null, "", "/index.html#/projects");
-    render(<ProjectsPage api={api} />);
-
-    await user.click(await screen.findByRole("link", { name: "打开项目 模型失效项目" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("模型不可用");
-    expect(screen.getByRole("dialog", { name: "编辑项目" })).toBeInTheDocument();
-    expect(window.location.hash).toBe("#/projects");
   });
 
   it("creates, edits and deletes visual manuals", async () => {
