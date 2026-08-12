@@ -71,6 +71,26 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
     localStorage.setItem("hodorSelectedProjectId", project.id);
   }
 
+  async function openProject(event: React.MouseEvent<HTMLAnchorElement>, project: HodorProject) {
+    if (!api || (!project.imageModel && !project.videoModel)) {
+      selectProject(project);
+      return;
+    }
+    event.preventDefault();
+    try {
+      await Promise.all([
+        project.imageModel ? api.getModelDetail(project.imageModel) : Promise.resolve(),
+        project.videoModel ? api.getModelDetail(project.videoModel) : Promise.resolve(),
+      ]);
+      selectProject(project);
+      window.location.hash = projectHref(project).slice(1);
+    } catch {
+      setError("模型不可用");
+      setEditingProject(project);
+      setEditorOpen(true);
+    }
+  }
+
   async function deleteProject(project: HodorProject) {
     if (!api || !window.confirm(`确认删除项目“${project.name}”及其全部数据？`)) return;
     setError(null);
@@ -123,7 +143,7 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
             const createdAt = formatCreatedAt(project.createTime);
             return (
               <article key={project.id} className="flex min-h-56 flex-col rounded-xl border border-border bg-[#10131b] transition-colors hover:border-blue-500/50">
-                <a href={projectHref(project)} onClick={() => selectProject(project)} aria-label={`打开项目 ${project.name}`} className="flex flex-1 flex-col p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                <a href={projectHref(project)} onClick={(event) => void openProject(event, project)} aria-label={`打开项目 ${project.name}`} className="flex flex-1 flex-col p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   <div className="flex items-start justify-between gap-3"><h2 className="text-lg font-semibold tracking-tight">{project.name}</h2><span className="shrink-0 rounded-full border border-blue-900/70 bg-blue-950/40 px-2.5 py-1 text-xs text-blue-300">{projectTypeLabel(project.projectType)}</span></div>
                   {project.artStyle ? <p className="mt-4 w-fit rounded-md bg-white/5 px-2 py-1 text-xs text-slate-300">{project.artStyle}</p> : null}
                   <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-400">{project.intro || "暂无项目简介"}</p>

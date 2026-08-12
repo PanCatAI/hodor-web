@@ -195,6 +195,23 @@ describe("Projects management", () => {
     })));
   });
 
+  it("blocks entry and opens settings when a configured model is unavailable", async () => {
+    const user = userEvent.setup();
+    const project = { id: "7", name: "模型失效项目", projectType: "novel", artStyle: "realistic", directorManual: "crime", imageModel: "offline:image", videoModel: "pancat:pancat-video" };
+    const api = createApi({
+      listProjects: vi.fn().mockResolvedValue([project]),
+      getModelDetail: vi.fn().mockRejectedValue(new Error("供应商已停用")),
+    });
+    window.history.replaceState(null, "", "/index.html#/projects");
+    render(<ProjectsPage api={api} />);
+
+    await user.click(await screen.findByRole("link", { name: "打开项目 模型失效项目" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("模型不可用");
+    expect(screen.getByRole("dialog", { name: "编辑项目" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/projects");
+  });
+
   it("creates, edits and deletes visual manuals", async () => {
     const user = userEvent.setup();
     const api = createApi();
