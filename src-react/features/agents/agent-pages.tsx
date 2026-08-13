@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { HodorApiClient } from "@react/lib/api/client";
 import { createStoryApi } from "../story/story-api";
 import { parseNovelText, readImportFile } from "../story/import-parser";
+import { ProductionGraphConsole, useProductionGraphWiring, useResumeOrRetryOnLegacyFailure } from "../production-graph";
 import { AgentConsole } from "./agent-console";
 import type { SourceImportRequest, SourceImportResult } from "./agent-console";
 import { createAgentChatClient } from "./agent-chat-client";
@@ -213,12 +214,24 @@ export function ScriptAgentPanel({
   onBusyChange,
   selectedNodeId,
 }: ScriptAgentPanelProps) {
-  const selectedNodeIdRef = useRef(selectedNodeId);
-  selectedNodeIdRef.current = selectedNodeId;
+  // ProductionGraph v1 wiring — connects to /api/socket/productionGraph, carries
+  // graphId/revision/selectedNodeId/checkpointId into the chat context, and renders
+  // the control console alongside the agent panel. When the feature flag is off,
+  // the wiring is a no-op and the legacy fixed-stage path stays authoritative.
+  const productionGraph = useProductionGraphWiring({
+    projectId,
+    apiBaseUrl,
+    getToken,
+    initialSelectedNodeId: selectedNodeId ?? null,
+  });
+
+  // Bridge the production graph context into the chat client. The callback reads the
+  // live bridge each call so the latest selection/revision is sent with every message.
   const messageContext = useCallback(
-    () => (selectedNodeIdRef.current ? { selectedNodeId: selectedNodeIdRef.current } : undefined),
-    [],
+    () => productionGraph.contextBridge() as Record<string, unknown> | undefined,
+    [productionGraph.contextBridge],
   );
+
   const showThink = useThinkCapability(apiClient, "scriptAgent");
   const defaultHandlers = useMemo(() => createAgentServerHandlers({ agentType: "scriptAgent", projectId, apiClient }), [apiClient, projectId]);
   const activeHandlers = handlers ?? defaultHandlers;
@@ -239,10 +252,28 @@ export function ScriptAgentPanel({
     [activeHandlers, apiBaseUrl, apiClient, getToken, messageContext, projectId, socketFactory],
   );
 
+  // When the ProductionGraph v1 feature is on, recover retryable productionRun failures
+  // by dispatching resumeOrRetry with an idempotency key — instead of synthesizing chat
+  // text. The legacy synthesized-recovery path stays as a fallback for when the feature
+  // is off, so we don't touch the user's uncommitted agent-chat-client logic.
+  useResumeOrRetryOnLegacyFailure({
+    store: productionGraph.store,
+    dispatcher: productionGraph.dispatcher,
+    featureEnabled: productionGraph.featureEnabled,
+  });
+
   return (
     <>
       <AgentBusyReporter client={client} onBusyChange={onBusyChange} />
       <AgentConsole client={client} title="互动剧智能体" showThink={showThink} display="panel" onImportSource={importSource} />
+      {productionGraph.featureEnabled ? (
+        <ProductionGraphConsole
+          store={productionGraph.store}
+          dispatcher={productionGraph.dispatcher}
+          contextBridge={productionGraph.contextBridge}
+          featureLabel="feature on"
+        />
+      ) : null}
     </>
   );
 }

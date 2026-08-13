@@ -1,4 +1,8 @@
 import type { HodorApiClient } from "@react/lib/api/client";
+import {
+  normalizeProjectWorldProfile,
+  type ProjectWorldProfile,
+} from "@react/features/world-profile/world-profile-fields";
 
 export type ProjectType = "novel" | "script" | string;
 
@@ -16,6 +20,7 @@ export interface HodorProject {
   imageQuality?: "1K" | "2K" | "4K" | "" | null;
   mode?: string | null;
   createTime?: number | string | null;
+  worldProfile?: ProjectWorldProfile | null;
 }
 
 export interface ProjectInput {
@@ -30,6 +35,7 @@ export interface ProjectInput {
   videoModel: string;
   imageQuality: string;
   mode: string;
+  worldProfile: ProjectWorldProfile | null;
 }
 
 export interface ProjectUpdate extends ProjectInput {
@@ -38,6 +44,11 @@ export interface ProjectUpdate extends ProjectInput {
 
 export interface CreatedProject {
   id: string;
+}
+
+export interface ExtractedWorldProfile {
+  profile: ProjectWorldProfile;
+  evidence: Record<string, number>;
 }
 
 export interface ModelOption {
@@ -67,8 +78,9 @@ export interface DirectorManual {
   directorManual: string;
 }
 
-interface RawProject extends Omit<HodorProject, "id"> {
+interface RawProject extends Omit<HodorProject, "id" | "worldProfile"> {
   id: string | number;
+  worldProfile?: unknown;
 }
 
 interface RawModelOption {
@@ -111,7 +123,11 @@ export function createProjectsApi(client: HodorApiClient) {
   return {
     async listProjects(): Promise<HodorProject[]> {
       const projects = await post<RawProject[]>(client, "/project/getProject");
-      return projects.map((project) => ({ ...project, id: String(project.id) }));
+      return projects.map((project) => ({
+        ...project,
+        id: String(project.id),
+        worldProfile: normalizeProjectWorldProfile(project.worldProfile),
+      }));
     },
     async createProject(input: ProjectInput): Promise<CreatedProject> {
       const result = await post<{ id?: string | number }>(client, "/project/addProject", input);
@@ -123,6 +139,19 @@ export function createProjectsApi(client: HodorApiClient) {
     updateProject(input: ProjectUpdate): Promise<unknown> {
       const { id, ...project } = input;
       return post(client, "/project/editProject", { ...project, id: numericProjectId(id) });
+    },
+    updateWorldProfile(id: string, worldProfile: ProjectWorldProfile | null): Promise<unknown> {
+      return post(client, "/general/updateProject", { id: numericProjectId(id), worldProfile });
+    },
+    async extractWorldProfile(id: string, mode: "merge" | "replace" = "merge"): Promise<ExtractedWorldProfile> {
+      const result = await post<{ profile?: unknown; evidence?: Record<string, number> }>(
+        client,
+        "/project/extractWorldProfile",
+        { projectId: numericProjectId(id), mode, persist: false },
+      );
+      const profile = normalizeProjectWorldProfile(result.profile);
+      if (!profile) throw new Error("后端返回的世界设定格式无效");
+      return { profile, evidence: result.evidence ?? {} };
     },
     deleteProject(id: string): Promise<unknown> {
       return post(client, "/project/delProject", { id: numericProjectId(id) });

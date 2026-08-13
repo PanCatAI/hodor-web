@@ -11,6 +11,8 @@ import { ProductionFlowNode } from "./production-flow-nodes";
 import type { ProductionNodeData, ProductionNodeHandlers } from "./production-flow-nodes";
 import { applyProductionLayout, mergeProductionLayout, productionAutoLayout, productionEdges, productionNodeOrder } from "./production-flow-layout";
 import type { ProductionFlowNodeId } from "./production-flow-layout";
+import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
+import { WorldProfileInspector } from "@react/features/world-profile/world-profile-inspector";
 
 export interface ProductionFlowBoardProps {
   api: ProductionApi;
@@ -25,6 +27,9 @@ export interface ProductionFlowBoardProps {
   trailingControls?: ReactNode;
   onChange?: (data: ProductionFlowData, baseRevision: number) => void;
   onOpenWorkbench?: () => void;
+  worldProfile?: ProjectWorldProfile | null;
+  onWorldProfileChange?: (profile: ProjectWorldProfile) => void | Promise<void>;
+  onExtractWorldProfile?: (mode: "merge" | "replace") => ProjectWorldProfile | Promise<ProjectWorldProfile>;
 }
 
 type ProductionNode = Node<ProductionNodeData, "production">;
@@ -133,7 +138,7 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "操作失败";
 }
 
-function createNodes(flow: ProductionFlowData, handlers: ProductionNodeHandlers): ProductionNode[] {
+function createNodes(flow: ProductionFlowData, handlers: ProductionNodeHandlers, worldProfile: ProjectWorldProfile | null): ProductionNode[] {
   const layout = mergeProductionLayout(flow.layout);
   return productionNodeOrder.map((id) => ({
     id,
@@ -144,7 +149,7 @@ function createNodes(flow: ProductionFlowData, handlers: ProductionNodeHandlers)
     focusable: false,
     initialWidth: 150,
     initialHeight: 50,
-    data: { ...handlers, id, position: layout[id], flow },
+    data: { ...handlers, id, position: layout[id], flow, worldProfile },
   }));
 }
 
@@ -160,6 +165,9 @@ export function ProductionFlowBoard({
   trailingControls,
   onChange,
   onOpenWorkbench,
+  worldProfile: initialWorldProfile = null,
+  onWorldProfileChange,
+  onExtractWorldProfile,
 }: ProductionFlowBoardProps) {
   const [data, setData] = useState(initialData);
   const [notice, setNotice] = useState("");
@@ -170,6 +178,9 @@ export function ProductionFlowBoard({
   const [generatingStoryboards, setGeneratingStoryboards] = useState(false);
   const [storyboardPreview, setStoryboardPreview] = useState("");
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<ProductionNode> | null>(null);
+  const [worldProfile, setWorldProfile] = useState<ProjectWorldProfile | null>(initialWorldProfile);
+  const [worldProfileOpen, setWorldProfileOpen] = useState(false);
+  const worldProfileRef = useRef<ProjectWorldProfile | null>(initialWorldProfile);
   const identityRef = useRef(`${projectId}:${scriptId}`);
   const revisionRef = useRef(externalRevision);
   const initializationRunRef = useRef(0);
@@ -348,6 +359,7 @@ export function ProductionFlowBoard({
       onInsertStoryboard: (id, placement) => void insertStoryboard(id, placement),
       onPreviewStoryboards: () => void previewStoryboards(),
       onOpenWorkbench: openWorkbench,
+      onOpenWorldProfile: () => setWorldProfileOpen(true),
     }),
     [
       changeText,
@@ -366,7 +378,7 @@ export function ProductionFlowBoard({
     ],
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<ProductionNode>(createNodes(initialData, handlers));
+  const [nodes, setNodes, onNodesChange] = useNodesState<ProductionNode>(createNodes(initialData, handlers, initialWorldProfile));
   const edges = useMemo(() => productionEdges(), []);
   const nodeTypes = useMemo(() => ({ production: ProductionFlowNode as (props: NodeProps) => React.ReactNode }), []);
 
@@ -386,7 +398,7 @@ export function ProductionFlowBoard({
       setSelectedStoryboardIds([]);
       setStoryboardPreview("");
     }
-    setNodes(createNodes(initialData, handlers));
+    setNodes(createNodes(initialData, handlers, worldProfileRef.current));
   }, [externalRevision, handlers, initialData, projectId, scriptId, setNodes]);
 
   useEffect(() => {
@@ -397,10 +409,26 @@ export function ProductionFlowBoard({
     setNodes((current) =>
       current.map((node) => ({
         ...node,
-        data: { ...handlers, id: node.id as ProductionFlowNodeId, position: node.position, flow: data },
+        data: { ...node.data, ...handlers, id: node.id as ProductionFlowNodeId, position: node.position, flow: data },
       })),
     );
   }, [data, handlers, setNodes]);
+
+  useEffect(() => {
+    worldProfileRef.current = initialWorldProfile;
+    setWorldProfile(initialWorldProfile);
+  }, [initialWorldProfile]);
+
+  useEffect(() => {
+    worldProfileRef.current = worldProfile;
+    setNodes((current) =>
+      current.map((node) =>
+        node.id === "worldProfile"
+          ? { ...node, data: { ...node.data, worldProfile } }
+          : node,
+      ),
+    );
+  }, [setNodes, worldProfile]);
 
   useEffect(() => {
     if (!mountedRef.current) {
@@ -640,6 +668,25 @@ export function ProductionFlowBoard({
             </a>
           </div>
         </div>
+      ) : null}
+      {worldProfileOpen ? (
+        <WorldProfileInspector
+          profile={worldProfile}
+          onClose={() => setWorldProfileOpen(false)}
+          onSave={async (profile) => {
+            await onWorldProfileChange?.(profile);
+            setWorldProfile(profile);
+          }}
+          onExtract={
+            onExtractWorldProfile
+              ? async (mode) => {
+                  const profile = await onExtractWorldProfile(mode);
+                  setWorldProfile(profile);
+                  return profile;
+                }
+              : undefined
+          }
+        />
       ) : null}
     </section>
   );

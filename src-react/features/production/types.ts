@@ -1,5 +1,6 @@
 export type ProductionState = "idle" | "running" | "completed" | "failed";
 export type ProductionVideoRatio = "16:9" | "1:1" | "9:16";
+import type { ProjectWorldProfile } from "@react/features/world-profile/world-profile-fields";
 
 export interface ProductionProject {
   id: number;
@@ -10,6 +11,7 @@ export interface ProductionProject {
   videoRatio?: ProductionVideoRatio;
   videoResolution?: string;
   videoAudio?: boolean;
+  worldProfile?: ProjectWorldProfile | null;
 }
 
 export type ProductionVideoReferenceKind = "videoReference" | "imageReference" | "audioReference" | "textReference";

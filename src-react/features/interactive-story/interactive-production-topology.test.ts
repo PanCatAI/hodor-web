@@ -61,12 +61,29 @@ describe("interactive production topology", () => {
   it("expands every interactive node into a complete production chain on one canvas", () => {
     const topology = buildInteractiveProductionTopology(graph);
 
-    expect(topology.nodes).toHaveLength(graph.nodes.length * interactiveProductionStageOrder.length);
+    expect(topology.nodes).toHaveLength(graph.nodes.length * interactiveProductionStageOrder.length + 1);
+    expect(topology.nodes).toContainEqual(expect.objectContaining({ id: "world-profile", kind: "worldProfile" }));
     for (const storyNode of graph.nodes) {
-      expect(topology.nodes.filter((node) => node.storyNodeId === storyNode.id).map((node) => node.stage)).toEqual(
+      expect(
+        topology.nodes
+          .filter((node) => node.kind === "production" && node.storyNodeId === storyNode.id)
+          .map((node) => node.kind === "production" ? node.stage : null),
+      ).toEqual(
         interactiveProductionStageOrder,
       );
     }
+  });
+
+  it("connects the project world profile to every root script stage", () => {
+    const topology = buildInteractiveProductionTopology(graph);
+
+    expect(topology.edges).toContainEqual(
+      expect.objectContaining({
+        source: "world-profile",
+        target: "scene-1::script",
+        kind: "worldProfile",
+      }),
+    );
   });
 
   it("connects branch choices from the completed source chain to the target script", () => {

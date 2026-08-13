@@ -3,6 +3,13 @@ import { AlertCircle, X } from "lucide-react";
 
 import { Button } from "@react/components/ui/button";
 import { Input } from "@react/components/ui/input";
+import {
+  createWesternFantasyWorldProfile,
+  projectWorldProfileSubmissionError,
+  type ProjectWorldProfile,
+} from "@react/features/world-profile/world-profile-fields";
+import { WorldProfileEditor } from "@react/features/world-profile/world-profile-editor";
+import { WorldProfileSummary } from "@react/features/world-profile/world-profile-summary";
 import type {
   DirectorManual,
   HodorProject,
@@ -37,6 +44,7 @@ function defaultInput(project: HodorProject | null): ProjectInput {
     videoModel: project?.videoModel || "",
     imageQuality: project?.imageQuality || "1K",
     mode: project?.mode || "singleImage",
+    worldProfile: project?.worldProfile ?? null,
   };
 }
 
@@ -66,6 +74,17 @@ function modelOptions(models: ModelOption[], current: string, fallbackLabel: str
   );
 }
 
+function visualManualOptions(manuals: VisualManual[], current: string) {
+  const hasCurrent = !current || manuals.some((manual) => manual.stylePath === current);
+  return (
+    <>
+      <option value="">选择视觉风格包</option>
+      {!hasCurrent ? <option value={current}>{current === "western_fantasy" ? "欧美玄幻预设（当前配置）" : `${current}（当前配置）`}</option> : null}
+      {manuals.map((manual) => <option key={manual.stylePath} value={manual.stylePath}>{manual.name}</option>)}
+    </>
+  );
+}
+
 export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals }: ProjectDialogProps) {
   const [form, setForm] = useState(() => defaultInput(project));
   const [imageModels, setImageModels] = useState<ModelOption[]>([]);
@@ -74,8 +93,10 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
   const [directorManuals, setDirectorManuals] = useState<DirectorManual[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState<"merge" | "replace" | null>(null);
   const [error, setError] = useState("");
   const isEdit = project !== null;
+  const worldProfileValidationError = projectWorldProfileSubmissionError(form.worldProfile);
 
   useEffect(() => {
     let active = true;
@@ -93,14 +114,58 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
     return () => { active = false; };
   }, [api]);
 
-  const canSubmit = useMemo(() => Object.values(form).every((value) => String(value).trim()), [form]);
+  const canSubmit = useMemo(
+    () =>
+      [
+        form.projectType,
+        form.name,
+        form.intro,
+        form.type,
+        form.artStyle,
+        form.directorManual,
+        form.videoRatio,
+        form.imageModel,
+        form.videoModel,
+        form.imageQuality,
+        form.mode,
+      ].every((value) => value.trim()),
+    [form],
+  );
 
   function update<K extends keyof ProjectInput>(key: K, value: ProjectInput[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function updateWorldProfile(value: ProjectWorldProfile) {
+    update("worldProfile", value);
+  }
+
+  function useWesternFantasyPreset() {
+    updateWorldProfile(createWesternFantasyWorldProfile());
+    update("artStyle", "western_fantasy");
+  }
+
+  async function extractWorldProfile(mode: "merge" | "replace") {
+    if (!project || extracting) return;
+    if (mode === "replace" && !window.confirm("确认用原文重新整理并替换当前世界设定？手动填写的内容会被覆盖。")) return;
+    setExtracting(mode);
+    setError("");
+    try {
+      const result = await api.extractWorldProfile(project.id, mode);
+      updateWorldProfile(result.profile);
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setExtracting(null);
+    }
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (worldProfileValidationError) {
+      setError(worldProfileValidationError);
+      return;
+    }
     if (!canSubmit) {
       setError("请填写完整的项目、模型和手册配置");
       return;
@@ -148,9 +213,16 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
           <div className="md:col-span-2">
             <label className={fieldClass}><span>项目简介</span><textarea aria-label="项目简介" required value={form.intro} onChange={(event) => update("intro", event.target.value)} className={textareaClass} /></label>
           </div>
-          <SelectField label="视觉手册" value={form.artStyle} onChange={(value) => update("artStyle", value)}>
-            <option value="">选择视觉手册</option>
-            {visualManuals.map((manual) => <option key={manual.stylePath} value={manual.stylePath}>{manual.name}</option>)}
+          <SelectField
+            label="视觉手册"
+            value={form.artStyle}
+            onChange={(value) => {
+              update("artStyle", value);
+              if (value === "western_fantasy" && !form.worldProfile) {
+                updateWorldProfile(createWesternFantasyWorldProfile());
+              }
+            }}>
+            {visualManualOptions(visualManuals, form.artStyle)}
           </SelectField>
           <SelectField label="导演手册" value={form.directorManual} onChange={(value) => update("directorManual", value)}>
             <option value="">选择导演手册</option>
@@ -170,11 +242,71 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
           </SelectField>
         </div>
 
+        <section className="mt-6 rounded-xl border border-slate-700 bg-black/20 p-4" aria-label="项目世界设定">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-100">项目世界设定</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">这份设定会贯穿剧本、资产、分镜、图片与视频生成。</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="border border-slate-700"
+                onClick={useWesternFantasyPreset}>
+                使用欧美玄幻预设
+              </Button>
+              {project ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="border border-blue-500/40 text-blue-200"
+                  disabled={extracting !== null}
+                  onClick={() => void extractWorldProfile("merge")}>
+                  {extracting === "merge" ? "整理中…" : "从原文整理"}
+                </Button>
+              ) : null}
+              {project && form.worldProfile ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={extracting !== null}
+                  onClick={() => void extractWorldProfile("replace")}>
+                  {extracting === "replace" ? "替换中…" : "重新整理并替换"}
+                </Button>
+              ) : null}
+              {form.worldProfile ? (
+                <Button type="button" variant="ghost" onClick={() => update("worldProfile", null)}>
+                  清除世界设定
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <div className="mt-4">
+            <WorldProfileSummary profile={form.worldProfile} compact />
+          </div>
+          {worldProfileValidationError ? (
+            <div role="alert" className="mt-3 flex gap-2 rounded-lg border border-amber-700/50 bg-amber-950/20 p-3 text-sm text-amber-200">
+              <AlertCircle size={17} />
+              {worldProfileValidationError}
+            </div>
+          ) : null}
+          {form.worldProfile ? (
+            <div className="mt-5 border-t border-slate-800 pt-5">
+              <WorldProfileEditor value={form.worldProfile} onChange={updateWorldProfile} />
+            </div>
+          ) : (
+            <p className="mt-4 rounded-lg border border-dashed border-slate-700 px-4 py-5 text-center text-xs text-slate-500">
+              旧项目仍可继续生产；配置后，智能体会把世界规则注入每个生成阶段。
+            </p>
+          )}
+        </section>
+
         <footer className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
           <Button type="button" variant="ghost" onClick={onManageManuals}>管理手册</Button>
           <div className="flex gap-3">
             <Button type="button" variant="ghost" onClick={onClose}>取消</Button>
-            <Button type="submit" disabled={saving || loadingOptions || !canSubmit}>{saving ? "保存中…" : isEdit ? "保存修改" : "创建项目"}</Button>
+            <Button type="submit" disabled={saving || loadingOptions || !canSubmit || Boolean(worldProfileValidationError)}>{saving ? "保存中…" : isEdit ? "保存修改" : "创建项目"}</Button>
           </div>
         </footer>
       </form>

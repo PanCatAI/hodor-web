@@ -1,6 +1,10 @@
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from "react";
 
 import type { HodorApiClient } from "@react/lib/api/client";
+import {
+  normalizeProjectWorldProfile,
+  type ProjectWorldProfile,
+} from "@react/features/world-profile/world-profile-fields";
 
 export interface CurrentProject {
   id: number;
@@ -15,6 +19,7 @@ export interface CurrentProject {
   audio?: boolean;
   videoAudio?: boolean;
   videoRatio?: string;
+  worldProfile?: ProjectWorldProfile | null;
 }
 
 export interface CurrentProjectState {
@@ -56,6 +61,7 @@ function normalizeProjects(value: unknown): CurrentProject[] {
         audio: typeof record.audio === "boolean" ? record.audio : undefined,
         videoAudio: typeof record.videoAudio === "boolean" ? record.videoAudio : undefined,
         videoRatio: typeof record.videoRatio === "string" ? record.videoRatio : undefined,
+        worldProfile: normalizeProjectWorldProfile(record.worldProfile),
       },
     ];
   });

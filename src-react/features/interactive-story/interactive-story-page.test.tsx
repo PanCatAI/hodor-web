@@ -6,6 +6,7 @@ import { InteractiveStoryPage } from "./interactive-story-page";
 import type { InteractiveStoryApi } from "./interactive-story-api";
 import type { InteractiveStoryGraph } from "./types";
 import type { ProductionApi, ProductionProject } from "@react/features/production";
+import { createWesternFantasyWorldProfile } from "@react/features/world-profile/world-profile-fields";
 
 function createApi(): InteractiveStoryApi {
   const graph: InteractiveStoryGraph = {
@@ -74,6 +75,11 @@ const productionProject: ProductionProject = {
   imageModel: "pancat:pancat-image",
   videoModel: "pancat:pancat-video",
   videoMode: "singleImage",
+  worldProfile: {
+    ...createWesternFantasyWorldProfile(),
+    premise: "圣像闭眼，旧王国的誓约苏醒。",
+    worldRules: ["神迹必须付出代价"],
+  },
 };
 
 function createProductionApi(): ProductionApi {
@@ -139,12 +145,14 @@ describe("InteractiveStoryPage", () => {
   it("keeps every production stage inside the interactive canvas and opens only a stage inspector", async () => {
     const api = createApi();
     const productionApi = createProductionApi();
+    const onWorldProfileChange = vi.fn(async () => undefined);
     render(
       <InteractiveStoryPage
         projectId={7}
         api={api}
         productionApi={productionApi}
         productionProject={productionProject}
+        onWorldProfileChange={onWorldProfileChange}
         renderScriptAgent={(onBusyChange) => (
           <section aria-label="剧本智能体侧栏">
             <button type="button" onClick={() => onBusyChange(true)}>
@@ -157,6 +165,19 @@ describe("InteractiveStoryPage", () => {
     );
 
     expect(await screen.findByTestId("interactive-story-infinite-canvas")).toBeInTheDocument();
+    const worldProfileNode = screen.getByTestId("world-profile-node");
+    expect(screen.getByTestId("rf__node-world-profile")).not.toHaveClass("draggable");
+    const storyNodeBeforeEdit = screen.getByTestId("interactive-story-node-scene-1");
+    expect(worldProfileNode).toHaveTextContent("欧美玄幻");
+    fireEvent.click(worldProfileNode.querySelector("button") as HTMLButtonElement);
+    expect(screen.getByRole("dialog", { name: "世界设定" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("世界前提"), { target: { value: "更新后的旧王国誓约" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存世界设定" }));
+    await waitFor(() => expect(onWorldProfileChange).toHaveBeenCalledWith(expect.objectContaining({ premise: "更新后的旧王国誓约" })));
+    expect(screen.getByTestId("interactive-story-node-scene-1")).toBe(storyNodeBeforeEdit);
+    await waitFor(() =>
+      expect(screen.getByTestId("world-profile-node")).toHaveTextContent("更新后的旧王国誓约"),
+    );
     expect(screen.getByText("项目级剧本对话")).toBeInTheDocument();
     expect(within(screen.getByTestId("interactive-story-node-scene-1")).getByText("锁住的房间")).toBeInTheDocument();
     expect(screen.getByText("主角发现门后的秘密。")).toBeInTheDocument();

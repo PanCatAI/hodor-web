@@ -3,7 +3,7 @@ import type { Edge, Node } from "@xyflow/react";
 import { topologyLevelLayout } from "@react/features/canvas";
 import type { FlowNodePosition } from "./types";
 
-export const productionNodeOrder = ["script", "scriptPlan", "assets", "storyboardTable", "storyboard", "workbench"] as const;
+export const productionNodeOrder = ["worldProfile", "script", "scriptPlan", "assets", "storyboardTable", "storyboard", "workbench"] as const;
 
 export type ProductionFlowNodeId = (typeof productionNodeOrder)[number];
 
@@ -18,6 +18,7 @@ export interface ProductionLayoutOptions {
 }
 
 export const productionNodeLabels: Record<ProductionFlowNodeId, string> = {
+  worldProfile: "项目世界设定",
   script: "原文 / 剧本",
   scriptPlan: "拍摄计划",
   assets: "资产工厂",
@@ -32,6 +33,27 @@ export const productionNodeLabels: Record<ProductionFlowNodeId, string> = {
  * misleading linear pipeline.
  */
 export const productionConnections = [
+  {
+    id: "worldProfile-script",
+    source: "worldProfile",
+    target: "script",
+    sourceHandle: "worldProfile-script",
+    targetHandle: "script-worldProfile",
+  },
+  {
+    id: "worldProfile-scriptPlan",
+    source: "worldProfile",
+    target: "scriptPlan",
+    sourceHandle: "worldProfile-scriptPlan",
+    targetHandle: "scriptPlan-target",
+  },
+  {
+    id: "worldProfile-assets",
+    source: "worldProfile",
+    target: "assets",
+    sourceHandle: "worldProfile-assets",
+    targetHandle: "assets-target",
+  },
   { id: "script-assets", source: "script", target: "assets", sourceHandle: "script-assets", targetHandle: "assets-target" },
   { id: "script-scriptPlan", source: "script", target: "scriptPlan", sourceHandle: "script-main", targetHandle: "scriptPlan-target" },
   {
@@ -61,6 +83,7 @@ const fallbackNodeSize: ProductionNodeSize = { width: 150, height: 50 };
 const productionLayoutGap = 80;
 
 const initialProductionLayout: Record<ProductionFlowNodeId, FlowNodePosition> = {
+  worldProfile: { x: -900, y: 0 },
   script: { x: 0, y: 0 },
   scriptPlan: { x: 900, y: 0 },
   assets: { x: 1_200, y: 4_000 },

@@ -13,10 +13,17 @@ export const interactiveProductionStageOrder = [
 export type InteractiveProductionStage = (typeof interactiveProductionStageOrder)[number];
 
 export interface InteractiveProductionTopologyNode {
+  kind: "production";
   id: string;
   storyNodeId: string;
   scriptId: number;
   stage: InteractiveProductionStage;
+  position: InteractiveStoryPosition;
+}
+
+export interface InteractiveWorldProfileTopologyNode {
+  kind: "worldProfile";
+  id: "world-profile";
   position: InteractiveStoryPosition;
 }
 
@@ -25,11 +32,11 @@ export interface InteractiveProductionTopologyEdge {
   source: string;
   target: string;
   label?: string;
-  kind: "production" | "choice";
+  kind: "production" | "choice" | "worldProfile";
 }
 
 export interface InteractiveProductionTopology {
-  nodes: InteractiveProductionTopologyNode[];
+  nodes: Array<InteractiveProductionTopologyNode | InteractiveWorldProfileTopologyNode>;
   edges: InteractiveProductionTopologyEdge[];
 }
 
@@ -58,12 +65,13 @@ export function interactiveProductionNodeId(storyNodeId: string, stage: Interact
 }
 
 export function buildInteractiveProductionTopology(graph: InteractiveStoryGraph): InteractiveProductionTopology {
-  const nodes = graph.nodes.flatMap((storyNode) => {
+  const productionNodes: InteractiveProductionTopologyNode[] = graph.nodes.flatMap((storyNode) => {
     const clusterOrigin = {
       x: storyNode.position.x * 4,
       y: storyNode.position.y * 2,
     };
     return interactiveProductionStageOrder.map((stage) => ({
+      kind: "production" as const,
       id: interactiveProductionNodeId(storyNode.id, stage),
       storyNodeId: storyNode.id,
       scriptId: storyNode.scriptId,
@@ -74,6 +82,12 @@ export function buildInteractiveProductionTopology(graph: InteractiveStoryGraph)
       },
     }));
   });
+  const firstX = productionNodes.length ? Math.min(...productionNodes.map((node) => node.position.x)) : 0;
+  const firstY = productionNodes.length ? Math.min(...productionNodes.map((node) => node.position.y)) : 0;
+  const nodes: InteractiveProductionTopology["nodes"] = [
+    { kind: "worldProfile", id: "world-profile", position: { x: firstX - 420, y: firstY } },
+    ...productionNodes,
+  ];
 
   const edges: InteractiveProductionTopologyEdge[] = graph.nodes.flatMap((storyNode) =>
     productionConnections.map(([source, target]) => ({
@@ -91,6 +105,19 @@ export function buildInteractiveProductionTopology(graph: InteractiveStoryGraph)
       target: interactiveProductionNodeId(edge.targetNodeId, "script"),
       label: edge.choiceText,
       kind: "choice" as const,
+    })),
+  );
+
+  const inboundStoryNodeIds = new Set(graph.edges.map((edge) => edge.targetNodeId));
+  const rootStoryNodeIds = graph.nodes
+    .filter((node) => node.id === graph.entryNodeId || !inboundStoryNodeIds.has(node.id))
+    .map((node) => node.id);
+  edges.push(
+    ...[...new Set(rootStoryNodeIds)].map((storyNodeId) => ({
+      id: `world-profile:${storyNodeId}`,
+      source: "world-profile",
+      target: interactiveProductionNodeId(storyNodeId, "script"),
+      kind: "worldProfile" as const,
     })),
   );
 
