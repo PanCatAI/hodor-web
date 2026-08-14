@@ -72,7 +72,7 @@ describe("Projects management", () => {
       }),
     })));
     expect(api.listProjects).toHaveBeenCalledTimes(2);
-    expect(window.location.hash).toBe("#/projects/88/interactive");
+    expect(window.location.hash).toBe("#/projects/88/canvas");
   });
 
   it("shows world-profile completion and a concise summary on project cards", async () => {

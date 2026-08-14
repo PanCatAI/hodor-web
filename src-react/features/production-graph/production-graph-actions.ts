@@ -93,16 +93,19 @@ export function createProductionGraphActionDispatcher(
           );
         }
         const snapshot = store.getSnapshot().snapshot;
+        const bootstrap = !snapshot && input.action === "changeScope";
         if (input.action !== "readGraph") {
           if (!snapshot) {
-            throw new ProductionGraphBusinessError(
-              "PRODUCTION_GRAPH_DISABLED",
-              "ProductionGraph 尚未接收到初始快照，无法派发变更动作。",
-              409,
-            );
+            if (input.action !== "changeScope") {
+              throw new ProductionGraphBusinessError(
+                "PRODUCTION_GRAPH_DISABLED",
+                "ProductionGraph 尚未接收到初始快照，无法派发变更动作。",
+                409,
+              );
+            }
           }
           const changeInput = input as { expectedRevision: number; idempotencyKey: string };
-          if (changeInput.expectedRevision !== snapshot.revision) {
+          if (snapshot && changeInput.expectedRevision !== snapshot.revision) {
             throw new ProductionGraphBusinessError(
               "PRODUCTION_GRAPH_REVISION_CONFLICT",
               `expectedRevision ${changeInput.expectedRevision} 与当前 revision ${snapshot.revision} 不一致。`,
@@ -110,13 +113,13 @@ export function createProductionGraphActionDispatcher(
               { expectedRevision: changeInput.expectedRevision, currentRevision: snapshot.revision },
             );
           }
-          if (!store.beginDispatch(changeInput.idempotencyKey, changeInput.expectedRevision)) {
+          if (!bootstrap && !store.beginDispatch(changeInput.idempotencyKey, changeInput.expectedRevision)) {
             // 已派发过或并发竞争中败北；不抛错，但也不重复派发。
             return {
               ok: true,
               result: {
                 action: input.action,
-                snapshot,
+                snapshot: snapshot!,
                 paidGenerationUsd: 0,
                 idempotencyKey: changeInput.idempotencyKey,
               },
@@ -176,7 +179,7 @@ export function createProductionGraphActionDispatcher(
           }
         });
 
-        if (input.action !== "readGraph") {
+        if (input.action !== "readGraph" && !bootstrap) {
           const changeInput = input as { idempotencyKey: string };
           store.endDispatch(changeInput.idempotencyKey);
         }
@@ -185,6 +188,9 @@ export function createProductionGraphActionDispatcher(
           store.recordError(new ProductionGraphBusinessError(ack.error.code, ack.error.message, ack.error.status, ack.error.details));
         } else {
           store.clearError();
+        }
+        if (ack.ok && bootstrap && ack.result?.snapshot) {
+          store.applySnapshot(ack.result.snapshot);
         }
         if (ack.ok && ack.result?.idempotencyKey) {
           store.rememberIdempotencyKey(ack.result.idempotencyKey);

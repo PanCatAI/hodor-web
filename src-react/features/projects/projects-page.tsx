@@ -34,8 +34,7 @@ function readError(error: unknown, fallback = "项目加载失败"): string {
 }
 
 function projectHref(project: HodorProject): string {
-  const section = project.projectType === "novel" ? "novels" : project.projectType === "interactive" ? "interactive" : "scripts";
-  return `#/projects/${project.id}/${section}`;
+  return `#/projects/${project.id}/canvas`;
 }
 
 export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
@@ -107,7 +106,7 @@ export function ProjectsPage({ api, loadProjects }: ProjectsPageProps) {
     await refresh();
     if (!result.created || result.projectType !== "interactive") return;
     localStorage.setItem("hodorSelectedProjectId", result.id);
-    window.location.hash = `/projects/${result.id}/interactive`;
+    window.location.hash = `/projects/${result.id}/canvas`;
   }
 
   return (

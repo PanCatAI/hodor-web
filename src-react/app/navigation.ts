@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Boxes, Clapperboard, FileText, FolderKanban, GitBranch, ListTodo, NotebookText, PanelsTopLeft, Sparkles, Users } from "lucide-react";
+import { FolderKanban, GitBranch, ListTodo, PanelsTopLeft } from "lucide-react";
 
 export interface GlobalNavigationItem {
   label: string;
@@ -11,6 +11,7 @@ export interface ProjectNavigationItem {
   label: string;
   to:
     | "/projects/$projectId/novels"
+    | "/projects/$projectId/canvas"
     | "/projects/$projectId/scripts"
     | "/projects/$projectId/script-agent"
     | "/projects/$projectId/casting"
@@ -29,12 +30,6 @@ export const globalNavigation: GlobalNavigationItem[] = [
 ];
 
 export const projectNavigation: ProjectNavigationItem[] = [
-  { label: "原文", to: "/projects/$projectId/novels", icon: NotebookText },
-  { label: "剧本", to: "/projects/$projectId/scripts", icon: FileText },
-  { label: "剧本智能体", to: "/projects/$projectId/script-agent", icon: Sparkles },
-  { label: "互动剧画布", to: "/projects/$projectId/interactive", icon: GitBranch },
-  { label: "选角", to: "/projects/$projectId/casting", icon: Users },
-  { label: "资产", to: "/projects/$projectId/assets", icon: Boxes },
-  { label: "生产", to: "/projects/$projectId/production", icon: Clapperboard },
+  { label: "画布", to: "/projects/$projectId/canvas", icon: GitBranch },
   { label: "控制室", to: "/projects/$projectId/studio-os", icon: PanelsTopLeft },
 ];

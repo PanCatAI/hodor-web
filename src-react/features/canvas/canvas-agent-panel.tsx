@@ -10,6 +10,7 @@ export interface CanvasAgentPanelProps {
   minimumWidth?: number;
   width?: number;
   onWidthChange?: (width: number) => void;
+  showCollapsedTrigger?: boolean;
 }
 
 export function CanvasAgentPanel({
@@ -21,6 +22,7 @@ export function CanvasAgentPanel({
   minimumWidth = 400,
   width: controlledWidth,
   onWidthChange,
+  showCollapsedTrigger = true,
 }: CanvasAgentPanelProps) {
   const [internalWidth, setInternalWidth] = useState(minimumWidth);
   const width = controlledWidth ?? internalWidth;
@@ -95,7 +97,7 @@ export function CanvasAgentPanel({
         </button>
         <div className="h-full min-h-0">{children}</div>
       </aside>
-      {!open ? (
+      {!open && showCollapsedTrigger ? (
         <button
           type="button"
           aria-label={`打开${name}`}

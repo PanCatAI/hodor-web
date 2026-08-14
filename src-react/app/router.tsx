@@ -6,12 +6,13 @@ import { AssetsCenter, createAssetApi } from "@react/features/assets";
 import { LoginPage } from "@react/features/auth/login-page";
 import { CastingPage, createCastingApi } from "@react/features/casting";
 import { createHodorDirectorDeskAdapter, DirectorDeskPage, type DirectorDeskEditorModule } from "@react/features/director-desk";
-import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type ProductionProject, type StoryboardItem } from "@react/features/production";
+import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type ProductionApi, type ProductionProject, type StoryboardItem } from "@react/features/production";
 import type { ProductionVideoRatio } from "@react/features/production/types";
-import { createInteractiveStoryApi, InteractiveStoryPage } from "@react/features/interactive-story";
+import { createInteractiveStoryApi, InteractiveStoryPage, type InteractiveStoryGraph } from "@react/features/interactive-story";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
 import { createStudioOsApi, StudioOsPage } from "@react/features/studio-os";
+import { ProjectCanvas, type ProjectCanvasModuleId, type ProjectCanvasModuleRenderContext, type ProjectCanvasModuleRenderers } from "@react/features/project-canvas";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
 import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
 import { TasksPage } from "@react/features/tasks";
@@ -256,6 +257,12 @@ function positiveInteger(value: unknown): number | undefined {
   return Number.isInteger(number) && number > 0 ? number : undefined;
 }
 
+function isCanvasModule(value: unknown): ProjectCanvasModuleId | undefined {
+  return value === "goal" || value === "story" || value === "casting" || value === "assets" || value === "storyboards" || value === "production" || value === "interactive"
+    ? value
+    : undefined;
+}
+
 interface RawProductionProject {
   id?: number | string;
   name?: string;
@@ -424,6 +431,137 @@ function InteractiveStoryRoutePage() {
   );
 }
 
+export function createProjectCanvasProductionRenderer({
+  projectId,
+  productionApi,
+  productionProject,
+  apiClient,
+  apiBaseUrl,
+  getToken,
+}: {
+  projectId: number;
+  productionApi: ProductionApi;
+  productionProject: ProductionProject;
+  apiClient: HodorApiClient;
+  apiBaseUrl: string;
+  getToken: () => string | null;
+}) {
+  return ({ episodeId, view }: ProjectCanvasModuleRenderContext) => view === "agent" && episodeId != null ? (
+    <ProductionAgentPage projectId={projectId} episodeId={episodeId} apiClient={apiClient} apiBaseUrl={apiBaseUrl} getToken={getToken} />
+  ) : (
+    <ProductionWorkbench
+      api={productionApi}
+      project={productionProject}
+      initialView="generation"
+      initialScriptId={episodeId}
+      renderProductionAgent={(agentEpisodeId, onFlowDataChange, onBusyChange) => (
+        <ProductionAgentPanel
+          projectId={projectId}
+          episodeId={agentEpisodeId}
+          apiClient={apiClient}
+          apiBaseUrl={apiBaseUrl}
+          getToken={getToken}
+          onFlowDataChange={onFlowDataChange}
+          onBusyChange={onBusyChange}
+        />
+      )}
+    />
+  );
+}
+
+function ProjectCanvasRoutePage() {
+  const projectId = readProjectId();
+  const router = useRouter();
+  const { apiClient, apiBaseUrl, getToken } = projectCanvasRoute.useRouteContext();
+  const search = projectCanvasRoute.useSearch();
+  const { project, loading, error } = useCurrentProjectContext();
+  const storyApi = useMemo(() => createStoryApi(apiClient, { requestBlob: createAuthenticatedBlobRequest(apiBaseUrl) }), [apiBaseUrl, apiClient]);
+  const castingApi = useMemo(() => createCastingApi(apiClient), [apiClient]);
+  const assetsApi = useMemo(() => createAssetApi(apiClient), [apiClient]);
+  const storyboardApi = useMemo(() => createStoryboardApi(apiClient, { requestBlob: createAuthenticatedBlobRequest(apiBaseUrl) }), [apiBaseUrl, apiClient]);
+  const productionApi = useMemo(() => createProductionApi(apiClient), [apiClient]);
+  const interactiveApi = useMemo(() => createInteractiveStoryApi(apiClient), [apiClient]);
+  const projectsApi = useMemo(() => createProjectsApi(apiClient), [apiClient]);
+  const productionProject = useMemo(() => (projectId != null && project ? normalizeProductionProject(project, projectId) : null), [project, projectId]);
+  const [interactiveGraph, setInteractiveGraph] = useState<InteractiveStoryGraph | null>(null);
+
+  useEffect(() => {
+    if (projectId == null || project?.projectType !== "interactive") {
+      setInteractiveGraph(null);
+      return;
+    }
+    let cancelled = false;
+    void interactiveApi.getGraph(projectId).then((graph) => {
+      if (!cancelled) setInteractiveGraph(graph);
+    }).catch(() => {
+      if (!cancelled) setInteractiveGraph(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [interactiveApi, project?.projectType, projectId]);
+  const renderProduction = useMemo(
+    () => projectId != null && productionProject
+      ? createProjectCanvasProductionRenderer({ projectId, productionApi, productionProject, apiClient, apiBaseUrl, getToken })
+      : null,
+    [apiBaseUrl, apiClient, getToken, productionApi, productionProject, projectId],
+  );
+  const renderers = useMemo<ProjectCanvasModuleRenderers>(() => {
+    if (projectId == null || !productionProject) return {};
+    const projectType = project?.projectType ?? "novel";
+    const openStoryboard = (script: Script) => {
+      void router.navigate({
+        to: "/projects/$projectId/canvas",
+        params: { projectId: String(projectId) },
+        search: { module: "storyboards", view: undefined, scriptId: script.id, episodeId: undefined },
+      });
+    };
+    return {
+      story: () => (
+        <div className="space-y-10">
+          <NovelPage api={storyApi} projectId={projectId} />
+          <ScriptPage
+            api={storyApi}
+            projectId={projectId}
+            onOpenStoryboard={openStoryboard}
+          />
+        </div>
+      ),
+      casting: () => <CastingPage projectId={projectId} imageModel={productionProject.imageModel ?? "pancat:pancat-image"} api={castingApi} />,
+      assets: () => <AssetsCenter projectId={projectId} imageModel={productionProject.imageModel ?? "pancat:pancat-image"} api={assetsApi} />,
+      storyboards: ({ scriptId }) => scriptId ? <StoryboardPage api={storyboardApi} projectId={projectId} scriptId={scriptId} /> : <ScriptPage api={storyApi} projectId={projectId} onOpenStoryboard={openStoryboard} />,
+      production: (context) => renderProduction?.(context) ?? null,
+      interactive: () => projectType === "interactive" ? (
+        <InteractiveStoryPage
+          projectId={projectId}
+          api={interactiveApi}
+          productionApi={productionApi}
+          productionProject={productionProject}
+          onWorldProfileChange={async (worldProfile) => {
+            await projectsApi.updateWorldProfile(String(projectId), worldProfile);
+          }}
+          onExtractWorldProfile={async (mode) => (await projectsApi.extractWorldProfile(String(projectId), mode)).profile}
+          renderScriptAgent={(onBusyChange, selectedNodeId) => (
+            <ScriptAgentPanel
+              projectId={projectId}
+              apiClient={apiClient}
+              apiBaseUrl={apiBaseUrl}
+              getToken={getToken}
+              onBusyChange={onBusyChange}
+              selectedNodeId={selectedNodeId}
+            />
+          )}
+        />
+      ) : null,
+    };
+  }, [apiBaseUrl, apiClient, assetsApi, castingApi, getToken, interactiveApi, productionApi, productionProject, project, projectsApi, renderProduction, router, storyApi, storyboardApi]);
+  if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
+  if (loading) return <MissingContext>正在读取项目画布…</MissingContext>;
+  if (error) return <MissingContext>{error}</MissingContext>;
+  const openInitialModuleWithoutSnapshot = search.module === "storyboards" || (search.module === "production" && search.view === "agent" && search.episodeId != null);
+  return <ProjectCanvas projectId={projectId} projectType={project?.projectType ?? "novel"} apiBaseUrl={apiBaseUrl} getToken={getToken} initialModule={search.module} initialScriptId={search.scriptId} initialEpisodeId={search.episodeId} initialView={search.view} openInitialModuleWithoutSnapshot={openInitialModuleWithoutSnapshot} interactiveGraph={interactiveGraph} moduleRenderers={renderers} />;
+}
+
 const projectsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects",
@@ -474,31 +612,54 @@ const settingsRoute = createRoute({
 const projectNovelRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/novels",
-  component: NovelRoutePage,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/projects/$projectId/canvas", params, search: { module: "story", view: undefined, scriptId: undefined, episodeId: undefined } });
+  },
+});
+
+const projectCanvasRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: "/projects/$projectId/canvas",
+  validateSearch: (search: Record<string, unknown>) => ({
+    module: isCanvasModule(search.module),
+    view: search.view === "agent" ? ("agent" as const) : search.view === "workbench" ? ("workbench" as const) : undefined,
+    scriptId: positiveInteger(search.scriptId),
+    episodeId: positiveInteger(search.episodeId),
+  }),
+  component: ProjectCanvasRoutePage,
 });
 
 const projectScriptRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/scripts",
-  component: ScriptRoutePage,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/projects/$projectId/canvas", params, search: { module: "story", view: undefined, scriptId: undefined, episodeId: undefined } });
+  },
 });
 
 const projectAssetsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/assets",
-  component: AssetsRoutePage,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/projects/$projectId/canvas", params, search: { module: "assets", view: undefined, scriptId: undefined, episodeId: undefined } });
+  },
 });
 
 const projectStoryboardsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/storyboards",
   validateSearch: (search: Record<string, unknown>) => ({ scriptId: positiveInteger(search.scriptId) }),
-  component: StoryboardsRoutePage,
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: "/projects/$projectId/canvas", params, search: { module: "storyboards", view: undefined, scriptId: positiveInteger((search as { scriptId?: unknown }).scriptId), episodeId: undefined } });
+  },
 });
 
 const projectProductionRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/production",
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: "/projects/$projectId/canvas", params, search: { module: "production", view: (search as { view?: "agent" | "workbench" }).view, scriptId: undefined, episodeId: positiveInteger((search as { episodeId?: unknown }).episodeId) } });
+  },
   validateSearch: (search: Record<string, unknown>) => ({
     view: search.view === "agent" ? ("agent" as const) : ("workbench" as const),
     episodeId: positiveInteger(search.episodeId),
@@ -518,7 +679,10 @@ const projectStudioOsRoute = createRoute({
 const projectInteractiveStoryRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/interactive",
-  component: InteractiveStoryRoutePage,
+  validateSearch: (search: Record<string, unknown>) => search,
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: "/projects/$projectId/canvas", params, search: { module: "interactive", view: (search as { view?: "agent" | "workbench" }).view, scriptId: undefined, episodeId: positiveInteger((search as { episodeId?: unknown }).episodeId) } });
+  },
 });
 
 const projectAgentsRoute = createRoute({
@@ -563,7 +727,9 @@ function CastingRoutePage() {
 const projectCastingRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/casting",
-  component: CastingRoutePage,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/projects/$projectId/canvas", params, search: { module: "casting", view: undefined, scriptId: undefined, episodeId: undefined } });
+  },
 });
 
 const loadDirectorDeskEditor = (): Promise<DirectorDeskEditorModule> => import("../../vendor/storyai-3d-director-desk/src/embed");
@@ -687,6 +853,7 @@ const routeTree = rootRoute.addChildren([
     tasksRoute,
     settingsRoute,
     projectNovelRoute,
+    projectCanvasRoute,
     projectScriptRoute,
     projectAssetsRoute,
     projectStoryboardsRoute,

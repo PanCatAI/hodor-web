@@ -64,6 +64,18 @@ describe("ProductionGraphSocketAdapter", () => {
     expect(store.getSnapshot().snapshot?.revision).toBe(before);
   });
 
+  it("keeps ProductionGraph enabled when a project has no graph so the canvas can create one", () => {
+    const store = createProductionGraphStore();
+    const socket = new FakeSocket();
+    const adapter = createProductionGraphSocketAdapter({ store, socket });
+    adapter.attach();
+
+    socket.trigger("productionGraph:snapshot", null);
+
+    expect(store.getSnapshot().featureEnabled).toBe(true);
+    expect(store.getSnapshot().snapshot).toBeNull();
+  });
+
   it("maps legacy productionRun:update into the legacy banner and never mutates node status", () => {
     const store = createProductionGraphStore();
     const socket = new FakeSocket();
@@ -249,15 +261,15 @@ describe("ProductionGraphSocketAdapter reconnect", () => {
     expect(socket.emitted).toContainEqual({ event: "productionGraph:read", data: { graphId: "graph-p1" } });
   });
 
-  it("does not auto-request snapshot when feature flag has been disabled by a null snapshot", () => {
+  it("keeps the empty canvas enabled and does not request a graph id on reconnect", () => {
     const store = createProductionGraphStore();
     const socket = new FakeSocket();
     const adapter = createProductionGraphSocketAdapter({ store, socket });
     adapter.attach();
 
-    // Server signals "no persistent graph yet" — adapter must fall back, not throw.
+    // Server signals "no persistent graph yet" — the canvas remains able to create it.
     socket.trigger("productionGraph:snapshot", null);
-    expect(store.getSnapshot().featureEnabled).toBe(false);
+    expect(store.getSnapshot().featureEnabled).toBe(true);
     expect(store.getSnapshot().snapshot).toBeNull();
 
     socket.emitted.length = 0;

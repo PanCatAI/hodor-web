@@ -18,6 +18,7 @@ import {
 } from "./production-graph-socket-adapter";
 import { createProductionGraphStore, type ProductionGraphStore } from "./production-graph-store";
 import { getProductionGraphFeatureFlag, type ProductionGraphFeatureFlag } from "./feature-flag";
+import { createProductionGraphCanarySocket } from "./production-graph-canary-socket";
 
 /**
  * ProductionGraph wiring for the project workspace.
@@ -172,7 +173,10 @@ export function useProductionGraphWiring(options: ProductionGraphWiringOptions):
     if (!token) return;
     const url = resolveSocketUrl(apiBaseUrl);
     const factory = socketFactory ?? defaultSocketFactory;
-    const socket = factory(url, { token, projectId: String(projectId) });
+    const canaryUrl = import.meta.env.VITE_HODOR_CANARY_SOCKET_URL;
+    const socket = canaryUrl
+      ? createProductionGraphCanarySocket(canaryUrl, { token, projectId: String(projectId) })
+      : factory(url, { token, projectId: String(projectId) });
     socketRef.current = socket;
     const adapter = createProductionGraphSocketAdapter({
       store: storeRef.current!,

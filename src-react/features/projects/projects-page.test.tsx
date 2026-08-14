@@ -62,8 +62,8 @@ describe("Projects page", () => {
     render(<HodorApp />);
     fireEvent.click(await screen.findByRole("link", { name: "打开项目 长安十二时辰" }));
 
-    await waitFor(() => expect(window.location.hash).toBe("#/projects/7/novels"));
-    expect(await screen.findByRole("heading", { name: "原文管理" })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.hash).toBe("#/projects/7/canvas"));
+    expect(await screen.findByRole("heading", { name: "先说说你想完成什么" })).toBeInTheDocument();
     expect(localStorage.getItem("hodorSelectedProjectId")).toBe("7");
   });
 

@@ -11,7 +11,7 @@ import {
  * ProductionGraph Socket 适配器。
  *
  * 把以下事件映射到 ProductionGraphStore：
- * - productionGraph:snapshot -> store.applySnapshot；payload 为 null 时进入 disabled 回退
+ * - productionGraph:snapshot -> store.applySnapshot；payload 为 null 时保留空画布可创建状态
  * - productionGraph:patch   -> store.applyPatch（受 baseRevision/revision 守护）
  * - productionRun:update    -> store.recordLegacyProductionRun（兼容迁移期）
  * - productionRun:restore   -> 选择活跃或可重试运行并写入 legacyProductionRun
@@ -20,8 +20,8 @@ import {
  * - 断线重连只触发 readGraph 重新读取快照；前端绝不向服务端补发本地 patch。
  * - 已应用的 idempotencyKey 在重连后不会被再次派发。
  * - 旧 productionRun 事件不得改写真实节点状态。
- * - 当服务端发送 productionGraph:snapshot=null（项目没有持久图），适配器关闭功能开关，
- *   让旧固定拓扑继续工作；不向上抛出 PRODUCTION_GRAPH_DISABLED。
+ * - 当服务端发送 productionGraph:snapshot=null（项目没有持久图），适配器保留
+ *   ProductionGraph 能力，让统一画布显示目标输入并创建第一张图。
  */
 
 export interface ProductionGraphSocket {
@@ -91,8 +91,7 @@ export function createProductionGraphSocketAdapter(options: ProductionGraphSocke
   const handleSnapshot = (raw: unknown) => {
     const snapshot = asSnapshot(raw);
     if (!snapshot) {
-      // 服务端发送 null 表示项目尚未拥有持久图；切回旧固定拓扑而不是抛错。
-      store.setFeatureEnabled(false);
+      // 服务端发送 null 表示项目尚未拥有持久图；统一画布仍需通过 changeScope 创建它。
       return;
     }
     store.applySnapshot(snapshot);

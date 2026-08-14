@@ -37,6 +37,35 @@ function createRecordingSocket(): ProductionGraphActionSocket & {
 }
 
 describe("ProductionGraphActionDispatcher", () => {
+  it("bootstraps a missing graph through the real changeScope action and applies the returned snapshot", async () => {
+    const store = createProductionGraphStore();
+    const socket = createRecordingSocket();
+    const snapshot = { ...fixture.snapshots.p1Initial, graphId: "pending-project-7", projectId: 7 };
+    const dispatcher = createProductionGraphActionDispatcher({
+      store,
+      socket,
+      buildContext: () => ({ actorRef: null, graphId: "pending-project-7", selectedNodeId: null, checkpointId: null }),
+    });
+    socket.ack({
+      ok: true,
+      result: { action: "changeScope", snapshot, idempotencyKey: "bootstrap-1", paidGenerationUsd: 0 },
+    });
+
+    const ack = await dispatcher.dispatch({
+      action: "changeScope",
+      idempotencyKey: "bootstrap-1",
+      expectedRevision: 0,
+      nodesUpsert: [],
+      nodeIdsRemoved: [],
+      edgesUpsert: [],
+      edgeIdsRemoved: [],
+    });
+
+    expect(ack.ok).toBe(true);
+    expect(socket.emitted).toHaveLength(1);
+    expect(store.getSnapshot().snapshot?.graphId).toBe("pending-project-7");
+  });
+
   it("rejects readGraph when feature is disabled", async () => {
     const store = createProductionGraphStore();
     store.setFeatureEnabled(false);
