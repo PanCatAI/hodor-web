@@ -13,6 +13,7 @@ import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
 import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
+import { StudioOsControlRoomPage } from "@react/features/studio-os";
 import { TasksPage } from "@react/features/tasks";
 import { createApiClient, resolveApiBaseUrl, type HodorApiClient } from "@react/lib/api/client";
 import { clearSession, getSessionToken } from "@react/lib/auth/session";
@@ -482,6 +483,21 @@ const projectProductionRoute = createRoute({
   component: ProductionRoutePage,
 });
 
+function StudioOsRoutePage() {
+  const projectId = readProjectId();
+  const { groupId } = projectStudioOsRoute.useSearch();
+  const { apiClient } = projectStudioOsRoute.useRouteContext();
+  if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
+  return <StudioOsControlRoomPage client={apiClient} groupId={groupId ?? `studio-project-${projectId}`} enabled={import.meta.env.VITE_STUDIO_OS_VNEXT_ENABLED === "true"} />;
+}
+
+const projectStudioOsRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: "/projects/$projectId/studio-os",
+  validateSearch: (search: Record<string, unknown>) => ({ groupId: typeof search.groupId === "string" && search.groupId.trim() ? search.groupId : undefined }),
+  component: StudioOsRoutePage,
+});
+
 const projectInteractiveStoryRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/interactive",
@@ -658,6 +674,7 @@ const routeTree = rootRoute.addChildren([
     projectAssetsRoute,
     projectStoryboardsRoute,
     projectProductionRoute,
+    projectStudioOsRoute,
     projectInteractiveStoryRoute,
     projectAgentsRoute,
     projectCastingRoute,
