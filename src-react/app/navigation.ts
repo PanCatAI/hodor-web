@@ -1,9 +1,9 @@
 import type { LucideIcon } from "lucide-react";
-import { Boxes, Clapperboard, FileText, FolderKanban, GitBranch, ListTodo, NotebookText, Sparkles, Users } from "lucide-react";
+import { Boxes, Clapperboard, FileText, FolderKanban, GitBranch, ListTodo, NotebookText, Sparkles, Star, Users } from "lucide-react";
 
 export interface GlobalNavigationItem {
   label: string;
-  to: "/projects" | "/tasks";
+  to: "/projects" | "/tasks" | "/studio-os";
   icon: LucideIcon;
 }
 
@@ -25,6 +25,7 @@ export interface ProjectNavigationItem {
 export const globalNavigation: GlobalNavigationItem[] = [
   { label: "项目", to: "/projects", icon: FolderKanban },
   { label: "任务", to: "/tasks", icon: ListTodo },
+  { label: "创作评估", to: "/studio-os", icon: Star },
 ];
 
 export const projectNavigation: ProjectNavigationItem[] = [

@@ -11,6 +11,7 @@ import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createInteractiveStoryApi, InteractiveStoryPage } from "@react/features/interactive-story";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
+import { createStudioOsApi, StudioOsPage } from "@react/features/studio-os";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
 import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
 import { TasksPage } from "@react/features/tasks";
@@ -441,10 +442,28 @@ function SettingsRoutePage() {
   );
 }
 
+
+function StudioOsRoutePage() {
+  const { apiClient } = studioOsRoute.useRouteContext();
+  const api = useMemo(() => createStudioOsApi(apiClient), [apiClient]);
+  return (
+    <WorkspaceBoundary>
+      <StudioOsPage api={api} />
+    </WorkspaceBoundary>
+  );
+}
+
 const settingsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/settings",
   component: SettingsRoutePage,
+});
+
+
+const studioOsRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: "/studio-os",
+  component: StudioOsRoutePage,
 });
 
 const projectNovelRoute = createRoute({
@@ -653,6 +672,7 @@ const routeTree = rootRoute.addChildren([
     projectsRoute,
     tasksRoute,
     settingsRoute,
+    studioOsRoute,
     projectNovelRoute,
     projectScriptRoute,
     projectAssetsRoute,
