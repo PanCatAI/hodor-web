@@ -33,13 +33,6 @@ import type { ProductionGraphActionInput, ProductionGraphActionName } from "@rea
 import { clearProjectGoalDraft, parseGoalConstraints, readProjectGoalDraft } from "@react/features/projects";
 import type { HodorApiClient } from "@react/lib/api/client";
 import {
-  CanvasCommandBar,
-  COMMAND_ACTION_LABELS,
-  parseCanvasCommandInstruction,
-  randomCommandIdempotencyKey,
-  type CanvasCommandContext,
-} from "./canvas-command-bar";
-import {
   canvasFramingKey,
   coordinateProjectCanvasNodes,
   productionGraphMatchesInteractiveStory,
@@ -63,8 +56,6 @@ export interface ProjectCanvasProps {
   interactiveGraph?: InteractiveStoryGraph | null;
   moduleRenderers?: ProjectCanvasModuleRenderers;
   wiring?: UseProductionGraphWiring;
-  /** 画布命令入口的自由文本指令回调：携带当前阶段与选中节点上下文。 */
-  onAgentCommand?: (instruction: string, context: CanvasCommandContext) => void | Promise<unknown>;
   /** 传入后画布会创建与抽屉共享的真实 AgentChatClient（scriptAgent，项目级通道）。 */
   apiClient?: HodorApiClient;
   /** 测试可注入伪造 socket；生产环境默认通过 socket.io 连接现有智能体通道。 */
@@ -99,6 +90,36 @@ export type ProjectCanvasModuleRenderContext = {
 };
 export type ProjectCanvasModuleRenderers = Partial<Record<ProjectCanvasModuleId, (context: ProjectCanvasModuleRenderContext) => ReactNode>>;
 
+/** 与项目智能体一起发送的画布上下文：当前阶段、选中节点与图版本（消息每次发送时读取）。 */
+export interface CanvasAgentContext {
+  projectId: number;
+  projectType: string;
+  stage: ProjectCanvasModuleId | null;
+  stageLabel: string;
+  selectedNodeId: string | null;
+  nodeTitle: string | null;
+  checkpointId: string | null;
+  graphId: string | null;
+  revision: number | null;
+}
+
+/** 画布节点动作的中文标签：节点检查器动作按钮与反馈文案共用。 */
+const CANVAS_NODE_ACTION_LABELS: Record<ProductionGraphActionName, string> = {
+  readGraph: "刷新图",
+  changeScope: "调整范围",
+  startReady: "启动就绪节点",
+  pause: "暂停节点",
+  resumeOrRetry: "恢复或重试",
+  adoptCandidate: "采用候选",
+};
+
+/** 节点动作的确定性前缀 + 随机后缀，保证服务端幂等去重。 */
+function randomCanvasNodeActionIdempotencyKey(): string {
+  const random = Math.random().toString(36).slice(2, 10);
+  const time = Date.now().toString(36);
+  return `canvas-node-action-${time}-${random}`;
+}
+
 export function projectCanvasGoalIdempotencyKey(projectId: number, objective: string): string {
   let hash = 2166136261;
   for (const character of objective.trim()) {
@@ -121,7 +142,7 @@ const NODE_STATUS: Record<ProjectCanvasNodeData["status"], { label: string; tone
   cancelled: { label: "已取消", tone: "text-slate-400" },
 };
 
-/** 卡片「下一步」动作提示：由节点状态推导，与检查器/命令坞动作保持同一心智模型。 */
+/** 卡片「下一步」动作提示：由节点状态推导，与节点检查器动作保持同一心智模型。 */
 const NODE_NEXT_ACTION: Record<ProjectCanvasNodeData["status"], string> = {
   draft: "待启动",
   blocked: "等待上游",
@@ -164,21 +185,33 @@ export function summarizeCanvasStageStatus(snapshot: ProductionGraphSnapshot | n
 function GraphNodeCard({ data, selected }: NodeProps<ProjectCanvasNode>) {
   const status = NODE_STATUS[data.status];
   const nextAction = NODE_NEXT_ACTION[data.status];
+  // 互动剧情节点卡片更宽、标题/摘要完整展示；普通生产节点保持紧凑卡片与两行截断。
+  const isInteractiveStory = data.source === "interactive-story";
   return (
     <div
       data-testid={`project-canvas-node-${data.graphNode.id}`}
-      className={`w-[300px] rounded-xl border bg-[#121212]/95 px-4 py-3 shadow-xl backdrop-blur ${
+      className={`${isInteractiveStory ? "w-[400px]" : "w-[300px]"} rounded-xl border bg-[#121212]/95 px-4 py-3 shadow-xl backdrop-blur ${
         selected ? "border-zinc-300/80 ring-2 ring-zinc-300/20" : "border-slate-700/70"
       }`}>
       <Handle type="target" position={Position.Left} className="!size-2 !border-0 !bg-slate-500" />
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div className={`min-w-0 ${isInteractiveStory ? "flex-1" : ""}`}>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{data.graphNode.kind}</p>
-          <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-slate-100">{data.title}</h3>
+          <h3
+            className={`mt-1 break-words text-sm font-semibold leading-5 text-slate-100 ${
+              isInteractiveStory ? "" : "line-clamp-2"
+            }`}>
+            {data.title}
+          </h3>
         </div>
         <CircleDashed className={`size-4 shrink-0 ${status.tone}`} />
       </div>
-      <p className="mt-3 line-clamp-2 text-xs leading-5 text-slate-400">{data.objective}</p>
+      <p
+        className={`mt-3 text-xs leading-5 ${
+          isInteractiveStory ? "whitespace-pre-wrap break-words text-slate-300" : "line-clamp-2 text-slate-400"
+        }`}>
+        {data.objective}
+      </p>
       <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-800/80 pt-2">
         <span className={`inline-flex items-center rounded-md border border-slate-700/60 bg-slate-950/60 px-1.5 py-0.5 font-medium ${status.tone}`}>
           {status.label}
@@ -523,19 +556,19 @@ function Inspector({
                 <button
                   key={action}
                   type="button"
-                  aria-label={COMMAND_ACTION_LABELS[action]}
+                  aria-label={CANVAS_NODE_ACTION_LABELS[action]}
                   disabled={busy !== null}
                   onClick={() => void run(action)}
                   className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1 text-[11px] text-slate-300 transition hover:border-zinc-300/50 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40">
                   {Icon ? <Icon className="size-3" /> : null}
-                  {COMMAND_ACTION_LABELS[action]}
+                  {CANVAS_NODE_ACTION_LABELS[action]}
                 </button>
               );
             })}
           </div>
           {notice ? (
             <p role="status" data-testid="inspector-action-notice" className={`mt-2 text-[11px] ${notice.ok ? "text-zinc-300" : "text-zinc-300"}`}>
-              {notice.ok ? `已派发「${COMMAND_ACTION_LABELS[notice.action]}」。` : notice.error}
+              {notice.ok ? `已派发「${CANVAS_NODE_ACTION_LABELS[notice.action]}」。` : notice.error}
             </p>
           ) : null}
         </div>
@@ -595,7 +628,6 @@ export function ProjectCanvas({
   interactiveGraph = null,
   moduleRenderers,
   wiring: injectedWiring,
-  onAgentCommand,
   apiClient,
   agentSocketFactory,
   agentClient: injectedAgentClient,
@@ -614,7 +646,6 @@ export function ProjectCanvas({
   const [goalBusy, setGoalBusy] = useState(false);
   const [goalError, setGoalError] = useState<string | null>(null);
   const [mobileStageOpen, setMobileStageOpen] = useState(false);
-  const [commandStatus, setCommandStatus] = useState<string | null>(null);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<ProjectCanvasNode> | null>(null);
   const [overlayCloseCount, setOverlayCloseCount] = useState(0);
   const layoutTimerRef = useRef(0);
@@ -625,7 +656,7 @@ export function ProjectCanvas({
   // 覆盖层触发焦点：关闭模块 / 抽屉 / 检查器时把焦点还给打开它们的控件。
   const overlayTriggersRef = useRef<Partial<Record<"module" | "agent" | "inspector", HTMLElement | null>>>({});
   // 智能体聊天上下文随最新画布状态变化，messageContext 每次发送时读取该 ref。
-  const canvasContextRef = useRef<CanvasCommandContext>({
+  const canvasContextRef = useRef<CanvasAgentContext>({
     projectId,
     projectType,
     stage: null,
@@ -756,8 +787,6 @@ export function ProjectCanvas({
   const stageStatus = useMemo(() => summarizeCanvasStageStatus(snapshot), [snapshot]);
   const stageItem = activeModule ? (visibleModules.find((module) => module.id === activeModule) ?? null) : null;
   const stageLabel = stageItem?.label ?? "画布总览";
-  // 任一覆盖层（阶段模块 / Agent 抽屉 / 节点检查器）打开时命令坞隐藏，全部关闭后恢复。
-  const overlayOpen = activeModule !== null || agentOpen || selectedNodeId !== null;
 
   // 每次渲染都刷新智能体消息上下文，保证发送时携带最新阶段 / 选中节点 / 图版本。
   canvasContextRef.current = {
@@ -772,8 +801,7 @@ export function ProjectCanvas({
     revision: snapshot?.revision ?? null,
   };
 
-  // 画布抽屉与命令入口共用同一个 AgentChatClient（scriptAgent 项目级通道），
-  // 复用现有 socket.io 客户端实现，不新增平行聊天。
+  // 项目智能体抽屉是唯一对话入口，使用现有 socket.io 客户端，不新增平行聊天。
   const agentClient = useMemo(() => {
     if (injectedAgentClient) return injectedAgentClient;
     if (!apiClient) return null;
@@ -885,19 +913,11 @@ export function ProjectCanvas({
     [interactiveGraph, readCanvasViewport, snapshot],
   );
 
-  // 聚焦选中节点：把画布取景平移到该节点，不动节点坐标。
-  const focusSelectedNode = useCallback(() => {
-    if (!flowInstance || !selectedNodeId) return;
-    const node = nodes.find((item) => item.id === selectedNodeId);
-    if (!node) return;
-    void flowInstance.fitView({ nodes: [node], padding: 0.4, maxZoom: 1.6, duration: 240 });
-  }, [flowInstance, nodes, selectedNodeId]);
-
-  // 节点级动作：检查器与命令入口共用同一派发路径，全部走 productionGraph:action。
+  // 节点级动作：节点检查器统一派发，全部走 productionGraph:action。
   const runNodeAction = useCallback(
     async (action: ProductionGraphActionName, nodeId: string): Promise<{ ok: boolean; error?: string }> => {
       if (!snapshot) return { ok: false, error: "项目流程尚未就绪，无法执行节点动作。" };
-      const idempotencyKey = randomCommandIdempotencyKey();
+      const idempotencyKey = randomCanvasNodeActionIdempotencyKey();
       const expectedRevision = snapshot.revision;
       let input: ProductionGraphActionInput;
       if (action === "startReady" || action === "pause" || action === "resumeOrRetry") {
@@ -915,49 +935,6 @@ export function ProjectCanvas({
       return result.ok ? { ok: true } : { ok: false, error: result.error?.message ?? "未知错误" };
     },
     [snapshot, wiring.dispatcher],
-  );
-
-  const handleCanvasCommand = useCallback(
-    async (instruction: string, context: CanvasCommandContext) => {
-      const parsed = parseCanvasCommandInstruction(instruction);
-      if (!parsed.agent) {
-        const action = parsed.action;
-        if (action === "readGraph") {
-          const result = await wiring.dispatcher.dispatch({ action: "readGraph" });
-          setCommandStatus(result.ok ? "项目流程已刷新。" : `刷新失败：${result.error?.message ?? "未知错误"}`);
-          return;
-        }
-        if (!context.selectedNodeId) {
-          setCommandStatus(`「${COMMAND_ACTION_LABELS[action]}」需要先选中目标节点：请在画布中点击目标节点后再试。`);
-          return;
-        }
-        const result = await runNodeAction(action, context.selectedNodeId);
-        setCommandStatus(
-          result.ok
-            ? `已派发「${COMMAND_ACTION_LABELS[action]}」：节点「${context.nodeTitle}」。`
-            : `动作失败：${result.error ?? "未知错误"}`,
-        );
-        return;
-      }
-      const scope = context.selectedNodeId ? `${context.stageLabel} · 节点「${context.nodeTitle}」` : `${context.stageLabel} · 整个项目流程`;
-      if (agentClient) {
-        openAgentPanel();
-        agentClient.connect();
-        const sent = agentClient.send(instruction);
-        setCommandStatus(
-          sent ? `已把指令发给项目智能体（${scope}），执行反馈见右侧抽屉。` : `项目智能体尚未连接，指令未发送（${scope}）；请打开抽屉待连接后重试。`,
-        );
-        return;
-      }
-      if (onAgentCommand) {
-        await onAgentCommand(instruction, context);
-        setCommandStatus(`已把指令交给项目智能体（${scope}）。`);
-      } else {
-        openAgentPanel();
-        setCommandStatus(`已打开项目智能体面板（${scope}），请用面板中的统一动作执行该指令。`);
-      }
-    },
-    [agentClient, onAgentCommand, openAgentPanel, runNodeAction, wiring.dispatcher],
   );
 
   const appendGoal = useCallback(
@@ -1211,25 +1188,6 @@ export function ProjectCanvas({
               }}
             />
           ) : null}
-          {overlayOpen ? null : (
-            <div data-testid="canvas-command-dock" className="pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center px-3">
-              <div className="pointer-events-auto w-full max-w-[760px]">
-                <CanvasCommandBar
-                  projectId={projectId}
-                  projectType={projectType}
-                  stage={activeModule}
-                  stageLabel={stageLabel}
-                  selectedNode={selectedNode ? { id: selectedNode.id, title: selectedNode.title } : null}
-                  graphId={snapshot?.graphId ?? null}
-                  revision={snapshot?.revision ?? null}
-                  checkpointId={wiring.contextBridge.getSelection().checkpointId}
-                  status={commandStatus}
-                  onFocusNode={focusSelectedNode}
-                  onSubmit={(instruction, context) => void handleCanvasCommand(instruction, context)}
-                />
-              </div>
-            </div>
-          )}
           <CanvasAgentPanel
             open={agentOpen}
             onOpenChange={(open) => {
@@ -1270,7 +1228,7 @@ export function ProjectCanvas({
                   revision={snapshot?.revision ?? null}
                 />
                 <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-xs leading-5 text-slate-500">
-                  未配置项目智能体客户端：图详情与节点动作请使用画布节点检查器或底部命令坞。
+                  未配置项目智能体客户端：请在画布中选中节点，用节点检查器查看详情并执行节点动作。
                 </div>
               </div>
             )}

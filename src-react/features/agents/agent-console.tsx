@@ -15,7 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import type { AgentChatClient, AgentMessageContent, MemoryType, ProductionRunProgress } from "./types";
+import type { AgentChatClient, AgentConnectionState, AgentMessageContent, MemoryType, ProductionRunProgress } from "./types";
 
 interface AgentConsoleProps {
   client: AgentChatClient;
@@ -43,6 +43,18 @@ const connectionLabels = {
   disconnected: "未连接",
   error: "连接失败",
 } as const;
+
+/** 连接状态的视觉表达：状态点亮度/动效 + 输入区上方的断线横幅文案（横幅只在无法发送时出现）。
+ *  界面为纯单色暗色体系，用锌/石板中性色阶传达状态，文案与图标承担语义。 */
+const connectionPresentation: Record<AgentConnectionState, { dot: string; banner: string | null }> = {
+  connected: { dot: "bg-zinc-300", banner: null },
+  connecting: { dot: "bg-zinc-300 animate-pulse", banner: null },
+  disconnected: { dot: "bg-zinc-600", banner: "连接已断开，暂时无法发送消息；输入框已停用，可重新连接后继续。" },
+  error: { dot: "bg-zinc-400", banner: "连接失败，暂时无法发送消息；请重新连接后继续。" },
+};
+
+/** 输入框纵向自动增高的上限（px）：与 max-h-[216px] 保持一致。 */
+const COMPOSER_MAX_HEIGHT = 216;
 
 const thinkLevelOptions = [
   { label: "关闭思考", value: 0 },
@@ -387,14 +399,31 @@ export function AgentConsole({
   const dragDepthRef = useRef(0);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  // 输入框内容的实时镜像：异步回调（如文档解析完成）判断草稿时读 ref，避免闭包读到旧 state。
+  const inputValueRef = useRef("");
   const busy = snapshot.activity === "pending" || snapshot.activity === "streaming";
   const connected = snapshot.connection === "connected";
+  const connection = connectionPresentation[snapshot.connection];
 
   useEffect(() => {
     client.connect();
     void client.loadHistory();
     return () => client.disconnect();
   }, [client]);
+
+  // 输入框随内容自动增高到合理上限；jsdom 无布局时 scrollHeight 为 0，交由 CSS min-height 兜底。
+  useEffect(() => {
+    const composer = composerRef.current;
+    if (!composer || composer.scrollHeight === 0) return;
+    composer.style.height = "auto";
+    composer.style.height = `${Math.min(composer.scrollHeight, COMPOSER_MAX_HEIGHT)}px`;
+  }, [input]);
+
+  function updateComposer(value: string) {
+    inputValueRef.current = value;
+    setInput(value);
+  }
 
   useEffect(() => {
     const transcript = transcriptRef.current;
@@ -418,13 +447,17 @@ export function AgentConsole({
   }, [openMenu]);
 
   function send(text: string) {
-    if (connected && client.send(text)) setInput("");
+    if (connected && client.send(text)) updateComposer("");
+  }
+
+  function stopGenerating() {
+    // 停止只作用于当前生成，绝不清空输入框草稿。
+    client.stop();
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (busy && !input.trim()) client.stop();
-    else send(input);
+    send(input);
   }
 
   function reconnect() {
@@ -460,12 +493,22 @@ export function AgentConsole({
     try {
       const result = await onImportSource(request);
       const agentInstruction = `已上传文档“${result.sourceName}”，共解析为 ${result.chapterCount} 章。请直接读取这份文档，根据我当前的要求继续处理。`;
-      const sent = !busy && connected && client.send(agentInstruction);
-      if (!sent) setInput(agentInstruction);
-      setSourceNotice(`文档已解析为 ${result.chapterCount} 章${sent ? "，智能体正在读取" : "，请发送给智能体"}`);
       setSourceDialogOpen(false);
       setSourceFile(null);
       setSourceText("");
+      const live = client.getSnapshot();
+      // 空闲且已连接、且输入框没有草稿时，指令直接发送；否则并入输入框草稿，
+      // 绝不覆盖用户已经写好的内容，由用户确认后一并发送。
+      const draft = inputValueRef.current;
+      if (live.connection === "connected" && live.activity === "idle" && !draft.trim()) {
+        const sent = client.send(agentInstruction);
+        if (sent) {
+          setSourceNotice(`文档已解析为 ${result.chapterCount} 章，智能体正在读取`);
+          return;
+        }
+      }
+      updateComposer(draft.trim() ? `${draft.trimEnd()}\n\n${agentInstruction}` : agentInstruction);
+      setSourceNotice(`文档已解析为 ${result.chapterCount} 章；读取指令已附到输入框，未覆盖你写的内容，发送后智能体会读取该文档。`);
     } catch (reason) {
       setSourceError(reason instanceof Error ? reason.message : "原文导入失败");
     } finally {
@@ -520,7 +563,7 @@ export function AgentConsole({
             role="status"
             aria-label={`连接状态：${connectionLabels[snapshot.connection]}`}
             title={connectionLabels[snapshot.connection]}
-            className={`size-2 shrink-0 rounded-full ${connected ? "bg-zinc-500" : "bg-zinc-500"}`}
+            className={`size-2 shrink-0 rounded-full ${connection.dot}`}
           />
           <h1 className="truncate text-lg font-medium leading-none">{title}</h1>
         </div>
@@ -658,8 +701,17 @@ export function AgentConsole({
       ) : null}
 
       <footer ref={footerRef} className="shrink-0 px-2 pb-2">
+        {sourceImporting && !sourceDialogOpen ? (
+          <div
+            role="status"
+            aria-label="文档解析中"
+            className="mb-2 flex items-center gap-2 rounded-md bg-zinc-500/10 px-3 py-2 text-xs text-zinc-300">
+            <LoaderCircle className="size-3.5 animate-spin" />
+            正在解析文档…
+          </div>
+        ) : null}
         {sourceError && !sourceDialogOpen ? (
-          <div role="alert" className="mb-2 rounded-md bg-zinc-500/10 px-3 py-2 text-xs text-zinc-300">{sourceError}</div>
+          <div role="alert" className="mb-2 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-xs text-zinc-200">{sourceError}</div>
         ) : null}
         {sourceNotice ? (
           <div role="status" aria-label="文档上传成功" className="mb-2 flex items-center gap-2 rounded-md bg-zinc-500/10 px-3 py-2 text-xs text-zinc-300">
@@ -667,23 +719,43 @@ export function AgentConsole({
             {sourceNotice}
           </div>
         ) : null}
-        <form onSubmit={handleSubmit} className="rounded-lg border border-slate-700 bg-slate-900 focus-within:border-zinc-500">
+        {connection.banner ? (
+          <div role="alert" className="mb-2 flex items-center justify-between gap-3 rounded-md border border-zinc-400/40 bg-zinc-500/10 px-3 py-2 text-xs text-zinc-100">
+            <span className="min-w-0 leading-5">{connection.banner}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenMenu(null);
+                reconnect();
+              }}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-400/50 px-2 py-1 text-[11px] font-medium text-zinc-100 transition hover:border-zinc-200 hover:bg-zinc-500/10 hover:text-white">
+              <RotateCcw className="size-3" />
+              重新连接
+            </button>
+          </div>
+        ) : null}
+        <form onSubmit={handleSubmit} className="rounded-xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20 focus-within:border-zinc-400">
           <textarea
+            ref={composerRef}
             aria-label="发送指令"
-            rows={3}
+            rows={1}
             value={input}
             disabled={!connected}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) => updateComposer(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                send(input);
-              }
+              // Enter 发送、Shift+Enter 换行；中文输入法选词确认（composition）不触发发送。
+              if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              send(input);
             }}
-            placeholder="输入消息..."
-            className="block min-h-20 w-full resize-none bg-transparent px-3 pt-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="输入消息，Enter 发送；Shift+Enter 换行"
+            title="Enter 发送 · Shift+Enter 换行"
+            className="block max-h-[216px] min-h-28 w-full resize-none overflow-y-auto bg-transparent px-3.5 pb-1 pt-3.5 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
           />
-          <div className="flex min-h-10 items-center justify-between gap-2 px-2 pb-2">
+          <div data-testid="composer-hint" className="px-3.5 text-right text-[10px] leading-4 tracking-wide text-slate-500">
+            Enter 发送 · Shift+Enter 换行
+          </div>
+          <div className="flex min-h-10 items-center justify-between gap-2 px-2 pb-2 pt-1">
             <div className="flex items-center gap-1.5">
               {onImportSource ? (
                 <button
@@ -785,23 +857,28 @@ export function AgentConsole({
               ) : null}
             </div>
 
-            <button
-              type="submit"
-              aria-label={
-                busy
-                  ? input.trim()
-                    ? "发送新指令并停止当前生成"
-                    : "停止生成"
-                  : "发送"
-              }
-              disabled={busy ? !connected : !input.trim() || !connected}
-              className="grid size-8 place-items-center rounded-md bg-zinc-600 text-white hover:bg-zinc-500 disabled:cursor-not-allowed disabled:opacity-40">
-              {busy && !input.trim() ? (
-                <CircleStop className="size-4" />
-              ) : (
+            <div className="flex items-center gap-1.5">
+              {busy ? (
+                <button
+                  type="button"
+                  aria-label="停止生成"
+                  title="停止当前生成，保留输入框内容"
+                  disabled={!connected}
+                  onClick={stopGenerating}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-400/50 bg-slate-800/80 px-2.5 text-xs font-semibold text-zinc-100 transition hover:border-zinc-200 hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
+                  <CircleStop className="size-4" />
+                  停止生成
+                </button>
+              ) : null}
+              <button
+                type="submit"
+                aria-label="发送"
+                title="发送指令"
+                disabled={!input.trim() || !connected}
+                className="grid size-9 place-items-center rounded-lg bg-zinc-600 text-white transition hover:bg-zinc-500 disabled:cursor-not-allowed disabled:opacity-40">
                 <Send className="size-4" />
-              )}
-            </button>
+              </button>
+            </div>
           </div>
         </form>
       </footer>

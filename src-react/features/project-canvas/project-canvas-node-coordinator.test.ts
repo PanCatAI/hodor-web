@@ -192,6 +192,64 @@ describe("coordinateProjectCanvasNodes", () => {
     assertNoOverlap(nodes);
   });
 
+  it("spaces interactive story depth levels with wide horizontal room so edges and choice labels stay clear", () => {
+    const fixture = buildDualProjectFixture();
+    const node = (id: string, title: string, createdAt: number) => ({
+      id,
+      graphId: "story-graph-7",
+      scriptId: 300 + createdAt,
+      kind: "scene" as const,
+      title,
+      summary: `${title}的摘要`,
+      position: { x: 0, y: 0 },
+      status: "ready" as const,
+      script: null,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    const edge = (id: string, sourceNodeId: string, targetNodeId: string, priority: number) => ({
+      id,
+      graphId: "story-graph-7",
+      sourceNodeId,
+      targetNodeId,
+      choiceText: "继续",
+      condition: null,
+      effects: [],
+      priority,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const interactive: InteractiveStoryGraph = {
+      id: "story-graph-7",
+      projectId: 7,
+      title: "互动剧情",
+      entryNodeId: "entry",
+      status: "ready",
+      revision: 1,
+      nodes: [node("entry", "开场", 1), node("choice", "雨中抉择", 2), node("climax", "天台对峙", 3)],
+      edges: [edge("e1", "entry", "choice", 0), edge("e2", "choice", "climax", 0)],
+      variables: [],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+
+    const nodes = coordinateProjectCanvasNodes(
+      { ...fixture.snapshots.p1Initial, interactiveStoryGraphId: null },
+      interactive,
+      new Map(),
+    );
+    const positions = Object.fromEntries(nodes.map((item) => [item.data.sourceRef, item.position]));
+
+    // 每一层剧情（横向层级）的间距一致且足够宽：卡片加宽后仍要留出清晰的连线/文字净空。
+    const pitch = positions.choice.x - positions.entry.x;
+    const nextPitch = positions.climax.x - positions.choice.x;
+    expect(nextPitch).toBe(pitch);
+    expect(pitch).toBeGreaterThanOrEqual(560);
+    // 相邻两层卡片边缘之间的净空不小于 160px，选项标签不会被夹住。
+    expect(pitch - 400).toBeGreaterThanOrEqual(160);
+    assertNoOverlap(nodes);
+  });
+
   it("lays out production and interactive nodes deterministically without overlap", () => {
     const fixture = buildDualProjectFixture();
     const interactive: InteractiveStoryGraph = {

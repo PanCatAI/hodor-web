@@ -16,8 +16,14 @@ export interface ProjectCanvasNodeData {
 
 export type ProjectCanvasNode = Node<ProjectCanvasNodeData, "production-graph">;
 
-/** 节点在画布上的估算尺寸，用于确定性布局（与实际渲染尺寸留有裕量，保证不重叠）。 */
+/** 生产图节点在画布上的估算尺寸，用于确定性布局（与实际渲染尺寸留有裕量，保证不重叠）。 */
 export const PROJECT_CANVAS_NODE_SIZE = { width: 300, height: 190 };
+/**
+ * 互动剧情节点卡片的估算尺寸：卡片更宽、正文不再截断，因此估算高度与纵向行距
+ * 都大于普通生产节点，避免展开后的标题/摘要与相邻卡片重叠。
+ * 需与 GraphNodeCard 中互动剧情卡片实际渲染宽度（w-[400px]）保持一致。
+ */
+export const PROJECT_CANVAS_STORY_NODE_SIZE = { width: 400, height: 230 };
 /** 未提供画布容器尺寸时的默认视口（1280×720 典型桌面工作区）。 */
 export const PROJECT_CANVAS_DEFAULT_VIEWPORT = { width: 1280, height: 720 };
 
@@ -29,8 +35,10 @@ export interface ProjectCanvasViewport {
 const GOAL_POSITION = { x: 80, y: 140 };
 const COLUMN_GAP = 64;
 const STORY_ORIGIN = { x: 80, y: 60 };
-const STORY_COLUMN_GAP = 96;
-const STORY_ROW_GAP = 64;
+/** 剧情层级（横向分列）之间的净空：卡片加宽后仍保持宽裕，连线的选项文字不被挤压。 */
+const STORY_COLUMN_GAP = 180;
+/** 同一剧情层级内纵向卡片之间的净空：容纳展开后的标题与摘要。 */
+const STORY_ROW_GAP = 120;
 
 export interface CanvasFramingKeyInput {
   graphId: string | null;
@@ -183,15 +191,17 @@ function interactiveStoryLayout(
     levels.set(level, [...(levels.get(level) ?? []), id]);
   }
   const maxLevelCount = Math.max(1, ...[...levels.values()].map((levelIds) => levelIds.length));
-  const maxLevelHeight = maxLevelCount * PROJECT_CANVAS_NODE_SIZE.height + (maxLevelCount - 1) * STORY_ROW_GAP;
+  const maxLevelHeight =
+    maxLevelCount * PROJECT_CANVAS_STORY_NODE_SIZE.height + (maxLevelCount - 1) * STORY_ROW_GAP;
   const layout: Record<string, { x: number; y: number }> = {};
   for (const [level, levelIds] of [...levels.entries()].sort(([left], [right]) => left - right)) {
-    const levelHeight = levelIds.length * PROJECT_CANVAS_NODE_SIZE.height + (levelIds.length - 1) * STORY_ROW_GAP;
+    const levelHeight =
+      levelIds.length * PROJECT_CANVAS_STORY_NODE_SIZE.height + (levelIds.length - 1) * STORY_ROW_GAP;
     const startY = STORY_ORIGIN.y + Math.round((maxLevelHeight - levelHeight) / 2);
     levelIds.forEach((id, index) => {
       layout[id] = {
-        x: originX + level * (PROJECT_CANVAS_NODE_SIZE.width + STORY_COLUMN_GAP),
-        y: startY + index * (PROJECT_CANVAS_NODE_SIZE.height + STORY_ROW_GAP),
+        x: originX + level * (PROJECT_CANVAS_STORY_NODE_SIZE.width + STORY_COLUMN_GAP),
+        y: startY + index * (PROJECT_CANVAS_STORY_NODE_SIZE.height + STORY_ROW_GAP),
       };
     });
   }

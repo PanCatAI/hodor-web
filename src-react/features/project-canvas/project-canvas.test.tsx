@@ -14,6 +14,7 @@ import { createProductionGraphStore } from "@react/features/production-graph/pro
 import type { UseProductionGraphWiring } from "@react/features/production-graph/production-graph-wiring";
 import { clearProjectGoalDraft, writeProjectGoalDraft } from "@react/features/projects";
 import { ProjectCanvas, projectCanvasGoalIdempotencyKey } from "./project-canvas";
+import { PROJECT_CANVAS_STORY_NODE_SIZE } from "./project-canvas-node-coordinator";
 import { StoryModule } from "./story-module";
 
 /** 与 agent-chat-client 测试同构的伪造 socket：记录 chat 载荷并可按事件回放服务端消息。 */
@@ -485,20 +486,17 @@ describe("ProjectCanvas", () => {
     expect(screen.getByTestId("project-canvas-node-goal-p1")).toBe(node);
   });
 
-  it("hides the command dock while the inspector owns node actions and dispatches them from the inspector", async () => {
+  it("owns node actions in the inspector while a node is selected and dispatches them directly", async () => {
     const { wiring, emitted } = createWiring(true);
     render(<ProjectCanvas projectId={7} projectType="novel" apiBaseUrl="http://localhost:24680/api" getToken={() => null} wiring={wiring} />);
 
     await screen.findByTestId("project-canvas-node-goal-p1");
-    // 无覆盖层时命令坞可见。
-    expect(screen.getByTestId("canvas-command-dock")).toBeInTheDocument();
 
-    // 选中节点打开检查器：命令坞隐藏，节点动作归属检查器。
+    // 选中节点打开检查器：节点动作归属检查器。
     fireEvent.click(screen.getByTestId("project-canvas-node-goal-p1"));
     expect(screen.getByRole("complementary", { name: "节点检查器" })).toBeInTheDocument();
-    expect(screen.queryByTestId("canvas-command-dock")).not.toBeInTheDocument();
 
-    // 检查器节点动作与命令入口走同一 productionGraph:action 派发。
+    // 检查器节点动作直接走 productionGraph:action 派发。
     fireEvent.click(screen.getByRole("button", { name: "启动就绪节点" }));
     await waitFor(() => expect(emitted).toHaveLength(1));
     expect(emitted[0]).toEqual(
@@ -515,82 +513,6 @@ describe("ProjectCanvas", () => {
       }),
     );
     expect(await screen.findByTestId("inspector-action-notice")).toHaveTextContent("已派发");
-  });
-
-  it("passes the canvas context to the agent for a free-text command from the dock", async () => {
-    const { wiring } = createWiring(true);
-    const onAgentCommand = vi.fn();
-    render(
-      <ProjectCanvas
-        projectId={7}
-        projectType="novel"
-        apiBaseUrl="http://localhost:24680/api"
-        getToken={() => null}
-        moduleRenderers={moduleRenderers}
-        wiring={wiring}
-        onAgentCommand={onAgentCommand}
-      />,
-    );
-
-    await screen.findByTestId("project-canvas-node-goal-p1");
-    // 单焦点下命令坞只在无覆盖层时可见；此时无阶段模块与选中节点上下文。
-    expect(screen.getByTestId("canvas-command-dock")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByRole("textbox", { name: "画布指令" }), { target: { value: "为当前镜头写一段分镜描述" } });
-    fireEvent.click(screen.getByRole("button", { name: "发送画布指令" }));
-
-    await waitFor(() => expect(onAgentCommand).toHaveBeenCalledTimes(1));
-    const [instruction, context] = onAgentCommand.mock.calls[0] as [
-      string,
-      { stage: string | null; stageLabel: string; selectedNodeId: string | null; graphId: string; revision: number },
-    ];
-    expect(instruction).toBe("为当前镜头写一段分镜描述");
-    expect(context).toMatchObject({
-      projectId: 7,
-      projectType: "novel",
-      stage: null,
-      stageLabel: "画布总览",
-      selectedNodeId: null,
-      nodeTitle: null,
-      graphId: "graph-p1",
-      revision: 1,
-    });
-  });
-
-  it("degrades to a stage-level command when no node is selected and blocks node actions", async () => {
-    const { wiring, emitted } = createWiring(true);
-    render(<ProjectCanvas projectId={7} projectType="novel" apiBaseUrl="http://localhost:24680/api" getToken={() => null} wiring={wiring} />);
-
-    await screen.findByTestId("project-canvas-node-goal-p1");
-    // 未选中节点时用正向自然中文说明作用域，不把「未选中节点」当主信息。
-    expect(screen.getByTestId("canvas-command-node-chip")).toHaveTextContent("当前范围");
-    expect(screen.getByTestId("canvas-command-node-chip")).toHaveTextContent("整个项目流程");
-    expect(screen.getByTestId("canvas-command-node-chip").textContent).not.toContain("未选中节点");
-    expect(screen.getByRole("textbox", { name: "画布指令" })).toHaveAttribute("placeholder", expect.stringContaining("整个项目流程"));
-    expect(screen.getByRole("button", { name: "聚焦选中节点" })).toBeDisabled();
-
-    fireEvent.change(screen.getByRole("textbox", { name: "画布指令" }), { target: { value: "暂停" } });
-    fireEvent.click(screen.getByRole("button", { name: "发送画布指令" }));
-
-    await waitFor(() => expect(screen.getByTestId("canvas-command-status")).toHaveTextContent("需要先选中目标节点"));
-    expect(emitted).toHaveLength(0);
-  });
-
-  it("supports stage-level readGraph commands without a selection", async () => {
-    const { wiring, emitted } = createWiring(true);
-    render(<ProjectCanvas projectId={7} projectType="novel" apiBaseUrl="http://localhost:24680/api" getToken={() => null} wiring={wiring} />);
-
-    await screen.findByTestId("project-canvas-node-goal-p1");
-    fireEvent.change(screen.getByRole("textbox", { name: "画布指令" }), { target: { value: "刷新" } });
-    fireEvent.click(screen.getByRole("button", { name: "发送画布指令" }));
-
-    await waitFor(() => expect(emitted).toHaveLength(1));
-    expect(emitted[0]).toEqual(
-      expect.objectContaining({
-        payload: expect.objectContaining({ action: expect.objectContaining({ action: "readGraph" }) }),
-      }),
-    );
-    expect(await screen.findByTestId("canvas-command-status")).toHaveTextContent("项目流程已刷新");
   });
 
   it("keeps node coordinates and the viewport stable while the agent drawer and inspector toggle", async () => {
@@ -663,24 +585,6 @@ describe("ProjectCanvas", () => {
     fireEvent(window, new Event("resize"));
   });
 
-  it("floats the canvas command dock at the bottom without occupying canvas layout flow", async () => {
-    const { wiring } = createWiring(true);
-    render(<ProjectCanvas projectId={7} projectType="novel" apiBaseUrl="http://localhost:24680/api" getToken={() => null} wiring={wiring} />);
-
-    await screen.findByTestId("project-canvas-infinite-canvas");
-    const dock = screen.getByTestId("canvas-command-dock");
-    expect(dock.className).toContain("absolute");
-    expect(dock.className).toContain("bottom-");
-    expect(dock.className).toContain("z-30");
-    const commandBar = screen.getByTestId("canvas-command-bar");
-    expect(commandBar.className).toContain("max-w-[760px]");
-    // 画布舞台直接从顶部栏下方铺满视口，命令入口悬浮其上而非占据布局高度。
-    const section = screen.getByTestId("project-canvas-shell").querySelector("section[aria-label='统一项目画布']") as HTMLElement;
-    expect(section.className).toContain("top-14");
-    expect(section.className).toContain("bottom-0");
-    expect(screen.getByTestId("project-canvas-infinite-canvas")).toBeInTheDocument();
-  });
-
   it("keeps only chat and a compact context strip in the agent drawer without the ProductionGraph v1 console", async () => {
     const { wiring } = createWiring(true);
     render(
@@ -732,7 +636,7 @@ describe("ProjectCanvas", () => {
     expect(inspector.textContent).not.toContain("rev");
     expect(screen.getByRole("button", { name: "启动就绪节点" })).toBeInTheDocument();
 
-    // 检查器节点动作与命令入口走同一 productionGraph:action 派发。
+    // 检查器节点动作直接走 productionGraph:action 派发。
     fireEvent.click(screen.getByRole("button", { name: "暂停节点" }));
     await waitFor(() => expect(emitted).toHaveLength(1));
     expect(emitted[0]).toEqual(
@@ -765,7 +669,6 @@ describe("ProjectCanvas", () => {
 
     const canvas = await screen.findByTestId("project-canvas-infinite-canvas");
     expect(screen.getByRole("button", { name: "打开项目智能体" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "画布指令" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "打开阶段菜单" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "打开生产模块" }));
@@ -802,9 +705,13 @@ describe("ProjectCanvas", () => {
     // 等待 loadHistory 完成，避免异步 setState 逃逸 act。
     await waitFor(() => expect(request).toHaveBeenCalled());
 
-    // 单焦点下命令坞只在无覆盖层时可见：自由文本从画布总览上下文发送。
-    fireEvent.change(screen.getByRole("textbox", { name: "画布指令" }), { target: { value: "为当前镜头写一段分镜描述" } });
-    fireEvent.click(screen.getByRole("button", { name: "发送画布指令" }));
+    // 对话入口只有右侧 Agent 抽屉：打开抽屉后在聊天输入框发送自由文本。
+    fireEvent.click(screen.getByRole("button", { name: "打开项目智能体" }));
+    const drawer = screen.getByRole("complementary", { name: "项目智能体" });
+    fireEvent.change(within(drawer).getByRole("textbox", { name: "发送指令" }), {
+      target: { value: "为当前镜头写一段分镜描述" },
+    });
+    fireEvent.click(within(drawer).getByRole("button", { name: "发送" }));
 
     await waitFor(() => expect(agentSocket.emitted.some((entry) => entry.event === "chat")).toBe(true));
     const chat = agentSocket.emitted.find((entry) => entry.event === "chat")!.data as {
@@ -824,7 +731,6 @@ describe("ProjectCanvas", () => {
     });
 
     // 抽屉内能看到已发送指令。
-    const drawer = screen.getByRole("complementary", { name: "项目智能体" });
     expect(within(drawer).getByText("为当前镜头写一段分镜描述")).toBeInTheDocument();
 
     // 服务端回复经现有 socket 事件回流，抽屉内显示执行反馈。
@@ -838,6 +744,50 @@ describe("ProjectCanvas", () => {
       });
     });
     expect(await within(drawer).findByText("已按指令生成该镜头的分镜描述。")).toBeInTheDocument();
+  });
+
+  it("carries the latest graph revision and stage context into each drawer message at send time", async () => {
+    const { wiring } = createWiring(true);
+    const agentSocket = new FakeAgentSocket();
+    const socketFactory = vi.fn(() => agentSocket) as unknown as AgentSocketFactory;
+    const request = vi.fn(async () => []);
+    render(
+      <ProjectCanvas
+        projectId={7}
+        projectType="novel"
+        apiBaseUrl="http://localhost:24680/api"
+        getToken={() => "Bearer canary"}
+        wiring={wiring}
+        moduleRenderers={moduleRenderers}
+        apiClient={{ request } as unknown as HodorApiClient}
+        agentSocketFactory={socketFactory}
+      />,
+    );
+
+    await screen.findByTestId("project-canvas-node-goal-p1");
+    await waitFor(() => expect(agentSocket.connected).toBe(true));
+    await waitFor(() => expect(request).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: "打开项目智能体" }));
+    const drawer = screen.getByRole("complementary", { name: "项目智能体" });
+    const chats = () => agentSocket.emitted.filter((entry) => entry.event === "chat").map((entry) => entry.data as { content: string; context: Record<string, unknown> });
+    const chat = () => chats()[chats().length - 1];
+    const chatCount = () => chats().length;
+
+    fireEvent.change(within(drawer).getByRole("textbox", { name: "发送指令" }), { target: { value: "先看一眼当前流程" } });
+    fireEvent.click(within(drawer).getByRole("button", { name: "发送" }));
+    await waitFor(() => expect(chatCount()).toBe(1));
+    expect(chat().context).toMatchObject({ graphId: "graph-p1", revision: 1, stage: null, stageLabel: "画布总览" });
+
+    // 图版本前进后，下一句消息仍携带最新 revision / graphId（消息上下文按发送时刻读取，不是创建时刻的快照）。
+    act(() => {
+      wiring.store.applySnapshot({ ...buildDualProjectFixture().snapshots.p1Initial, revision: 2 });
+    });
+    fireEvent.change(within(drawer).getByRole("textbox", { name: "发送指令" }), { target: { value: "图更新后再看一眼" } });
+    fireEvent.click(within(drawer).getByRole("button", { name: "发送" }));
+    await waitFor(() => expect(chatCount()).toBe(2));
+    expect(chat().content).toBe("图更新后再看一眼");
+    expect(chat().context).toMatchObject({ projectId: 7, projectType: "novel", graphId: "graph-p1", revision: 2 });
   });
 
   it("refreshes the interactive graph after the project agent finishes writing", async () => {
@@ -1152,43 +1102,6 @@ describe("ProjectCanvas", () => {
     expect(screen.getByTestId("project-canvas-node-goal-p1")).toBe(node);
   });
 
-  it("hides the command dock while any overlay is open and restores it when all overlays close", async () => {
-    const { wiring } = createWiring(true);
-    render(
-      <ProjectCanvas
-        projectId={7}
-        projectType="novel"
-        apiBaseUrl="http://localhost:24680/api"
-        getToken={() => null}
-        moduleRenderers={moduleRenderers}
-        wiring={wiring}
-      />,
-    );
-
-    await screen.findByTestId("project-canvas-infinite-canvas");
-
-    // 无覆盖层：命令坞可见。
-    expect(screen.getByTestId("canvas-command-dock")).toBeInTheDocument();
-
-    // 阶段模块打开：隐藏；关闭后恢复。
-    fireEvent.click(screen.getByRole("button", { name: "打开原文/剧本模块" }));
-    expect(screen.queryByTestId("canvas-command-dock")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "关闭原文/剧本模块" }));
-    expect(screen.getByTestId("canvas-command-dock")).toBeInTheDocument();
-
-    // Agent 打开：隐藏；关闭后恢复。
-    fireEvent.click(screen.getByRole("button", { name: "打开项目智能体" }));
-    expect(screen.queryByTestId("canvas-command-dock")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "收起项目智能体" }));
-    expect(screen.getByTestId("canvas-command-dock")).toBeInTheDocument();
-
-    // 节点检查器打开：隐藏；关闭后恢复。
-    fireEvent.click(screen.getByTestId("project-canvas-node-goal-p1"));
-    expect(screen.queryByTestId("canvas-command-dock")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "关闭节点检查器" }));
-    expect(screen.getByTestId("canvas-command-dock")).toBeInTheDocument();
-  });
-
   it("renders a ~300px node card with title/objective/status/next-action hierarchy and no raw internal id", async () => {
     const { wiring } = createWiring(true);
     render(<ProjectCanvas projectId={7} projectType="novel" apiBaseUrl="http://localhost:24680/api" getToken={() => null} wiring={wiring} />);
@@ -1292,11 +1205,7 @@ describe("ProjectCanvas", () => {
 
     await screen.findByTestId("project-canvas-infinite-canvas");
     const shell = screen.getByTestId("project-canvas-shell");
-    const persistent: Array<HTMLElement | null> = [
-      shell.querySelector("header"),
-      screen.getByTestId("canvas-flow-status"),
-      screen.getByTestId("canvas-command-dock"),
-    ];
+    const persistent: Array<HTMLElement | null> = [shell.querySelector("header"), screen.getByTestId("canvas-flow-status")];
     for (const element of persistent) {
       const text = element?.textContent ?? "";
       expect(text).not.toContain("ProductionGraph");
@@ -1418,7 +1327,7 @@ describe("ProjectCanvas", () => {
     expect(screen.getByTestId("project-canvas-node-goal-p1")).toBe(node);
   });
 
-  it("renders a single story module title bar and restores the command dock and route on close", async () => {
+  it("renders a single story module title bar and keeps the route on close", async () => {
     const { wiring } = createWiring(true);
     const hashBefore = window.location.hash;
     render(
@@ -1433,8 +1342,6 @@ describe("ProjectCanvas", () => {
     );
 
     await screen.findByTestId("project-canvas-node-goal-p1");
-    // 无覆盖层：命令坞可见。
-    expect(screen.getByTestId("canvas-command-dock")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "打开原文/剧本模块" }));
     const dialog = screen.getByTestId("module-host-story");
@@ -1451,11 +1358,9 @@ describe("ProjectCanvas", () => {
     expect(within(dialog).queryByTestId("story-module-pane-novel")).toBeInTheDocument();
     expect(within(dialog).queryByTestId("story-module-pane-script")).not.toBeInTheDocument();
 
-    // 模块打开时命令坞隐藏；关闭后恢复，路由不变。
-    expect(screen.queryByTestId("canvas-command-dock")).not.toBeInTheDocument();
+    // 模块关闭后回到画布，路由不变。
     fireEvent.click(screen.getByRole("button", { name: "关闭原文/剧本模块" }));
     expect(screen.queryByTestId("module-host-story")).not.toBeInTheDocument();
-    expect(screen.getByTestId("canvas-command-dock")).toBeInTheDocument();
     expect(window.location.hash).toBe(hashBefore);
   });
 
@@ -1524,5 +1429,63 @@ describe("ProjectCanvas", () => {
     const reopened = screen.getByTestId("module-host-story");
     expect(await within(reopened).findByText("雨夜")).toBeInTheDocument();
     expect(screen.getByTestId("project-canvas-infinite-canvas")).toBe(canvas);
+  });
+
+  it("removes the bottom canvas command dock and keeps the Agent drawer as the only chat entry", async () => {
+    const { wiring } = createWiring(true);
+    render(
+      <ProjectCanvas
+        projectId={7}
+        projectType="novel"
+        apiBaseUrl="http://localhost:24680/api"
+        getToken={() => null}
+        moduleRenderers={moduleRenderers}
+        wiring={wiring}
+      />,
+    );
+
+    await screen.findByTestId("project-canvas-node-goal-p1");
+    // 全屏画布不再渲染底部命令坞：阶段/范围芯片、伪输入框、定位与发送按钮都不存在。
+    expect(screen.queryByTestId("canvas-command-dock")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-command-bar")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-command-stage-chip")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-command-node-chip")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "画布指令" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "发送画布指令" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "聚焦选中节点" })).not.toBeInTheDocument();
+    // 打开覆盖层时也不会出现任何命令坞残留。
+    fireEvent.click(screen.getByRole("button", { name: "打开项目智能体" }));
+    expect(screen.queryByTestId("canvas-command-dock")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "收起项目智能体" }));
+    fireEvent.click(screen.getByTestId("project-canvas-node-goal-p1"));
+    expect(screen.queryByTestId("canvas-command-dock")).not.toBeInTheDocument();
+    // 对话输入只属于右侧 Agent 抽屉。
+    expect(screen.getByRole("button", { name: "打开项目智能体" })).toBeInTheDocument();
+  });
+
+  it("renders interactive story nodes on a wide card without line-clamped titles or summaries", async () => {
+    const { wiring } = createWiring(true);
+    render(
+      <ProjectCanvas
+        projectId={8}
+        projectType="interactive"
+        apiBaseUrl="http://localhost:24680/api"
+        getToken={() => null}
+        interactiveGraph={interactiveGraph()}
+        moduleRenderers={moduleRenderers}
+        wiring={wiring}
+      />,
+    );
+
+    const storyCard = await screen.findByTestId("project-canvas-node-interactive:story-graph-8:scene-1");
+    // 互动剧情卡片比普通生产卡片更宽，标题/摘要不再因卡片过窄而被截断。
+    expect(storyCard.className).toContain("w-[400px]");
+    // 渲染宽度必须与确定性布局使用的估算宽度一致，保证层级间不重叠。
+    const renderedWidth = Number.parseFloat(storyCard.className.match(/w-\[(\d+)px\]/)?.[1] ?? "");
+    expect(renderedWidth).toBe(PROJECT_CANVAS_STORY_NODE_SIZE.width);
+    const title = within(storyCard).getByText("雨夜开场").closest("h3") as HTMLElement | null;
+    expect(title?.className).not.toContain("line-clamp");
+    const summary = within(storyCard).getByText("等待观众选择");
+    expect(summary.className).not.toContain("line-clamp");
   });
 });
