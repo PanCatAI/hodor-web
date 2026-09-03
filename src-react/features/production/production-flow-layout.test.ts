@@ -53,7 +53,7 @@ describe("production flow contract", () => {
       productionConnections.map((connection) => ({
         ...connection,
         animated: false,
-        style: { stroke: "#00000", strokeWidth: 4 },
+        style: { stroke: "#000000", strokeWidth: 4 },
       })),
     );
     expect(productionEdges().every((edge) => edge.type === undefined)).toBe(true);

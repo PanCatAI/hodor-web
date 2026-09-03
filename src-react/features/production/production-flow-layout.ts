@@ -149,7 +149,7 @@ export function productionEdges(): Edge[] {
   return productionConnections.map((connection) => ({
     ...connection,
     animated: false,
-    style: { stroke: "#00000", strokeWidth: 4 },
+    style: { stroke: "#000000", strokeWidth: 4 },
   }));
 }
 
