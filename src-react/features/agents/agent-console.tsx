@@ -265,15 +265,19 @@ function ContentBlock({
   if (content.type === "thinking") {
     const data = typeof content.data === "object" && content.data ? (content.data as { title?: string; text?: string }) : {};
     const text = data.text ?? stringifyData(content.data);
+    // 思考内容在首次出现时一律默认折叠，忽略服务端 ext.collapsed=false 的默认展开要求。
+    // 保持 details 非受控：用户手动展开/折叠的选择在内容实时刷新时不会被重新强制。
     return (
-      <details data-testid="thinking-segment" open={content.ext?.collapsed === false} className="group rounded-md bg-[#2c2c2c] text-sm">
+      <details data-testid="thinking-segment" className="group rounded-md bg-[#2c2c2c] text-sm">
         <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-[14px] leading-[22px] text-white/55 [&::-webkit-details-marker]:hidden">
           <span className="flex min-w-0 items-center gap-2">
             {content.status === "complete" ? (
               <CheckCircle2 className="size-4 shrink-0 text-zinc-500" />
             ) : content.status === "error" ? (
               <XCircle className="size-4 shrink-0 text-zinc-400" />
-            ) : content.status === "stop" ? null : (
+            ) : content.status === "stop" ? (
+              <CircleStop className="size-4 shrink-0 text-zinc-500" />
+            ) : (
               <LoaderCircle className="size-4 shrink-0 animate-spin" />
             )}
             <span className="truncate">{content.status === "stop" ? "思考已终止" : data.title}</span>

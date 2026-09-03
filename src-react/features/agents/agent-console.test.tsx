@@ -422,4 +422,182 @@ describe("AgentConsole", () => {
     expect(composer).toHaveValue("保留这段草稿");
     expect(screen.getByRole("dialog", { name: "上传文档" })).toBeInTheDocument();
   });
+
+  it("collapses every newly shown thinking status on first appearance even when the server asks for an expanded default", () => {
+    const statuses = ["streaming", "complete", "error", "stop"] as const;
+    const client = createClient({
+      messages: [
+        {
+          id: "assistant-think",
+          role: "assistant",
+          name: "统筹",
+          status: "complete",
+          datetime: "2026-07-20T10:00:00.000Z",
+          content: statuses.map((status, index) => ({
+            id: `thinking-${status}`,
+            type: "thinking",
+            status,
+            data: { title: `片段 ${index + 1}`, text: `第 ${index + 1} 段思考正文` },
+            // 服务端明确要求默认展开：前端仍必须在首次出现时默认折叠。
+            ext: { collapsed: false },
+          })),
+        },
+      ],
+    });
+
+    render(<AgentConsole client={client} title="第一幕" display="panel" />);
+
+    const segments = screen.getAllByTestId("thinking-segment");
+    expect(segments).toHaveLength(statuses.length);
+    // 无论 streaming/complete/error/stop，无论 ext.collapsed=false，都默认折叠。
+    segments.forEach((segment) => expect(segment).not.toHaveAttribute("open"));
+    // 折叠标题仍然可见：简短标题保留，终止片段保留「思考已终止」文案。
+    expect(screen.getByText("片段 1")).toBeInTheDocument();
+    expect(screen.getByText("思考已终止")).toBeInTheDocument();
+  });
+
+  it("collapses thinking segments nested inside a reasoning container on first appearance", () => {
+    const client = createClient({
+      messages: [
+        {
+          id: "assistant-reason",
+          role: "assistant",
+          name: "统筹",
+          status: "complete",
+          datetime: "2026-07-20T10:00:00.000Z",
+          content: [
+            {
+              id: "reasoning-1",
+              type: "reasoning",
+              status: "complete",
+              data: [
+                {
+                  id: "child-think",
+                  type: "thinking",
+                  status: "complete",
+                  data: { title: "子思考", text: "子思考正文" },
+                  ext: { collapsed: false },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<AgentConsole client={client} title="第一幕" display="panel" />);
+
+    const segment = screen.getByTestId("thinking-segment");
+    expect(segment).not.toHaveAttribute("open");
+    expect(screen.getByText("子思考")).toBeInTheDocument();
+  });
+
+  it("lets the user expand and collapse a thinking segment again without hiding it completely", () => {
+    const client = createClient({
+      messages: [
+        {
+          id: "assistant-think",
+          role: "assistant",
+          name: "统筹",
+          status: "complete",
+          datetime: "2026-07-20T10:00:00.000Z",
+          content: [
+            {
+              id: "thinking-1",
+              type: "thinking",
+              status: "complete",
+              data: { title: "分镜分析", text: "先评估机位覆盖。" },
+              ext: { collapsed: false },
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<AgentConsole client={client} title="第一幕" display="panel" />);
+
+    const segment = screen.getByTestId("thinking-segment");
+    const summary = segment.querySelector("summary") as HTMLElement;
+    expect(summary).toHaveTextContent("分镜分析");
+    expect(summary.querySelector(".lucide-circle-check")).not.toBeNull();
+
+    fireEvent.click(summary);
+    expect(segment).toHaveAttribute("open");
+    // 展开后标题与状态图标仍在，正文可见。
+    expect(summary).toHaveTextContent("分镜分析");
+    expect(summary.querySelector(".lucide-circle-check")).not.toBeNull();
+    expect(screen.getByText("先评估机位覆盖。")).toBeInTheDocument();
+
+    fireEvent.click(summary);
+    expect(segment).not.toHaveAttribute("open");
+    // 再次折叠也只是收起正文，标题栏（可再次点击）不被隐藏。
+    expect(screen.getByText("分镜分析")).toBeInTheDocument();
+  });
+
+  it("keeps one per-status icon on collapsed thinking headers: generating/complete/error/stop", () => {
+    const statuses = ["streaming", "complete", "error", "stop"] as const;
+    const client = createClient({
+      messages: [
+        {
+          id: "assistant-think",
+          role: "assistant",
+          name: "统筹",
+          status: "complete",
+          datetime: "2026-07-20T10:00:00.000Z",
+          content: statuses.map((status, index) => ({
+            id: `thinking-${status}`,
+            type: "thinking",
+            status,
+            data: { title: `片段 ${index + 1}`, text: `第 ${index + 1} 段思考正文` },
+            ext: { collapsed: false },
+          })),
+        },
+      ],
+    });
+
+    render(<AgentConsole client={client} title="第一幕" display="panel" />);
+
+    const [streaming, complete, error, stop] = screen.getAllByTestId("thinking-segment");
+    expect(streaming.querySelector(".lucide-loader-circle")).not.toBeNull();
+    expect(complete.querySelector(".lucide-circle-check")).not.toBeNull();
+    expect(error.querySelector(".lucide-circle-x")).not.toBeNull();
+    expect(stop.querySelector(".lucide-circle-stop")).not.toBeNull();
+    // 终止片段同样默认折叠。
+    expect(stop).not.toHaveAttribute("open");
+  });
+
+  it("keeps the user's manual expansion while streaming content keeps updating in place", () => {
+    const message = (text: string) => ({
+      id: "assistant-live",
+      role: "assistant" as const,
+      name: "统筹",
+      status: "streaming" as const,
+      datetime: "2026-07-20T10:00:00.000Z",
+      content: [
+        {
+          id: "thinking-live",
+          type: "thinking",
+          status: "streaming" as const,
+          data: { title: "实时思考", text },
+          ext: { collapsed: false },
+        },
+      ],
+    });
+
+    const first = createClient({ activity: "streaming", currentMessageId: "assistant-live", messages: [message("第一段思考")] });
+    const { rerender } = render(<AgentConsole client={first} title="第一幕" display="panel" />);
+
+    const segment = screen.getByTestId("thinking-segment");
+    expect(segment).not.toHaveAttribute("open");
+    fireEvent.click(segment.querySelector("summary") as HTMLElement);
+    expect(segment).toHaveAttribute("open");
+
+    // 同一内容 id 的流式刷新：用户手动展开的选择应尽量保留，不被强制收回。
+    const updated = createClient({ activity: "streaming", currentMessageId: "assistant-live", messages: [message("第一段思考，继续补充的实时内容")] });
+    rerender(<AgentConsole client={updated} title="第一幕" display="panel" />);
+
+    const liveSegment = screen.getByTestId("thinking-segment");
+    expect(liveSegment).toHaveTextContent("继续补充的实时内容");
+    expect(liveSegment).toHaveAttribute("open");
+  });
 });
