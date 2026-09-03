@@ -125,12 +125,12 @@ function ManualEditor({ api, editing, onClose, onSaved }: ManualEditorProps) {
 
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <form onSubmit={(event) => void submit(event)} className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-[#10131b] p-6 shadow-2xl">
+      <form onSubmit={(event) => void submit(event)} className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-[#131313] p-6 shadow-2xl">
         <header className="flex items-center justify-between gap-4">
           <h2 className="text-xl font-semibold">{title}</h2>
           <Button type="button" variant="ghost" aria-label="关闭手册编辑" onClick={onClose}><X size={18} /></Button>
         </header>
-        {error ? <div role="alert" className="mt-4 flex gap-2 rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-sm text-red-200"><AlertCircle size={17} />{error}</div> : null}
+        {error ? <div role="alert" className="mt-4 flex gap-2 rounded-lg border border-zinc-900/60 bg-zinc-950/30 p-3 text-sm text-zinc-200"><AlertCircle size={17} />{error}</div> : null}
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5 text-sm text-slate-300"><span>手册名称</span><Input aria-label="手册名称" value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label className="space-y-1.5 text-sm text-slate-300"><span>目录标识</span><Input aria-label="目录标识" value={path} disabled={editing.manual !== null} onChange={(event) => setPath(event.target.value)} placeholder="仅使用字母、数字、下划线或短横线" /></label>
@@ -142,7 +142,7 @@ function ManualEditor({ api, editing, onClose, onSaved }: ManualEditorProps) {
         </div>
         {images.length ? (
           <div className="mt-4 flex flex-wrap gap-3">
-            {images.map((image, index) => <div key={`${image}-${index}`} className="relative"><img src={image} alt={`手册封面 ${index + 1}`} className="h-20 w-28 rounded-md border border-border object-cover" /><button type="button" aria-label={`移除封面 ${index + 1}`} onClick={() => setImages((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="absolute -right-2 -top-2 rounded-full bg-red-600 p-1 text-white"><X size={12} /></button></div>)}
+            {images.map((image, index) => <div key={`${image}-${index}`} className="relative"><img src={image} alt={`手册封面 ${index + 1}`} className="h-20 w-28 rounded-md border border-border object-cover" /><button type="button" aria-label={`移除封面 ${index + 1}`} onClick={() => setImages((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="absolute -right-2 -top-2 rounded-full bg-zinc-600 p-1 text-white"><X size={12} /></button></div>)}
           </div>
         ) : null}
         <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -204,7 +204,7 @@ export function ManualManager({ api, onClose }: ManualManagerProps) {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label="手册管理">
-      <section className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-border bg-[#10131b] p-6 shadow-2xl">
+      <section className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-border bg-[#131313] p-6 shadow-2xl">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div><h2 className="text-xl font-semibold">手册管理</h2><p className="mt-1 text-sm text-slate-500">维护技能提示词和参考封面，项目会保存对应目录标识。</p></div>
           <Button type="button" variant="ghost" aria-label="关闭手册管理" onClick={onClose}><X size={18} /></Button>
@@ -216,7 +216,7 @@ export function ManualManager({ api, onClose }: ManualManagerProps) {
           </div>
           <Button type="button" className="gap-2" onClick={() => setEditing({ kind, manual: null })}><Plus size={16} />新增{kind === "visual" ? "视觉" : "导演"}手册</Button>
         </div>
-        {error ? <div role="alert" className="mt-4 flex gap-2 rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-sm text-red-200"><AlertCircle size={17} />{error}</div> : null}
+        {error ? <div role="alert" className="mt-4 flex gap-2 rounded-lg border border-zinc-900/60 bg-zinc-950/30 p-3 text-sm text-zinc-200"><AlertCircle size={17} />{error}</div> : null}
         {loading ? <p className="py-16 text-center text-sm text-slate-500">正在读取手册…</p> : manuals.length === 0 ? <div className="grid min-h-52 place-items-center text-center text-sm text-slate-500"><div><BookOpen className="mx-auto mb-3" /><p>还没有{kind === "visual" ? "视觉" : "导演"}手册</p></div></div> : (
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {manuals.map((manual) => {

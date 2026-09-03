@@ -12,7 +12,7 @@ import { createInteractiveStoryApi, InteractiveStoryPage, type InteractiveStoryG
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
 import { createStudioOsApi, StudioOsPage } from "@react/features/studio-os";
-import { ProjectCanvas, type ProjectCanvasModuleId, type ProjectCanvasModuleRenderContext, type ProjectCanvasModuleRenderers } from "@react/features/project-canvas";
+import { ProjectCanvas, StoryModule, type ProjectCanvasModuleId, type ProjectCanvasModuleRenderContext, type ProjectCanvasModuleRenderers } from "@react/features/project-canvas";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
 import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
 import { TasksPage } from "@react/features/tasks";
@@ -447,13 +447,20 @@ export function createProjectCanvasProductionRenderer({
   getToken: () => string | null;
 }) {
   return ({ episodeId, view }: ProjectCanvasModuleRenderContext) => view === "agent" && episodeId != null ? (
-    <ProductionAgentPage projectId={projectId} episodeId={episodeId} apiClient={apiClient} apiBaseUrl={apiBaseUrl} getToken={getToken} />
+    <ProductionAgentPanel
+      projectId={projectId}
+      episodeId={episodeId}
+      apiClient={apiClient}
+      apiBaseUrl={apiBaseUrl}
+      getToken={getToken}
+    />
   ) : (
     <ProductionWorkbench
       api={productionApi}
       project={productionProject}
       initialView="generation"
       initialScriptId={episodeId}
+      embedded
       renderProductionAgent={(agentEpisodeId, onFlowDataChange, onBusyChange) => (
         <ProductionAgentPanel
           projectId={projectId}
@@ -518,18 +525,11 @@ function ProjectCanvasRoutePage() {
     };
     return {
       story: () => (
-        <div className="space-y-10">
-          <NovelPage api={storyApi} projectId={projectId} />
-          <ScriptPage
-            api={storyApi}
-            projectId={projectId}
-            onOpenStoryboard={openStoryboard}
-          />
-        </div>
+        <StoryModule api={storyApi} projectId={projectId} onOpenStoryboard={openStoryboard} />
       ),
-      casting: () => <CastingPage projectId={projectId} imageModel={productionProject.imageModel ?? "pancat:pancat-image"} api={castingApi} />,
-      assets: () => <AssetsCenter projectId={projectId} imageModel={productionProject.imageModel ?? "pancat:pancat-image"} api={assetsApi} />,
-      storyboards: ({ scriptId }) => scriptId ? <StoryboardPage api={storyboardApi} projectId={projectId} scriptId={scriptId} /> : <ScriptPage api={storyApi} projectId={projectId} onOpenStoryboard={openStoryboard} />,
+      casting: () => <CastingPage projectId={projectId} imageModel={productionProject.imageModel ?? "pancat:pancat-image"} api={castingApi} embedded />,
+      assets: () => <AssetsCenter projectId={projectId} imageModel={productionProject.imageModel ?? "pancat:pancat-image"} api={assetsApi} embedded />,
+      storyboards: ({ scriptId }) => scriptId ? <StoryboardPage api={storyboardApi} projectId={projectId} scriptId={scriptId} embedded /> : <ScriptPage api={storyApi} projectId={projectId} embedded onOpenStoryboard={openStoryboard} />,
       production: (context) => renderProduction?.(context) ?? null,
       interactive: () => projectType === "interactive" ? (
         <InteractiveStoryPage
@@ -559,7 +559,7 @@ function ProjectCanvasRoutePage() {
   if (loading) return <MissingContext>正在读取项目画布…</MissingContext>;
   if (error) return <MissingContext>{error}</MissingContext>;
   const openInitialModuleWithoutSnapshot = search.module === "storyboards" || (search.module === "production" && search.view === "agent" && search.episodeId != null);
-  return <ProjectCanvas projectId={projectId} projectType={project?.projectType ?? "novel"} apiBaseUrl={apiBaseUrl} getToken={getToken} initialModule={search.module} initialScriptId={search.scriptId} initialEpisodeId={search.episodeId} initialView={search.view} openInitialModuleWithoutSnapshot={openInitialModuleWithoutSnapshot} interactiveGraph={interactiveGraph} moduleRenderers={renderers} />;
+  return <ProjectCanvas projectId={projectId} projectType={project?.projectType ?? "novel"} apiBaseUrl={apiBaseUrl} getToken={getToken} apiClient={apiClient} initialModule={search.module} initialScriptId={search.scriptId} initialEpisodeId={search.episodeId} initialView={search.view} openInitialModuleWithoutSnapshot={openInitialModuleWithoutSnapshot} interactiveGraph={interactiveGraph} moduleRenderers={renderers} />;
 }
 
 const projectsRoute = createRoute({

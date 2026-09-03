@@ -39,9 +39,9 @@ const EMPTY_PROJECT_JSON: DirectorDeskProjectJson = {};
 
 function EditorUnavailable() {
   return (
-    <div className="grid h-full min-h-[32rem] place-items-center bg-[#101113] text-[#aeb4bd]">
+    <div className="grid h-full min-h-[32rem] place-items-center bg-[#111111] text-[#b3b3b3]">
       <div className="max-w-sm text-center">
-        <Box className="mx-auto mb-4 h-9 w-9 text-[#ffb649]" aria-hidden="true" />
+        <Box className="mx-auto mb-4 h-9 w-9 text-[#bebebe]" aria-hidden="true" />
         <p className="text-base font-medium text-white">导演台编辑器正在载入</p>
         <p className="mt-2 text-sm leading-6">工程草稿、截图上传和保存合同已经就绪。</p>
       </div>
@@ -126,10 +126,10 @@ export function DirectorDeskPage({
   }
 
   return (
-    <section className="flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#17181b] text-white shadow-2xl shadow-black/30">
-      <header className="flex min-h-16 items-center justify-between gap-4 border-b border-white/10 bg-[#202126] px-5">
+    <section className="flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#181818] text-white shadow-2xl shadow-black/30">
+      <header className="flex min-h-16 items-center justify-between gap-4 border-b border-white/10 bg-[#212121] px-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#ffb649] text-[#181818]">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#bebebe] text-[#181818]">
             <Camera className="h-5 w-5" aria-hidden="true" />
           </span>
           <div className="min-w-0">
@@ -143,7 +143,7 @@ export function DirectorDeskPage({
           <span role="status" className="hidden text-xs text-white/55 sm:inline">
             {statusLabel(draft)}
           </span>
-          <Button type="button" onClick={save} disabled={draft.saveState === "saving"} className="bg-[#ffb649] text-[#171717] hover:bg-[#ffc66f]">
+          <Button type="button" onClick={save} disabled={draft.saveState === "saving"} className="bg-[#bebebe] text-[#171717] hover:bg-[#cccccc]">
             <Save className="mr-2 h-4 w-4" aria-hidden="true" />
             保存工程
           </Button>
@@ -156,7 +156,7 @@ export function DirectorDeskPage({
       </header>
 
       {draft.error ? (
-        <div role="alert" className="border-b border-red-400/20 bg-red-500/10 px-5 py-2 text-sm text-red-200">
+        <div role="alert" className="border-b border-zinc-400/20 bg-zinc-500/10 px-5 py-2 text-sm text-zinc-200">
           {draft.error}
         </div>
       ) : null}
@@ -164,7 +164,7 @@ export function DirectorDeskPage({
       {draft.loadError ? (
         <div
           role="alert"
-          className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-400/20 bg-amber-500/10 px-5 py-2 text-sm text-amber-100">
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-400/20 bg-zinc-500/10 px-5 py-2 text-sm text-zinc-100">
           <span>云端工程载入失败，已继续使用离线草稿：{draft.loadError}</span>
           <Button type="button" variant="ghost" onClick={() => void session.loadProject().catch(() => undefined)}>
             重新载入云端工程
@@ -175,13 +175,13 @@ export function DirectorDeskPage({
       {draft.loadState === "conflict" ? (
         <div
           role="alert"
-          className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-400/20 bg-amber-500/10 px-5 py-3 text-sm text-amber-100">
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-400/20 bg-zinc-500/10 px-5 py-3 text-sm text-zinc-100">
           <span>本地草稿和云端工程都有改动，请选择要保留的版本。</span>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={() => session.resolveConflict("remote")}>
               使用云端版本
             </Button>
-            <Button type="button" onClick={keepLocalConflict} className="bg-[#ffb649] text-[#171717] hover:bg-[#ffc66f]">
+            <Button type="button" onClick={keepLocalConflict} className="bg-[#bebebe] text-[#171717] hover:bg-[#cccccc]">
               保留本地并保存
             </Button>
           </div>
@@ -205,7 +205,7 @@ export function DirectorDeskPage({
       </div>
 
       {draft.captures.length > 0 ? (
-        <aside aria-label="导演台截图回执" className="border-t border-white/10 bg-[#202126] px-5 py-3">
+        <aside aria-label="导演台截图回执" className="border-t border-white/10 bg-[#212121] px-5 py-3">
           <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-white/45">
             <CloudUpload className="h-4 w-4" aria-hidden="true" />
             截图素材
@@ -220,7 +220,7 @@ export function DirectorDeskPage({
                   <button
                     type="button"
                     aria-label={`重试 ${capture.fileName}`}
-                    className="rounded p-1 text-[#ffb649] hover:bg-white/10"
+                    className="rounded p-1 text-[#bebebe] hover:bg-white/10"
                     onClick={() => retryCapture(capture.id)}>
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>

@@ -12,6 +12,8 @@ export interface NovelPageProps {
   projectId: number;
   pageSize?: number;
   pollIntervalMs?: number;
+  /** 嵌入画布模块时去掉重复页面头，由模块 host 管理标题、关闭、宽度与滚动。 */
+  embedded?: boolean;
 }
 
 type NovelDraft = Omit<CreateNovelInput, "projectId"> & { id?: number; event: string };
@@ -19,15 +21,15 @@ type NovelDraft = Omit<CreateNovelInput, "projectId"> & { id?: number; event: st
 const emptyDraft: NovelDraft = { index: 1, reel: "", chapter: "", chapterData: "", event: "" };
 
 function eventStatus(row: OriginalText) {
-  if (row.eventState === 0) return { text: "事件分析中", className: "border-amber-400/30 bg-amber-400/10 text-amber-300" };
+  if (row.eventState === 0) return { text: "事件分析中", className: "border-zinc-400/30 bg-zinc-400/10 text-zinc-300" };
   if (row.eventState === -1) {
-    return { text: row.errorReason ? `分析失败：${row.errorReason}` : "分析失败", className: "border-red-400/30 bg-red-400/10 text-red-300" };
+    return { text: row.errorReason ? `分析失败：${row.errorReason}` : "分析失败", className: "border-zinc-400/30 bg-zinc-400/10 text-zinc-300" };
   }
-  if (row.eventState === 1) return { text: "分析完成", className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" };
+  if (row.eventState === 1) return { text: "分析完成", className: "border-zinc-400/30 bg-zinc-400/10 text-zinc-300" };
   return { text: "待分析", className: "border-slate-400/20 bg-slate-400/10 text-slate-400" };
 }
 
-export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000 }: NovelPageProps) {
+export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000, embedded = false }: NovelPageProps) {
   const [rows, setRows] = useState<OriginalText[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -197,13 +199,15 @@ export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <section className="space-y-5" aria-labelledby="novel-title">
+    <section data-testid={embedded ? "novel-page-embedded" : undefined} className="space-y-5" aria-labelledby="novel-title">
       <header className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Story Source</p>
-          <h1 id="novel-title" className="mt-2 text-2xl font-semibold text-white">原文管理</h1>
-          <p className="mt-1 text-sm text-slate-400">管理章节正文，并查看事件分析进度。</p>
-        </div>
+        {!embedded ? (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Story Source</p>
+            <h1 id="novel-title" className="mt-2 text-2xl font-semibold text-white">原文管理</h1>
+            <p className="mt-1 text-sm text-slate-400">管理章节正文，并查看事件分析进度。</p>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2 sm:flex-row">
           <div className="relative min-w-64">
             <Search className="absolute left-3 top-3 text-slate-500" size={17} />
@@ -229,12 +233,12 @@ export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000
 
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" disabled={!selectedIds.length} onClick={() => void analyzeEvents()}><BarChart3 className="mr-2" size={16} />分析事件 ({selectedIds.length})</Button>
-        <Button variant="ghost" className="text-red-300" disabled={!selectedIds.length} onClick={() => void batchDelete()}><Trash2 className="mr-2" size={16} />批量删除 ({selectedIds.length})</Button>
+        <Button variant="ghost" className="text-zinc-300" disabled={!selectedIds.length} onClick={() => void batchDelete()}><Trash2 className="mr-2" size={16} />批量删除 ({selectedIds.length})</Button>
       </div>
 
-      {error ? <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">{error}</p> : null}
+      {error ? <p role="alert" className="rounded-lg border border-zinc-400/30 bg-zinc-400/10 px-4 py-3 text-sm text-zinc-300">{error}</p> : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-[#0d1119]">
+      <div className="overflow-hidden rounded-xl border border-border bg-[#111111]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="border-b border-border bg-white/[0.025] text-xs uppercase tracking-wider text-slate-500">
@@ -264,7 +268,7 @@ export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-1">
                         <Button aria-label={`编辑 ${row.chapter}`} variant="ghost" onClick={() => openEditor(row)}><Pencil size={16} /></Button>
-                        <Button aria-label={`删除 ${row.chapter}`} variant="ghost" className="text-red-300 hover:bg-red-400/10" onClick={() => void remove(row)}><Trash2 size={16} /></Button>
+                        <Button aria-label={`删除 ${row.chapter}`} variant="ghost" className="text-zinc-300 hover:bg-zinc-400/10" onClick={() => void remove(row)}><Trash2 size={16} /></Button>
                       </div>
                     </td>
                   </tr>
@@ -287,7 +291,7 @@ export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000
 
       {importOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4" role="dialog" aria-modal="true" aria-labelledby="novel-import-title">
-          <div className="w-full max-w-3xl rounded-xl border border-border bg-[#0b0e14] p-6 shadow-2xl">
+          <div className="w-full max-w-3xl rounded-xl border border-border bg-[#0e0e0e] p-6 shadow-2xl">
             <header className="flex items-start justify-between"><div><h2 id="novel-import-title" className="text-xl font-semibold text-white">导入原文</h2><p className="mt-1 text-sm text-slate-500">支持 TXT、DOCX、MD，最大 10MB；章节解析后批量写入。</p></div><Button aria-label="关闭原文导入" variant="ghost" onClick={() => setImportOpen(false)}><X size={18} /></Button></header>
             <label className="mt-5 block cursor-pointer rounded-xl border border-dashed border-border p-8 text-center text-sm text-slate-400 hover:border-primary"><Upload className="mx-auto mb-3" /><span>选择原文文件</span><input aria-label="导入原文文件" className="sr-only" type="file" accept=".txt,.docx,.md,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => void chooseImportFile(event.target.files?.[0])} /></label>
             <p className="mt-4 text-sm text-slate-300">已解析 {importRows.length} 章</p>
@@ -299,7 +303,7 @@ export function NovelPage({ api, projectId, pageSize = 10, pollIntervalMs = 3000
 
       {draft ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/65" role="dialog" aria-modal="true" aria-labelledby="novel-editor-title">
-          <div className="h-full w-full max-w-2xl overflow-y-auto border-l border-border bg-[#0b0e14] p-6 shadow-2xl">
+          <div className="h-full w-full max-w-2xl overflow-y-auto border-l border-border bg-[#0e0e0e] p-6 shadow-2xl">
             <header className="mb-6 flex items-start justify-between">
               <div>
                 <h2 id="novel-editor-title" className="text-xl font-semibold text-white">{draft.id ? "编辑原文" : "新增原文"}</h2>

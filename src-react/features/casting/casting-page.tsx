@@ -11,6 +11,8 @@ export interface CastingPageProps {
   api: CastingApi;
   concurrentCount?: number;
   pollIntervalMs?: number;
+  /** 嵌入画布模块时去掉全页壳与重复页面头，由模块 host 管理标题、关闭、宽度与滚动。 */
+  embedded?: boolean;
 }
 
 const assetTypes: Array<{ value: "" | CastingAssetType; label: string }> = [
@@ -48,9 +50,9 @@ function updateAssets(current: CastingAsset[], updates: Array<Partial<CastingAss
 }
 
 function stateClass(state: string): string {
-  if (state === "生成失败" || state === "失败") return "border-red-500/30 bg-red-500/10 text-red-300";
-  if (state === "生成中") return "border-blue-500/30 bg-blue-500/10 text-blue-300";
-  if (state === "已完成") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+  if (state === "生成失败" || state === "失败") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
+  if (state === "生成中") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
+  if (state === "已完成") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
   return "border-slate-700 bg-slate-900 text-slate-400";
 }
 
@@ -92,11 +94,11 @@ function EditCastingAssetDialog({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`编辑资产 ${asset.name}`}>
-      <form onSubmit={(event) => void save(event)} className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-[#10131a] shadow-2xl shadow-black/60">
+      <form onSubmit={(event) => void save(event)} className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-[#131313] shadow-2xl shadow-black/60">
         <header className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">{typeLabels[asset.type]}</span>
+              <span className="rounded border border-zinc-500/30 bg-zinc-500/10 px-2 py-0.5 text-xs text-zinc-300">{typeLabels[asset.type]}</span>
               <span className="text-xs text-slate-500">资产 #{asset.id}</span>
             </div>
             <h2 className="text-xl font-semibold text-slate-100">{asset.name}</h2>
@@ -125,7 +127,7 @@ function EditCastingAssetDialog({
                 aria-label="资产描述"
                 value={describe}
                 onChange={(event) => setDescribe(event.target.value)}
-                className="min-h-48 w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="min-h-48 w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500/20"
                 placeholder="填写角色、场景或道具的完整描述"
               />
             </label>
@@ -140,14 +142,14 @@ function EditCastingAssetDialog({
               aria-label="图片提示词"
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
-              className="min-h-80 flex-1 resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-mono text-sm leading-6 text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="min-h-80 flex-1 resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-mono text-sm leading-6 text-slate-100 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500/20"
               placeholder="填写将提交给图片模型的完整提示词"
             />
           </label>
         </div>
 
         <footer className="flex items-center justify-between gap-4 border-t border-slate-800 bg-slate-950/40 px-6 py-4">
-          <div className="min-w-0 text-sm text-red-300" role={saveError ? "alert" : undefined}>{saveError}</div>
+          <div className="min-w-0 text-sm text-zinc-300" role={saveError ? "alert" : undefined}>{saveError}</div>
           <div className="flex shrink-0 gap-2">
             <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>取消</Button>
             <Button type="submit" disabled={saving}>
@@ -161,7 +163,7 @@ function EditCastingAssetDialog({
   );
 }
 
-export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, pollIntervalMs = 3_000 }: CastingPageProps) {
+export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, pollIntervalMs = 3_000, embedded = false }: CastingPageProps) {
   const [assets, setAssets] = useState<CastingAsset[]>([]);
   const [filter, setFilter] = useState<"" | CastingAssetType>("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -393,15 +395,19 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
   }
 
   return (
-    <main className="min-h-full bg-[#090b10] p-5 text-slate-100 lg:p-8">
-      <header className="mx-auto mb-6 max-w-[1600px]">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">Asset Factory</p>
-        <h1 className="text-3xl font-semibold tracking-tight">塑角造景</h1>
-        <p className="mt-2 text-sm text-slate-400">批量完善提示词、生成角色和场景图，并绑定可用音频。</p>
-      </header>
+    <main
+      data-testid={embedded ? "casting-page-embedded" : undefined}
+      className={`${embedded ? "h-full" : "min-h-full"} bg-[#0b0b0b] p-5 text-slate-100 lg:p-8`}>
+      {!embedded ? (
+        <header className="mx-auto mb-6 max-w-[1600px]">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">Asset Factory</p>
+          <h1 className="text-3xl font-semibold tracking-tight">塑角造景</h1>
+          <p className="mt-2 text-sm text-slate-400">批量完善提示词、生成角色和场景图，并绑定可用音频。</p>
+        </header>
+      ) : null}
 
       <div className="mx-auto grid max-w-[1600px] gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="h-fit space-y-5 rounded-xl border border-slate-800 bg-[#10131a] p-4">
+        <aside className="h-fit space-y-5 rounded-xl border border-slate-800 bg-[#131313] p-4">
           <div>
             <span className="text-xs font-medium text-slate-500">资产类型</span>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -414,7 +420,7 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
                     setSelectedIds([]);
                   }}
                   className={`rounded-lg border px-3 py-2 text-sm transition ${
-                    filter === item.value ? "border-blue-500 bg-blue-500/10 text-blue-300" : "border-slate-800 text-slate-400 hover:border-slate-600"
+                    filter === item.value ? "border-zinc-500 bg-zinc-500/10 text-zinc-300" : "border-slate-800 text-slate-400 hover:border-slate-600"
                   }`}>
                   {item.label}
                 </button>
@@ -439,7 +445,7 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
             追加提示
             <textarea
               aria-label="追加提示"
-              className="min-h-24 resize-y rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm leading-6 text-slate-200 outline-none focus:border-blue-500"
+              className="min-h-24 resize-y rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm leading-6 text-slate-200 outline-none focus:border-zinc-500"
               value={otherTextPrompt}
               onChange={(event) => setOtherTextPrompt(event.target.value)}
               placeholder="例如：统一成电影概念图"
@@ -460,7 +466,7 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
             <button
               type="button"
               onClick={() => void batchCancel()}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-red-500/30 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10">
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-500/30 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-500/10">
               <X className="size-4" /> 批量取消生成
             </button>
           </div>
@@ -468,7 +474,7 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
 
         <section className="min-w-0">
           {error ? (
-            <div role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+            <div role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-zinc-500/20 bg-zinc-500/5 px-4 py-3 text-sm text-zinc-300">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" /> {error}
             </div>
           ) : null}
@@ -477,14 +483,14 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
             <span>{assets.length} 个资产</span>
             <button
               type="button"
-              className="text-blue-300 hover:text-blue-200"
+              className="text-zinc-300 hover:text-zinc-200"
               onClick={() => setSelectedIds((current) => (current.length === assets.length ? [] : assets.map((asset) => asset.id)))}>
               {selectedIds.length === assets.length && assets.length > 0 ? "取消全选" : "全选"}
             </button>
           </div>
 
           {loading ? (
-            <div className="grid min-h-72 place-items-center rounded-xl border border-slate-800 bg-[#10131a] text-sm text-slate-400">
+            <div className="grid min-h-72 place-items-center rounded-xl border border-slate-800 bg-[#131313] text-sm text-slate-400">
               <span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin" /> 正在读取资产</span>
             </div>
           ) : assets.length === 0 ? (
@@ -494,7 +500,7 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
               {assets.map((asset) => {
                 const selected = selectedIds.includes(asset.id);
                 return (
-                  <article key={asset.id} className={`overflow-hidden rounded-xl border bg-[#10131a] ${selected ? "border-blue-500" : "border-slate-800"}`}>
+                  <article key={asset.id} className={`overflow-hidden rounded-xl border bg-[#131313] ${selected ? "border-zinc-500" : "border-slate-800"}`}>
                     <div className="relative aspect-video bg-slate-950">
                       {asset.filePath ? (
                         <img className="size-full object-cover" src={asset.filePath} alt={asset.name} />
@@ -506,33 +512,33 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
                         aria-label={`选择${asset.name}`}
                         onClick={() => toggleSelected(asset.id)}
                         className="absolute left-3 top-3 rounded-md bg-black/70 p-1 text-slate-200">
-                        {selected ? <SquareCheckBig className="size-5 text-blue-300" /> : <Square className="size-5" />}
+                        {selected ? <SquareCheckBig className="size-5 text-zinc-300" /> : <Square className="size-5" />}
                       </button>
                     </div>
                     <div className="space-y-3 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <h2 className="font-medium">{asset.name}</h2>
-                          <span className="mt-1 inline-flex rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300">
+                          <span className="mt-1 inline-flex rounded border border-zinc-500/30 bg-zinc-500/10 px-1.5 py-0.5 text-[11px] text-zinc-300">
                             {typeLabels[asset.type]}
                           </span>
                         </div>
                         <div className="flex flex-wrap justify-end gap-1">
                           {asset.state ? <span className={`rounded-full border px-2 py-1 text-[11px] ${stateClass(asset.state)}`}>{asset.state}</span> : null}
-                          {asset.promptState === "生成中" ? <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-[11px] text-violet-300">提示词生成中</span> : null}
+                          {asset.promptState === "生成中" ? <span className="rounded-full border border-zinc-500/30 bg-zinc-500/10 px-2 py-1 text-[11px] text-zinc-300">提示词生成中</span> : null}
                           {asset.audioBindState ? <span className={`rounded-full border px-2 py-1 text-[11px] ${stateClass(asset.audioBindState)}`}>音频{asset.audioBindState}</span> : null}
                         </div>
                       </div>
                       <p className="line-clamp-2 min-h-10 text-xs leading-5 text-slate-500">{asset.describe || "暂无描述"}</p>
                       <p className="line-clamp-3 min-h-[3.75rem] rounded-lg bg-slate-950/70 p-2 text-xs leading-5 text-slate-300">{asset.prompt || "尚未生成提示词"}</p>
                       {asset.errorReason || asset.promptErrorReason ? (
-                        <p className="text-xs leading-5 text-red-300">{asset.errorReason || asset.promptErrorReason}</p>
+                        <p className="text-xs leading-5 text-zinc-300">{asset.errorReason || asset.promptErrorReason}</p>
                       ) : null}
                       <button
                         type="button"
                         aria-label={`查看并编辑 ${asset.name}`}
                         onClick={() => setEditingAsset(asset)}
-                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs font-medium text-blue-200 transition hover:border-blue-400/50 hover:bg-blue-500/10">
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-500/30 bg-zinc-500/5 px-3 py-2 text-xs font-medium text-zinc-200 transition hover:border-zinc-400/50 hover:bg-zinc-500/10">
                         <PencilLine className="size-3.5" /> 查看并编辑描述/提示词
                       </button>
                       {asset.state === "生成中" ? (
@@ -540,15 +546,15 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
                           type="button"
                           aria-label={`取消生成 ${asset.name}`}
                           onClick={() => void cancelAsset(asset)}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10">
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-500/30 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-500/10">
                           <X className="size-3.5" /> 取消生成
                         </button>
                       ) : null}
                       <div className="grid grid-cols-2 gap-2">
                         {asset.historyImages?.length ? <button type="button" aria-label={`历史图片 ${asset.name}`} onClick={() => setHistoryAsset(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-slate-700 px-2 py-2 text-xs text-slate-300"><History className="size-3.5" />历史图片</button> : null}
                         {asset.type === "role" ? <button type="button" aria-label={`更新音频 ${asset.name}`} onClick={() => void openAudio(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-slate-700 px-2 py-2 text-xs text-slate-300"><AudioLines className="size-3.5" />更新音频</button> : null}
-                        {asset.promptState === "生成失败" || asset.promptState === "失败" ? <button type="button" aria-label={`重试提示词 ${asset.name}`} onClick={() => void retryPrompt(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-violet-500/30 px-2 py-2 text-xs text-violet-300"><RotateCcw className="size-3.5" />重试提示词</button> : null}
-                        {asset.state === "生成失败" ? <button type="button" aria-label={`重试图片 ${asset.name}`} onClick={() => void retryImage(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-blue-500/30 px-2 py-2 text-xs text-blue-300"><RotateCcw className="size-3.5" />重试图片</button> : null}
+                        {asset.promptState === "生成失败" || asset.promptState === "失败" ? <button type="button" aria-label={`重试提示词 ${asset.name}`} onClick={() => void retryPrompt(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-zinc-500/30 px-2 py-2 text-xs text-zinc-300"><RotateCcw className="size-3.5" />重试提示词</button> : null}
+                        {asset.state === "生成失败" ? <button type="button" aria-label={`重试图片 ${asset.name}`} onClick={() => void retryImage(asset)} className="flex items-center justify-center gap-1 rounded-lg border border-zinc-500/30 px-2 py-2 text-xs text-zinc-300"><RotateCcw className="size-3.5" />重试图片</button> : null}
                       </div>
                     </div>
                   </article>
@@ -558,8 +564,8 @@ export function CastingPage({ projectId, imageModel, api, concurrentCount = 2, p
           )}
         </section>
       </div>
-      {historyAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${historyAsset.name}历史图片`}><section className="w-full max-w-3xl rounded-xl border border-slate-800 bg-[#10131a] p-6"><div className="mb-4 flex justify-between"><h2 className="text-lg font-semibold">{historyAsset.name} · 历史图片</h2><button aria-label="关闭历史图片" onClick={() => setHistoryAsset(null)}><X /></button></div><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{historyAsset.historyImages?.map((image) => <figure key={image.id} className="rounded-lg border border-slate-800 p-2"><img src={image.filePath} alt={`历史图片 ${image.id}`} className="aspect-video w-full rounded object-cover" /><div className="mt-2 flex justify-between"><button type="button" aria-label={`使用历史图片 ${image.id}`} className="text-xs text-blue-300" onClick={() => void useHistoryImage(historyAsset, image.id)}>替换</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-rose-400" onClick={() => void deleteHistoryImage(image.id)}><Trash2 className="size-3.5" /></button></div></figure>)}</div></section></div> : null}
-      {audioAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${audioAsset.name}更新音频`}><section className="w-full max-w-md space-y-4 rounded-xl border border-slate-800 bg-[#10131a] p-6"><h2 className="text-lg font-semibold">更新单项音频</h2><p className="text-sm text-slate-400">从资产中心已上传的音频中选择；选“解除绑定”可清空。</p><select aria-label="选择音频资产" disabled={audioOptionsLoading} className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2" value={audioIdDraft} onChange={(event) => setAudioIdDraft(event.target.value)}><option value="">解除绑定</option>{audioOptions.map((audio) => <option key={audio.id} value={audio.id}>{audio.name}</option>)}</select><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setAudioAsset(null)}>取消</Button><Button onClick={() => void saveAudio()}>保存音频</Button></div></section></div> : null}
+      {historyAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${historyAsset.name}历史图片`}><section className="w-full max-w-3xl rounded-xl border border-slate-800 bg-[#131313] p-6"><div className="mb-4 flex justify-between"><h2 className="text-lg font-semibold">{historyAsset.name} · 历史图片</h2><button aria-label="关闭历史图片" onClick={() => setHistoryAsset(null)}><X /></button></div><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{historyAsset.historyImages?.map((image) => <figure key={image.id} className="rounded-lg border border-slate-800 p-2"><img src={image.filePath} alt={`历史图片 ${image.id}`} className="aspect-video w-full rounded object-cover" /><div className="mt-2 flex justify-between"><button type="button" aria-label={`使用历史图片 ${image.id}`} className="text-xs text-zinc-300" onClick={() => void useHistoryImage(historyAsset, image.id)}>替换</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-zinc-400" onClick={() => void deleteHistoryImage(image.id)}><Trash2 className="size-3.5" /></button></div></figure>)}</div></section></div> : null}
+      {audioAsset ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${audioAsset.name}更新音频`}><section className="w-full max-w-md space-y-4 rounded-xl border border-slate-800 bg-[#131313] p-6"><h2 className="text-lg font-semibold">更新单项音频</h2><p className="text-sm text-slate-400">从资产中心已上传的音频中选择；选“解除绑定”可清空。</p><select aria-label="选择音频资产" disabled={audioOptionsLoading} className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2" value={audioIdDraft} onChange={(event) => setAudioIdDraft(event.target.value)}><option value="">解除绑定</option>{audioOptions.map((audio) => <option key={audio.id} value={audio.id}>{audio.name}</option>)}</select><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setAudioAsset(null)}>取消</Button><Button onClick={() => void saveAudio()}>保存音频</Button></div></section></div> : null}
       {editingAsset ? (
         <EditCastingAssetDialog
           asset={editingAsset}

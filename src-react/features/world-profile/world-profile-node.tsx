@@ -15,7 +15,7 @@ export function WorldProfileNode({ id, data }: NodeProps) {
   return (
     <article
       data-testid="world-profile-node"
-      className="w-[330px] rounded-lg border border-violet-500/40 bg-[#242626] p-4 text-slate-100 shadow-sm">
+      className="w-[330px] rounded-lg border border-zinc-500/40 bg-[#262626] p-4 text-slate-100 shadow-sm">
       {node.mode === "production" ? (
         <>
           <Handle id="worldProfile-script" type="source" position={Position.Right} style={{ top: "32%" }} />
@@ -26,7 +26,7 @@ export function WorldProfileNode({ id, data }: NodeProps) {
         <Handle id={`${id}-source`} type="source" position={Position.Right} />
       )}
       <header className="production-node-drag-handle flex cursor-grab items-center gap-2 active:cursor-grabbing">
-        <span className="grid size-8 place-items-center rounded-lg bg-violet-500/15 text-violet-300">
+        <span className="grid size-8 place-items-center rounded-lg bg-zinc-500/15 text-zinc-300">
           <Globe2 className="size-4" />
         </span>
         <div>

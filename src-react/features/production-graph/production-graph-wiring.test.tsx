@@ -13,6 +13,33 @@ import { createProductionGraphFeatureFlag } from "./feature-flag";
 import { createProductionGraphStore, type ProductionGraphStore } from "./production-graph-store";
 import { buildDualProjectFixture } from "./production-graph-fixture";
 
+// 真实工厂（defaultSocketFactory）最终调用 socket.io-client 的 io()。
+// mock io() 以便行为测试断言真实工厂把后端挂载路径 path=/api/socket.io 传给了传输层。
+const { mockIo } = vi.hoisted(() => {
+  const mockIo = vi.fn<(url: string, options: Record<string, unknown>) => unknown>(() => {
+    const socket = {
+      connected: true,
+      on() {
+        return socket;
+      },
+      off() {
+        return socket;
+      },
+      emit() {
+        return socket;
+      },
+      disconnect() {
+        socket.connected = false;
+        return socket;
+      },
+    };
+    return socket;
+  });
+  return { mockIo };
+});
+
+vi.mock("socket.io-client", () => ({ io: mockIo }));
+
 const fixture = buildDualProjectFixture();
 
 class FakeProductionGraphSocket implements ProductionGraphSocketAdapterSocket {
@@ -95,7 +122,44 @@ function Harness(props: {
   );
 }
 
+function HarnessWithDefaultFactory(props: {
+  projectId: number;
+  apiBaseUrl: string;
+  getToken: () => string | null;
+  feature: ReturnType<typeof createProductionGraphFeatureFlag>;
+}) {
+  const wiring = useProductionGraphWiring({
+    projectId: props.projectId,
+    apiBaseUrl: props.apiBaseUrl,
+    getToken: props.getToken,
+    feature: props.feature,
+  });
+  return <span data-testid="feature-enabled">{wiring.featureEnabled ? "on" : "off"}</span>;
+}
+
 describe("useProductionGraphWiring", () => {
+  it("passes the /api/socket.io transport path to the real socket factory while keeping the productionGraph namespace URL", () => {
+    mockIo.mockClear();
+    const feature = createProductionGraphFeatureFlag({}, {});
+    // 不注入 socketFactory：走真实 defaultSocketFactory -> io()。
+    const view = render(
+      <HarnessWithDefaultFactory projectId={9} apiBaseUrl="/api" getToken={() => "tok"} feature={feature} />,
+    );
+
+    expect(mockIo).toHaveBeenCalledTimes(1);
+    const [url, options] = mockIo.mock.calls[0] as [string, Record<string, unknown>];
+    // namespace URL 保持不变（/api/socket/productionGraph），path 显式指向后端挂载路径。
+    expect(url).toMatch(/\/api\/socket\/productionGraph$/);
+    // 传输顺序冻结为 [polling, websocket]：先可靠建立认证会话再自动升级，避免本机 WebSocket 首握悬挂。
+    expect(options.transports).toEqual(["polling", "websocket"]);
+    expect(options).toMatchObject({
+      path: "/api/socket.io",
+      transports: ["polling", "websocket"],
+      auth: { token: "tok", projectId: "9" },
+    });
+    view.unmount();
+  });
+
   it("listens for snapshot/patch and connect/reconnect when feature is on, and bridges graphId+revision into context", () => {
     const feature = createProductionGraphFeatureFlag({}, {});
     const socket = new FakeProductionGraphSocket({ token: "tok", projectId: "9" });

@@ -961,7 +961,7 @@ export function WebAvVideoEditor({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-medium">
-            <Film className="size-4 text-violet-300" />
+            <Film className="size-4 text-zinc-300" />
             视频时间线
           </h3>
           <p className="mt-1 text-xs text-slate-500">
@@ -1005,7 +1005,7 @@ export function WebAvVideoEditor({
                 type="button"
                 aria-label="取消合成"
                 onClick={() => exportAbortRef.current?.abort()}
-                className="flex items-center gap-1 rounded-lg bg-red-600 px-3 py-2 text-xs">
+                className="flex items-center gap-1 rounded-lg bg-zinc-600 px-3 py-2 text-xs">
                 <X className="size-3.5" />
                 取消合成 {exportProgress}%
               </button>
@@ -1014,7 +1014,7 @@ export function WebAvVideoEditor({
                 type="button"
                 aria-label="导出合成视频"
                 onClick={() => void exportTimeline()}
-                className="flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-2 text-xs">
+                className="flex items-center gap-1 rounded-lg bg-zinc-600 px-3 py-2 text-xs">
                 <Download className="size-3.5" />
                 导出合成视频
               </button>
@@ -1035,7 +1035,7 @@ export function WebAvVideoEditor({
       </div>
 
       {runtimeError ? (
-        <div role="alert" className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+        <div role="alert" className="rounded-lg border border-zinc-500/20 bg-zinc-500/5 px-3 py-2 text-xs text-zinc-300">
           {runtimeError}
         </div>
       ) : null}
@@ -1116,7 +1116,7 @@ export function WebAvVideoEditor({
           value={Math.min(currentTime, timeline.duration)}
           disabled={timeline.duration <= 0}
           onChange={(event) => seek(Number(event.target.value))}
-          className="w-full accent-violet-500"
+          className="w-full accent-zinc-500"
         />
       </div>
 
@@ -1162,7 +1162,7 @@ export function WebAvVideoEditor({
             return (
               <div
                 key={clip.id}
-                className={`flex items-center gap-2 rounded-lg border p-2 ${selected?.id === clip.id ? "border-blue-500 bg-blue-500/10" : "border-slate-800 bg-slate-900"}`}>
+                className={`flex items-center gap-2 rounded-lg border p-2 ${selected?.id === clip.id ? "border-zinc-500 bg-zinc-500/10" : "border-slate-800 bg-slate-900"}`}>
                 <button
                   type="button"
                   aria-label={`选择轨道 ${clip.name}`}
@@ -1178,7 +1178,7 @@ export function WebAvVideoEditor({
                 {clip.type === "audio" && waveforms[clip.id]?.length ? (
                   <div aria-label={`${clip.name} 波形`} className="flex h-6 w-24 items-center gap-px overflow-hidden">
                     {waveforms[clip.id].map((peak, bar) => (
-                      <span key={bar} className="w-0.5 bg-emerald-400/80" style={{ height: `${Math.max(2, peak * 22)}px` }} />
+                      <span key={bar} className="w-0.5 bg-zinc-400/80" style={{ height: `${Math.max(2, peak * 22)}px` }} />
                     ))}
                   </div>
                 ) : null}
@@ -1207,7 +1207,7 @@ export function WebAvVideoEditor({
                   type="button"
                   aria-label={`移除片段 ${clip.sourceId ?? clip.id}`}
                   onClick={() => removeClip(clip.id)}
-                  className="p-1 text-red-300">
+                  className="p-1 text-zinc-300">
                   <Trash2 className="size-3.5" />
                 </button>
               </div>
@@ -1395,7 +1395,7 @@ export function WebAvVideoEditor({
         ) : null}
       </div>
       {exporting ? (
-        <div role="status" className="flex items-center gap-2 text-xs text-violet-200">
+        <div role="status" className="flex items-center gap-2 text-xs text-zinc-200">
           <LoaderCircle className="size-3.5 animate-spin" />
           正在合成并编码 MP4，进度 {exportProgress}%
         </div>

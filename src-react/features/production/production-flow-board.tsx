@@ -622,7 +622,7 @@ export function ProductionFlowBoard({
                 aria-label="画面提示词"
                 value={editingStoryboardInfo.prompt}
                 onChange={(event) => setEditingStoryboardInfo((current) => (current ? { ...current, prompt: event.target.value } : current))}
-                className="h-28 resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-slate-100 outline-none focus:border-blue-500"
+                className="h-28 resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-slate-100 outline-none focus:border-zinc-500"
               />
             </label>
             <label className="grid gap-2 text-xs text-slate-400">
@@ -631,14 +631,14 @@ export function ProductionFlowBoard({
                 aria-label="镜头描述"
                 value={editingStoryboardInfo.videoDesc}
                 onChange={(event) => setEditingStoryboardInfo((current) => (current ? { ...current, videoDesc: event.target.value } : current))}
-                className="h-24 resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-slate-100 outline-none focus:border-blue-500"
+                className="h-24 resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-slate-100 outline-none focus:border-zinc-500"
               />
             </label>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setEditingStoryboardInfo(null)} className="rounded-lg border border-slate-700 px-3 py-2 text-xs">
                 取消
               </button>
-              <button type="submit" className="rounded-lg bg-blue-600 px-3 py-2 text-xs text-white hover:bg-blue-500">
+              <button type="submit" className="rounded-lg bg-zinc-600 px-3 py-2 text-xs text-white hover:bg-zinc-500">
                 保存分镜信息
               </button>
             </div>
@@ -662,7 +662,7 @@ export function ProductionFlowBoard({
             <a
               href={storyboardPreview}
               download="storyboard-preview.jpg"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs text-white hover:bg-blue-500">
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-zinc-600 px-3 py-2 text-xs text-white hover:bg-zinc-500">
               <Download className="size-3.5" />
               下载合并预览
             </a>

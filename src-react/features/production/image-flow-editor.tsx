@@ -418,7 +418,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
   }
 
   return (
-    <div role="dialog" aria-label="图片工作流" className="fixed inset-0 z-50 flex flex-col bg-[#080a0f] text-slate-100">
+    <div role="dialog" aria-label="图片工作流" className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0a] text-slate-100">
       <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-5 py-3">
         <div>
           <h2 className="font-semibold">{targetKind === "asset" ? "资产图片工作流" : "分镜图片工作流"}</h2>
@@ -477,19 +477,19 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
       </header>
 
       {error ? (
-        <div role="alert" className="mx-5 mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+        <div role="alert" className="mx-5 mt-3 rounded-lg border border-zinc-500/30 bg-zinc-500/10 p-3 text-sm text-zinc-300">
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div role="status" className="mx-5 mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+        <div role="status" className="mx-5 mt-3 rounded-lg border border-zinc-500/30 bg-zinc-500/10 p-3 text-sm text-zinc-300">
           {notice}
         </div>
       ) : null}
       {connectingFrom ? (
         <div
           role="status"
-          className="mx-5 mt-3 flex items-center justify-between rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs text-blue-200">
+          className="mx-5 mt-3 flex items-center justify-between rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-xs text-zinc-200">
           <span>正在从 {connectingFrom} 连线，请点击生成节点左侧端口。</span>
           <button type="button" onClick={() => setConnectingFrom("")} className="underline">
             取消连线
@@ -500,9 +500,9 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
       <div
         ref={canvasRef}
         data-testid="image-flow-canvas"
-        className="relative m-4 flex-1 cursor-grab overflow-hidden rounded-xl border border-slate-800 bg-[#0d1119] active:cursor-grabbing"
+        className="relative m-4 flex-1 cursor-grab overflow-hidden rounded-xl border border-slate-800 bg-[#111111] active:cursor-grabbing"
         style={{
-          backgroundImage: "radial-gradient(circle, rgba(100,116,139,.32) 1px, transparent 1px)",
+          backgroundImage: "radial-gradient(circle, rgba(114,114,114,.32) 1px, transparent 1px)",
           backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px`,
           backgroundPosition: `${viewport.x}px ${viewport.y}px`,
         }}
@@ -524,7 +524,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
               const source = nodeById.get(edge.source);
               const targetNode = nodeById.get(edge.target);
               return source && targetNode ? (
-                <path key={edge.id} d={edgePath(source, targetNode)} fill="none" stroke="#3b82f6" strokeWidth="3" />
+                <path key={edge.id} d={edgePath(source, targetNode)} fill="none" stroke="#7b7b7b" strokeWidth="3" />
               ) : null;
             })}
           </svg>
@@ -538,7 +538,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
                 aria-label={`断开 ${edge.source} 到 ${edge.target}`}
                 title={`${edge.source} → ${edge.target}`}
                 onClick={() => disconnect(edge.id)}
-                className="absolute z-20 grid size-7 place-items-center rounded-full border border-blue-400/50 bg-slate-950 text-blue-300 shadow-lg hover:bg-red-950 hover:text-red-300"
+                className="absolute z-20 grid size-7 place-items-center rounded-full border border-zinc-400/50 bg-slate-950 text-zinc-300 shadow-lg hover:bg-zinc-950 hover:text-zinc-300"
                 style={{ left: midpoint.x - 14, top: midpoint.y - 14 }}>
                 <Unlink className="size-3.5" />
               </button>
@@ -551,7 +551,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
               <article
                 key={node.id}
                 data-testid={`image-flow-node-${node.id}`}
-                className={`absolute z-10 w-80 overflow-hidden rounded-xl border bg-slate-950 shadow-2xl ${isSelected ? "border-emerald-500 ring-2 ring-emerald-500/20" : "border-slate-700"}`}
+                className={`absolute z-10 w-80 overflow-hidden rounded-xl border bg-slate-950 shadow-2xl ${isSelected ? "border-zinc-500 ring-2 ring-zinc-500/20" : "border-slate-700"}`}
                 style={{ left: node.position.x, top: node.position.y }}>
                 <header className="flex h-12 items-center justify-between border-b border-slate-800 px-3">
                   {node.type === "generated" ? (
@@ -560,7 +560,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
                       aria-label={`连接到 ${node.id}`}
                       disabled={!connectingFrom || connectingFrom === node.id}
                       onClick={() => connectTo(node.id)}
-                      className="-ml-5 grid size-7 place-items-center rounded-full border border-blue-400 bg-slate-950 text-blue-300 disabled:border-slate-700 disabled:text-slate-700">
+                      className="-ml-5 grid size-7 place-items-center rounded-full border border-zinc-400 bg-slate-950 text-zinc-300 disabled:border-slate-700 disabled:text-slate-700">
                       <Link2 className="size-3.5" />
                     </button>
                   ) : (
@@ -578,14 +578,14 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
                     type="button"
                     aria-label={`从 ${node.id} 开始连线`}
                     onClick={() => setConnectingFrom(node.id)}
-                    className="grid size-7 place-items-center rounded-full border border-blue-400 bg-slate-950 text-blue-300">
+                    className="grid size-7 place-items-center rounded-full border border-zinc-400 bg-slate-950 text-zinc-300">
                     <Plus className="size-3.5" />
                   </button>
                   <button
                     type="button"
                     aria-label={`删除节点 ${node.id}`}
                     onClick={() => removeNode(node.id)}
-                    className="ml-2 rounded p-1 text-slate-600 hover:text-red-400">
+                    className="ml-2 rounded p-1 text-slate-600 hover:text-zinc-400">
                     <Trash2 className="size-4" />
                   </button>
                 </header>
@@ -617,7 +617,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
                         <div className="grid aspect-video place-items-center rounded-lg bg-slate-900 text-xs text-slate-600">等待生成</div>
                       )}
                       {isSelected ? (
-                        <span className="absolute right-2 top-2 rounded-full bg-emerald-500 p-1 text-black">
+                        <span className="absolute right-2 top-2 rounded-full bg-zinc-500 p-1 text-black">
                           <Check className="size-3.5" />
                         </span>
                       ) : null}
@@ -636,7 +636,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
                       value={node.data.prompt ?? ""}
                       onChange={(event) => changeNode(node.id, { prompt: event.target.value })}
                       placeholder={targetPrompt}
-                      className="h-20 w-full resize-none rounded-lg border border-slate-800 bg-slate-900 p-2 text-xs outline-none focus:border-blue-500"
+                      className="h-20 w-full resize-none rounded-lg border border-slate-800 bg-slate-900 p-2 text-xs outline-none focus:border-zinc-500"
                     />
                     <div className="grid grid-cols-3 gap-2">
                       <input
@@ -679,7 +679,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
                         type="button"
                         onClick={() => void generate(node)}
                         disabled={busyNodeId === node.id}
-                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs disabled:opacity-50">
+                        className="rounded-lg bg-zinc-600 px-3 py-2 text-xs disabled:opacity-50">
                         {busyNodeId === node.id ? "生成中" : "生成工作流图片"}
                       </button>
                       <button
@@ -687,7 +687,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
                         aria-label={`选择结果 ${node.id}`}
                         disabled={!node.data.generatedImage}
                         onClick={() => setSelectedResultNodeId(node.id)}
-                        className="rounded-lg border border-emerald-500/50 px-2 py-2 text-xs text-emerald-300 disabled:border-slate-800 disabled:text-slate-700">
+                        className="rounded-lg border border-zinc-500/50 px-2 py-2 text-xs text-zinc-300 disabled:border-slate-800 disabled:text-slate-700">
                         选择
                       </button>
                     </div>
@@ -699,7 +699,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
         </div>
       </div>
 
-      <footer className="flex min-h-16 items-center justify-between gap-3 border-t border-slate-800 bg-[#080a0f]/95 px-5 py-3">
+      <footer className="flex min-h-16 items-center justify-between gap-3 border-t border-slate-800 bg-[#0a0a0a]/95 px-5 py-3">
         <p className="flex items-center gap-2 text-xs text-slate-500">
           <Minus className="size-3" />
           {flow.nodes.length} 个节点 · {flow.edges.length} 条连线 · {activeFlowId ? `工作流 #${activeFlowId}` : "新工作流"}
@@ -717,7 +717,7 @@ export function ImageFlowEditor(props: ImageFlowEditorProps) {
             type="button"
             onClick={() => void adopt()}
             disabled={!selectedResult || Boolean(busyNodeId)}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm disabled:bg-slate-800 disabled:text-slate-500">
+            className="flex items-center gap-2 rounded-lg bg-zinc-600 px-4 py-2 text-sm disabled:bg-slate-800 disabled:text-slate-500">
             <Check className="size-4" />
             {busyNodeId === "adopt" ? "采用中" : "采用并保存"}
           </button>

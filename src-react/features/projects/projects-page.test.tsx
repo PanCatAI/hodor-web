@@ -12,6 +12,7 @@ function openProjects() {
 describe("Projects page", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    sessionStorage.clear();
   });
 
   it("loads and displays Hodor projects from the compatible API", async () => {
@@ -80,6 +81,38 @@ describe("Projects page", () => {
 
     expect(await screen.findByText("还没有项目")).toBeInTheDocument();
     expect(screen.getByText("新建项目后，从原文、资产和分镜开始生产。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "从目标开始新制作" })).toBeInTheDocument();
+  });
+
+  it("starts a new production from the large goal dialog and enters the shared canvas", async () => {
+    openProjects();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const data = url.endsWith("/project/getProject")
+        ? [{ id: 88, name: "做一支 60 秒雨夜悬疑短片", projectType: "interactive" }]
+        : url.endsWith("/project/addProject")
+          ? { id: 88 }
+          : url.endsWith("/interactiveStory/graph/get")
+            ? { id: "story-graph-88", projectId: 88, nodes: [], edges: [], variables: [], createdAt: 1, updatedAt: 1 }
+            : [];
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    render(<HodorApp />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "从目标开始" }));
+    expect(screen.getByRole("dialog", { name: "开始一次新制作" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "制作目标" }), { target: { value: "做一支 60 秒雨夜悬疑短片" } });
+    fireEvent.click(screen.getByRole("radio", { name: "项目类型 互动剧" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "必要约束" }), { target: { value: "竖屏 9:16" } });
+    fireEvent.click(screen.getByRole("button", { name: "开始执行" }));
+
+    await waitFor(() => expect(window.location.hash).toBe("#/projects/88/canvas"));
+    expect(screen.getByTestId("project-canvas-goal-prompt")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "生产目标" })).toHaveValue("做一支 60 秒雨夜悬疑短片");
+    expect(screen.getByRole("textbox", { name: "必要约束" })).toHaveValue("竖屏 9:16");
+    expect(screen.getByRole("heading", { name: "确认你的制作目标" })).toBeInTheDocument();
   });
 
   it("keeps the workspace usable when the project request fails", async () => {

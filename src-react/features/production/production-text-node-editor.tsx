@@ -2,7 +2,6 @@ import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { MdEditor, MdPreview } from "md-editor-rt";
 import type { Themes, ToolbarNames } from "md-editor-rt";
-import "md-editor-rt/lib/style.css";
 
 export interface ProductionTextNodeEditorProps {
   label: string;
@@ -109,7 +108,7 @@ export function ProductionTextNodeEditor({ label, value, placeholder, onSave }: 
               role="dialog"
               aria-modal="true"
               aria-label={`编辑${label}`}
-              className="relative w-[90vw] rounded-lg border border-slate-700 bg-[#242626] p-5 text-slate-100 shadow-xl">
+              className="relative w-[90vw] rounded-lg border border-slate-700 bg-[#262626] p-5 text-slate-100 shadow-xl">
               <h2 className="mb-4 text-base font-semibold">编辑{label}</h2>
               <button
                 type="button"
@@ -144,7 +143,7 @@ export function ProductionTextNodeEditor({ label, value, placeholder, onSave }: 
                 <button type="button" onClick={cancel} className="rounded border border-slate-600 px-4 py-2 text-sm hover:bg-white/5">
                   取消
                 </button>
-                <button type="button" onClick={save} className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-500">
+                <button type="button" onClick={save} className="rounded bg-zinc-600 px-4 py-2 text-sm text-white hover:bg-zinc-500">
                   保存
                 </button>
               </div>
@@ -158,7 +157,7 @@ export function ProductionTextNodeEditor({ label, value, placeholder, onSave }: 
     <div>
       <header className="production-node-drag-handle relative flex cursor-grab select-none items-center justify-between gap-6 active:cursor-grabbing">
         <div className="w-fit rounded-bl-none rounded-br-lg rounded-tl-lg rounded-tr-none bg-black px-2.5 py-[5px] text-base text-white">{label}</div>
-        <button type="button" aria-label={`编辑${label}`} onClick={beginEdit} className="nodrag px-2 py-1 text-sm text-blue-400 hover:text-blue-300">
+        <button type="button" aria-label={`编辑${label}`} onClick={beginEdit} className="nodrag px-2 py-1 text-sm text-zinc-400 hover:text-zinc-300">
           编辑
         </button>
       </header>

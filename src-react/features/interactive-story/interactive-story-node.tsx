@@ -36,8 +36,8 @@ export function InteractiveStoryFlowNode({ id, data }: NodeProps) {
   return (
     <article
       data-testid={`interactive-story-node-${node.storyNodeId}`}
-      className={`w-[320px] rounded-lg border bg-[#242626] p-4 text-slate-100 shadow-sm ${
-        node.selected ? "border-blue-500 ring-2 ring-blue-500/20" : "border-slate-700"
+      className={`w-[320px] rounded-lg border bg-[#262626] p-4 text-slate-100 shadow-sm ${
+        node.selected ? "border-zinc-500 ring-2 ring-zinc-500/20" : "border-slate-700"
       }`}>
       <Handle id={`${id}-target`} type="target" position={Position.Left} />
       <Handle id={`${id}-source`} type="source" position={Position.Right} />
@@ -45,10 +45,10 @@ export function InteractiveStoryFlowNode({ id, data }: NodeProps) {
         <div className="w-fit rounded-bl-none rounded-br-lg rounded-tl-lg rounded-tr-none bg-black px-2.5 py-[5px] text-base text-white">
           {node.title}
         </div>
-        {node.entry ? <span className="rounded border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-[11px] text-blue-300">入口</span> : null}
+        {node.entry ? <span className="rounded border border-zinc-500/40 bg-zinc-500/10 px-2 py-1 text-[11px] text-zinc-300">入口</span> : null}
       </header>
       <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded border border-amber-700/60 bg-amber-950/40 px-2 py-1 text-amber-300">{kindLabels[node.kind]}</span>
+        <span className="rounded border border-zinc-700/60 bg-zinc-950/40 px-2 py-1 text-zinc-300">{kindLabels[node.kind]}</span>
         <span className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-slate-300">{statusLabels[node.status]}</span>
         <span className="text-slate-500">剧本 #{node.scriptId}</span>
       </div>

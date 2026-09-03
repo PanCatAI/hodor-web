@@ -460,4 +460,55 @@ describe("ProductionWorkbench", () => {
     fireEvent.change(screen.getByLabelText("当前剧本"), { target: { value: "13" } });
     await waitFor(() => expect(window.confirm).toHaveBeenCalledWith("当前生产智能体或生成任务仍在运行，切换后任务会继续在后台执行。确定切换吗？"));
   });
+
+  it("embedded mode drops the full-screen shell, page header and fixed overlay for the module host", async () => {
+    const api = createApi();
+    const { container } = render(
+      <ProductionWorkbench
+        api={api}
+        embedded
+        project={{ id: 7, name: "雨夜", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
+
+    expect(await screen.findByTestId("production-workbench-embedded")).toBeInTheDocument();
+    // 不创建第二个全屏壳：没有 min-h-screen / h-screen main，也没有固定定位的工作台覆盖层。
+    expect(container.querySelector("main.min-h-screen")).toBeNull();
+    expect(container.querySelector("main.h-screen")).toBeNull();
+    expect(container.querySelector('[data-testid="production-workbench-overlay"]')).toBeNull();
+    // 重复页面头被模块 host 接管：不再渲染“生产工作台”标题与项目名大标题。
+    expect(screen.queryByText("生产工作台")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "雨夜" })).not.toBeInTheDocument();
+    // 功能性剧本选择器仍在，但工作台功能照常可用。
+    expect(screen.getByRole("combobox", { name: "当前剧本" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "视频生成" }));
+    expect(await screen.findByLabelText("轨道提示词 51")).toBeInTheDocument();
+  });
+
+  it("embedded flow mode keeps the workbench overlay inside the module host instead of a fixed full-screen shell", async () => {
+    const api = createApi();
+    const { container } = render(
+      <ProductionWorkbench
+        api={api}
+        embedded
+        initialView="flow"
+        project={{ id: 7, name: "雨夜", videoModel: "pancat:pancat-video", videoMode: "singleImage" }}
+      />,
+    );
+
+    const flowBoard = await screen.findByRole("region", { name: "生产流图" });
+    expect(container.querySelector("main.h-screen")).toBeNull();
+    fireEvent.click(screen.getByTestId("flow-node-workbench"));
+
+    const workbench = screen.getByRole("dialog", { name: "视频工作台" });
+    expect(screen.getByRole("region", { name: "生产流图" })).toBe(flowBoard);
+    // 覆盖层位于嵌入容器内部（absolute），不是 fixed inset-0 的第二个全屏壳。
+    expect(container.querySelector('[data-testid="production-workbench-overlay"]')).toBeNull();
+    expect(workbench.className).toMatch(/absolute/);
+    expect(workbench.className).not.toMatch(/fixed/);
+    expect(container.querySelector("main.h-screen")).toBeNull();
+    fireEvent.click(within(workbench).getByRole("button", { name: "关闭视频工作台" }));
+    expect(screen.queryByRole("dialog", { name: "视频工作台" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "生产流图" })).toBe(flowBoard);
+  });
 });

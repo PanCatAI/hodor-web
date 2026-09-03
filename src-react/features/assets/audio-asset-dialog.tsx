@@ -63,7 +63,7 @@ export function AudioAssetDialog({ asset, projectId, api, onClose, onSaved }: { 
   }
 
   return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/75 p-4" role="dialog" aria-label={asset ? `编辑${asset.name}` : "新建音频"}>
-    <form onSubmit={submit} className="my-6 w-full max-w-2xl space-y-4 rounded-xl border border-white/10 bg-[#11141b] p-6">
+    <form onSubmit={submit} className="my-6 w-full max-w-2xl space-y-4 rounded-xl border border-white/10 bg-[#141414] p-6">
       <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{asset ? "编辑音频资产" : "新建音频资产"}</h2><button type="button" aria-label="关闭音频编辑" onClick={onClose}><X size={18} /></button></div>
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm">音频名称<Input aria-label="音频名称" className="mt-2" value={name} onChange={(event) => setName(event.target.value)} /></label>
@@ -72,7 +72,7 @@ export function AudioAssetDialog({ asset, projectId, api, onClose, onSaved }: { 
       <label className="block text-sm">音频描述<textarea aria-label="音频描述" className="mt-2 min-h-20 w-full rounded-md border border-border bg-transparent p-3" value={description} onChange={(event) => setDescription(event.target.value)} /></label>
       <div className="space-y-3">
         {items.map((item, index) => <section key={item.key} className="space-y-3 rounded-lg border border-white/10 p-4">
-          <div className="flex items-center justify-between"><h3 className="text-sm font-medium">音频样本 {index + 1}</h3><button type="button" aria-label={`删除音频样本 ${index + 1}`} onClick={() => setItems((current) => current.length === 1 ? [emptyDraft()] : current.filter((value) => value.key !== item.key))} className="text-rose-400"><Trash2 size={15} /></button></div>
+          <div className="flex items-center justify-between"><h3 className="text-sm font-medium">音频样本 {index + 1}</h3><button type="button" aria-label={`删除音频样本 ${index + 1}`} onClick={() => setItems((current) => current.length === 1 ? [emptyDraft()] : current.filter((value) => value.key !== item.key))} className="text-zinc-400"><Trash2 size={15} /></button></div>
           {item.src && !item.file ? <audio controls src={item.src} className="w-full" /> : null}
           <input aria-label={`样本文件 ${index + 1}`} type="file" accept="audio/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) update(item.key, { file, src: undefined, name: item.name || file.name }); }} />
           <div className="grid gap-3 md:grid-cols-2"><Input aria-label={`样本名称 ${index + 1}`} placeholder="样本名称" value={item.name} onChange={(event) => update(item.key, { name: event.target.value })} /><Input aria-label={`样本文本 ${index + 1}`} placeholder="对应文本" value={item.prompt} onChange={(event) => update(item.key, { prompt: event.target.value })} /></div>
@@ -80,7 +80,7 @@ export function AudioAssetDialog({ asset, projectId, api, onClose, onSaved }: { 
         </section>)}
       </div>
       <Button type="button" variant="ghost" aria-label="添加音频样本" onClick={() => setItems((current) => [...current, emptyDraft()])}><Plus size={15} />添加音频</Button>
-      {error ? <p role="alert" className="text-sm text-rose-400">{error}</p> : null}
+      {error ? <p role="alert" className="text-sm text-zinc-400">{error}</p> : null}
       <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>取消</Button><Button type="submit" disabled={saving}>{saving ? "保存中…" : "保存音频资产"}</Button></div>
     </form>
   </div>;

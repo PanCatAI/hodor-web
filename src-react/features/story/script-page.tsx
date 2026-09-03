@@ -12,6 +12,8 @@ export interface ScriptPageProps {
   projectId: number;
   onOpenStoryboard?: (script: Script) => void;
   pollIntervalMs?: number;
+  /** 嵌入画布模块时去掉重复页面头，由模块 host 管理标题、关闭、宽度与滚动。 */
+  embedded?: boolean;
 }
 
 interface ScriptDraft {
@@ -22,10 +24,10 @@ interface ScriptDraft {
 }
 
 function extractionStatus(script: Script) {
-  if (script.extractState === 0) return { text: "资产提取中", className: "text-amber-300" };
-  if (script.extractState === 2) return { text: "等待提取资产", className: "text-sky-300" };
-  if (script.extractState === -1) return { text: `资产提取失败${script.errorReason ? `：${script.errorReason}` : ""}`, className: "text-red-300" };
-  if (script.extractState === 1) return { text: "资产提取完成", className: "text-emerald-300" };
+  if (script.extractState === 0) return { text: "资产提取中", className: "text-zinc-300" };
+  if (script.extractState === 2) return { text: "等待提取资产", className: "text-zinc-300" };
+  if (script.extractState === -1) return { text: `资产提取失败${script.errorReason ? `：${script.errorReason}` : ""}`, className: "text-zinc-300" };
+  if (script.extractState === 1) return { text: "资产提取完成", className: "text-zinc-300" };
   return { text: "待提取资产", className: "text-slate-500" };
 }
 
@@ -38,7 +40,7 @@ function saveBlob(blob: Blob, name: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ScriptPage({ api, projectId, onOpenStoryboard, pollIntervalMs = 3000 }: ScriptPageProps) {
+export function ScriptPage({ api, projectId, onOpenStoryboard, pollIntervalMs = 3000, embedded = false }: ScriptPageProps) {
   const [scripts, setScripts] = useState<Script[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -203,13 +205,15 @@ export function ScriptPage({ api, projectId, onOpenStoryboard, pollIntervalMs = 
   }
 
   return (
-    <section className="space-y-5" aria-labelledby="script-title">
+    <section data-testid={embedded ? "script-page-embedded" : undefined} className="space-y-5" aria-labelledby="script-title">
       <header className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Screenplay</p>
-          <h1 id="script-title" className="mt-2 text-2xl font-semibold text-white">剧本管理</h1>
-          <p className="mt-1 text-sm text-slate-400">管理分集剧本及资产提取状态。</p>
-        </div>
+        {!embedded ? (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Screenplay</p>
+            <h1 id="script-title" className="mt-2 text-2xl font-semibold text-white">剧本管理</h1>
+            <p className="mt-1 text-sm text-slate-400">管理分集剧本及资产提取状态。</p>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2 sm:flex-row">
           <div className="relative min-w-64">
             <Search className="absolute left-3 top-3 text-slate-500" size={17} />
@@ -224,10 +228,10 @@ export function ScriptPage({ api, projectId, onOpenStoryboard, pollIntervalMs = 
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" disabled={!selectedIds.length || working} onClick={() => void extractAssets()}><Sparkles className="mr-2" size={16} />提取资产 ({selectedIds.length})</Button>
         <Button variant="ghost" disabled={!selectedIds.length || working} onClick={() => void exportSelected()}><Download className="mr-2" size={16} />导出剧本 ({selectedIds.length})</Button>
-        <Button variant="ghost" className="text-red-300" disabled={!selectedIds.length || working} onClick={() => void batchDelete()}><Trash2 className="mr-2" size={16} />批量删除 ({selectedIds.length})</Button>
+        <Button variant="ghost" className="text-zinc-300" disabled={!selectedIds.length || working} onClick={() => void batchDelete()}><Trash2 className="mr-2" size={16} />批量删除 ({selectedIds.length})</Button>
       </div>
 
-      {error ? <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">{error}</p> : null}
+      {error ? <p role="alert" className="rounded-lg border border-zinc-400/30 bg-zinc-400/10 px-4 py-3 text-sm text-zinc-300">{error}</p> : null}
       {loading ? <p className="py-16 text-center text-sm text-slate-500">正在加载剧本…</p> : null}
       {!loading && scripts.length === 0 ? <p className="rounded-xl border border-dashed border-border py-20 text-center text-sm text-slate-500">暂无剧本</p> : null}
 
@@ -235,7 +239,7 @@ export function ScriptPage({ api, projectId, onOpenStoryboard, pollIntervalMs = 
         {scripts.map((script) => {
           const status = extractionStatus(script);
           return (
-            <article key={script.id} className="group flex min-h-60 flex-col rounded-xl border border-border bg-[#0d1119] p-5 transition-colors hover:border-slate-600">
+            <article key={script.id} className="group flex min-h-60 flex-col rounded-xl border border-border bg-[#111111] p-5 transition-colors hover:border-slate-600">
               <header className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <input aria-label={`选择 ${script.name}`} type="checkbox" checked={selectedIds.includes(script.id)} onChange={() => toggleSelected(script.id)} />
@@ -244,7 +248,7 @@ export function ScriptPage({ api, projectId, onOpenStoryboard, pollIntervalMs = 
                 </div>
                 <div className="flex gap-1">
                   <Button aria-label={`编辑 ${script.name}`} variant="ghost" onClick={() => openEditor(script)}><Pencil size={16} /></Button>
-                  <Button aria-label={`删除 ${script.name}`} variant="ghost" className="text-red-300 hover:bg-red-400/10" onClick={() => void remove(script)}><Trash2 size={16} /></Button>
+                  <Button aria-label={`删除 ${script.name}`} variant="ghost" className="text-zinc-300 hover:bg-zinc-400/10" onClick={() => void remove(script)}><Trash2 size={16} /></Button>
                 </div>
               </header>
               <p className="mt-4 line-clamp-4 flex-1 whitespace-pre-wrap text-sm leading-6 text-slate-400">{script.content}</p>
@@ -262,7 +266,7 @@ export function ScriptPage({ api, projectId, onOpenStoryboard, pollIntervalMs = 
 
       {draft ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/65" role="dialog" aria-modal="true" aria-labelledby="script-editor-title">
-          <div className="h-full w-full max-w-3xl overflow-y-auto border-l border-border bg-[#0b0e14] p-6 shadow-2xl">
+          <div className="h-full w-full max-w-3xl overflow-y-auto border-l border-border bg-[#0e0e0e] p-6 shadow-2xl">
             <header className="mb-6 flex items-start justify-between">
               <div><h2 id="script-editor-title" className="text-xl font-semibold text-white">{draft.id ? "编辑剧本" : "新增剧本"}</h2><p className="mt-1 text-sm text-slate-500">保存后可继续提取资产并生成分镜。</p></div>
               <Button aria-label="关闭剧本编辑" variant="ghost" onClick={() => setDraft(null)}><X size={18} /></Button>
@@ -282,7 +286,7 @@ export function ScriptPage({ api, projectId, onOpenStoryboard, pollIntervalMs = 
 
       {importOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4" role="dialog" aria-modal="true" aria-labelledby="script-import-title">
-          <div className="w-full max-w-3xl rounded-xl border border-border bg-[#0b0e14] p-6 shadow-2xl">
+          <div className="w-full max-w-3xl rounded-xl border border-border bg-[#0e0e0e] p-6 shadow-2xl">
             <header className="flex items-start justify-between"><div><h2 id="script-import-title" className="text-xl font-semibold text-white">批量导入剧本</h2><p className="mt-1 text-sm text-slate-500">支持 TXT、DOCX，并按“第 N 集”拆分。</p></div><Button aria-label="关闭剧本导入" variant="ghost" onClick={() => setImportOpen(false)}><X size={18} /></Button></header>
             <label className="mt-5 block cursor-pointer rounded-xl border border-dashed border-border p-8 text-center text-sm text-slate-400 hover:border-primary"><Upload className="mx-auto mb-3" /><span>选择剧本文件</span><input aria-label="导入剧本文件" className="sr-only" type="file" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => void chooseImportFile(event.target.files?.[0])} /></label>
             <p className="mt-4 text-sm text-slate-300">已解析 {importRows.length} 集</p>

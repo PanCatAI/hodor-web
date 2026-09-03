@@ -66,9 +66,9 @@ function formatTime(timestamp: number): string {
 }
 
 function statusClassName(state: string): string {
-  if (state === "生成失败") return "border-red-500/30 bg-red-500/10 text-red-300";
-  if (state === "进行中") return "border-sky-500/30 bg-sky-500/10 text-sky-300";
-  if (state === "已完成") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+  if (state === "生成失败") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
+  if (state === "进行中") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
+  if (state === "已完成") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
   return "border-border bg-white/5 text-slate-300";
 }
 
@@ -147,7 +147,7 @@ export function TasksPage({ client: providedClient }: TasksPageProps) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <main className="min-h-full bg-[#090b10] p-6 text-foreground lg:p-8">
+    <main className="min-h-full bg-[#0b0b0b] p-6 text-foreground lg:p-8">
       <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">Production Activity</p>
@@ -160,13 +160,13 @@ export function TasksPage({ client: providedClient }: TasksPageProps) {
         </Button>
       </header>
 
-      <section className="overflow-hidden rounded-xl border border-border bg-[#10131a] shadow-2xl shadow-black/20">
+      <section className="overflow-hidden rounded-xl border border-border bg-[#131313] shadow-2xl shadow-black/20">
         <div className="grid gap-4 border-b border-border p-4 md:grid-cols-3">
           <label className="space-y-2 text-sm text-slate-400">
             <span>项目</span>
             <select
               aria-label="项目"
-              className="h-10 w-full rounded-md border border-border bg-[#0b0e14] px-3 text-sm text-slate-200 outline-none focus:border-primary"
+              className="h-10 w-full rounded-md border border-border bg-[#0e0e0e] px-3 text-sm text-slate-200 outline-none focus:border-primary"
               value={projectId}
               onChange={(event) => updateFilter(setProjectId, event.target.value)}>
               <option value="">全部项目</option>
@@ -181,7 +181,7 @@ export function TasksPage({ client: providedClient }: TasksPageProps) {
             <span>任务类型</span>
             <select
               aria-label="任务类型"
-              className="h-10 w-full rounded-md border border-border bg-[#0b0e14] px-3 text-sm text-slate-200 outline-none focus:border-primary"
+              className="h-10 w-full rounded-md border border-border bg-[#0e0e0e] px-3 text-sm text-slate-200 outline-none focus:border-primary"
               value={taskClass}
               onChange={(event) => updateFilter(setTaskClass, event.target.value)}>
               <option value="">全部类型</option>
@@ -196,7 +196,7 @@ export function TasksPage({ client: providedClient }: TasksPageProps) {
             <span>任务状态</span>
             <select
               aria-label="任务状态"
-              className="h-10 w-full rounded-md border border-border bg-[#0b0e14] px-3 text-sm text-slate-200 outline-none focus:border-primary"
+              className="h-10 w-full rounded-md border border-border bg-[#0e0e0e] px-3 text-sm text-slate-200 outline-none focus:border-primary"
               value={taskState}
               onChange={(event) => updateFilter(setTaskState, event.target.value)}>
               <option value="">全部状态</option>
@@ -210,8 +210,8 @@ export function TasksPage({ client: providedClient }: TasksPageProps) {
         {error ? (
           <div className="grid min-h-64 place-items-center p-8 text-center">
             <div>
-              <AlertCircle className="mx-auto mb-3 size-8 text-red-400" />
-              <p role="alert" className="text-sm text-red-300">
+              <AlertCircle className="mx-auto mb-3 size-8 text-zinc-400" />
+              <p role="alert" className="text-sm text-zinc-300">
                 {error}
               </p>
               <Button className="mt-5" onClick={() => setRefreshVersion((version) => version + 1)}>
@@ -251,7 +251,7 @@ export function TasksPage({ client: providedClient }: TasksPageProps) {
                         {task.state || "未知"}
                       </span>
                     </td>
-                    <td className="max-w-64 whitespace-normal px-4 py-4 text-red-300" title={task.reason}>
+                    <td className="max-w-64 whitespace-normal px-4 py-4 text-zinc-300" title={task.reason}>
                       {task.state === "生成失败" ? task.reason || "后端未返回失败原因" : "—"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-slate-500">{formatTime(task.startTime)}</td>

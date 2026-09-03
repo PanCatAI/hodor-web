@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "md-editor-rt/lib/style.css";
 
 import { HodorApp } from "./app/hodor-app";
 import "./styles/index.css";

@@ -57,6 +57,17 @@ const interactiveGraph = {
   updatedAt: 1,
 };
 
+// 隔离金丝雀登录账号：仅本 canary 进程接受，与真实前端 PancatLoginSession 契约一致。
+const canaryCredentials = { username: "canary", password: "password" };
+const canarySession = {
+  token: "Bearer canary-session",
+  id: "canary",
+  name: "canary",
+  partnerId: "pancat",
+  partnerName: "PanCat",
+  role: "super_admin",
+};
+
 const moduleFixtures = new Map([
   ["/api/novel/getNovel", { data: [], total: 0 }],
   ["/api/script/getScrptApi", [{ id: 19, name: "金丝雀第一集", content: "雨夜测试场景" }]],
@@ -80,18 +91,38 @@ function corsHeaders(request) {
   };
 }
 
+function readJsonBody(request) {
+  return new Promise((resolve) => {
+    let raw = "";
+    request.on("data", (chunk) => { raw += chunk; });
+    request.on("end", () => {
+      try { resolve(raw ? JSON.parse(raw) : {}); } catch { resolve({}); }
+    });
+    request.on("error", () => resolve({}));
+  });
+}
+
 function sendJson(request, response, status, data) {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", ...corsHeaders(request) });
   response.end(JSON.stringify(data));
 }
 
-const httpServer = createServer((request, response) => {
+const httpServer = createServer(async (request, response) => {
   if (request.method === "OPTIONS") {
     response.writeHead(204, corsHeaders(request));
     response.end();
     return;
   }
   const pathname = new URL(request.url ?? "/", `http://127.0.0.1:${httpPort}`).pathname;
+  if (pathname === "/api/login/login" && request.method === "POST") {
+    const credentials = await readJsonBody(request);
+    if (credentials.username === canaryCredentials.username && credentials.password === canaryCredentials.password) {
+      sendJson(request, response, 200, { data: canarySession });
+    } else {
+      sendJson(request, response, 200, { code: 400, message: "账号或密码错误", data: null });
+    }
+    return;
+  }
   if (pathname === "/api/project/getProject") {
     sendJson(request, response, 200, { data: projects });
     return;
@@ -118,6 +149,28 @@ socketServer.on("connection", (connection, request) => {
     const action = frame.data?.action;
     if (frame.event === "productionGraph:read") {
       if (frame.requestId) connection.send(JSON.stringify({ kind: "ack", requestId: frame.requestId, data: { ok: true, result: { action: "readGraph", snapshot: current, paidGenerationUsd: 0 } } }));
+      return;
+    }
+    // 画布自由文本指令：按 AgentChatClient 的 chat 帧载荷（content + context）回推执行反馈。
+    if (frame.event === "chat") {
+      const payload = frame.data ?? {};
+      const context = payload.context ?? {};
+      if (frame.requestId) connection.send(JSON.stringify({ kind: "ack", requestId: frame.requestId, data: { ok: true, result: { content: payload.content } } }));
+      connection.send(JSON.stringify({
+        kind: "event",
+        event: "message",
+        data: {
+          id: `canary-reply-${Date.now()}`,
+          role: "assistant",
+          status: "complete",
+          datetime: new Date().toISOString(),
+          content: [{
+            type: "text",
+            status: "complete",
+            data: `已收到指令：${payload.content}（阶段：${context.stageLabel ?? "画布总览"}）`,
+          }],
+        },
+      }));
       return;
     }
     if (frame.event !== "productionGraph:action") return;

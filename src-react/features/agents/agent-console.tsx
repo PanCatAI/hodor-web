@@ -81,12 +81,12 @@ function ProductionRunStatus({ run }: { run: ProductionRunProgress }) {
   return (
     <div role="status" aria-label="生产阶段进度" className="min-w-64 space-y-2 text-sm">
       <div className="flex items-center gap-2">
-        {failed ? <XCircle className="size-4 text-red-400" /> : <LoaderCircle className="size-4 animate-spin text-blue-400" />}
+        {failed ? <XCircle className="size-4 text-zinc-400" /> : <LoaderCircle className="size-4 animate-spin text-zinc-400" />}
         <span className="font-medium text-slate-100">{stage}</span>
         <span className="text-xs text-slate-500">第 {run.attempt} 次尝试</span>
       </div>
       <p className="leading-5 text-slate-400">{run.objective}</p>
-      {message ? <p className="rounded bg-red-950/40 px-2 py-1.5 text-xs leading-5 text-red-200">{message}</p> : null}
+      {message ? <p className="rounded bg-zinc-950/40 px-2 py-1.5 text-xs leading-5 text-zinc-200">{message}</p> : null}
     </div>
   );
 }
@@ -133,7 +133,7 @@ function inlineMarkdown(value: string) {
       if (link) {
         const href = /^(https?:\/\/|mailto:|\/|#)/.test(link[2]) ? link[2] : "#";
         return (
-          <a key={index} href={href} target="_blank" rel="noreferrer" className="text-blue-300 underline underline-offset-2">
+          <a key={index} href={href} target="_blank" rel="noreferrer" className="text-zinc-300 underline underline-offset-2">
             {link[1]}
           </a>
         );
@@ -258,9 +258,9 @@ function ContentBlock({
         <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-[14px] leading-[22px] text-white/55 [&::-webkit-details-marker]:hidden">
           <span className="flex min-w-0 items-center gap-2">
             {content.status === "complete" ? (
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+              <CheckCircle2 className="size-4 shrink-0 text-zinc-500" />
             ) : content.status === "error" ? (
-              <XCircle className="size-4 shrink-0 text-red-400" />
+              <XCircle className="size-4 shrink-0 text-zinc-400" />
             ) : content.status === "stop" ? null : (
               <LoaderCircle className="size-4 shrink-0 animate-spin" />
             )}
@@ -305,7 +305,7 @@ function ContentBlock({
                 href={reference.url}
                 target="_blank"
                 rel="noreferrer"
-                className="block text-blue-300 hover:underline">
+                className="block text-zinc-300 hover:underline">
                 {reference.title}
                 {reference.site ? ` · ${reference.site}` : ""}
               </a>
@@ -480,7 +480,7 @@ export function AgentConsole({
             role="status"
             aria-label={`连接状态：${connectionLabels[snapshot.connection]}`}
             title={connectionLabels[snapshot.connection]}
-            className={`size-2 shrink-0 rounded-full ${connected ? "bg-emerald-500" : "bg-red-500"}`}
+            className={`size-2 shrink-0 rounded-full ${connected ? "bg-zinc-500" : "bg-zinc-500"}`}
           />
           <h1 className="truncate text-lg font-medium leading-none">{title}</h1>
         </div>
@@ -489,7 +489,7 @@ export function AgentConsole({
       {display === "page" && description ? <p className="border-b border-slate-800 px-4 py-2 text-xs text-slate-400">{description}</p> : null}
 
       {snapshot.error ? (
-        <div role="alert" className="border-b border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+        <div role="alert" className="border-b border-zinc-500/20 bg-zinc-500/10 px-4 py-2 text-sm text-zinc-200">
           {snapshot.error}
         </div>
       ) : null}
@@ -518,7 +518,7 @@ export function AgentConsole({
                 <div
                   data-message-variant={user ? "base" : "outline"}
                   className={`w-fit max-w-[min(calc(100%-40px),800px)] space-y-2 rounded-xl px-4 py-3 text-[16px] leading-6 ${
-                    user ? "bg-[#2c2c2c]" : message.status === "error" ? "border border-red-700/70" : "border border-[#5e5e5e]"
+                    user ? "bg-[#2c2c2c]" : message.status === "error" ? "border border-zinc-700/70" : "border border-[#5e5e5e]"
                   }`}>
                   {message.content.map((content, index) => (
                     <ContentBlock key={content.id ?? `${message.id}-${index}`} content={content} role={message.role} onSuggestion={send} />
@@ -534,7 +534,7 @@ export function AgentConsole({
                       </span>
                     )
                   ) : null}
-                  {message.ext?.error ? <p className="text-sm text-red-300">{stringifyData(message.ext.error)}</p> : null}
+                  {message.ext?.error ? <p className="text-sm text-zinc-300">{stringifyData(message.ext.error)}</p> : null}
                 </div>
               </div>
             </article>
@@ -547,7 +547,7 @@ export function AgentConsole({
           role="dialog"
           aria-modal="true"
           aria-labelledby="source-import-title"
-          className="absolute inset-x-2 bottom-16 z-[90] rounded-xl border border-slate-600 bg-[#171a20] p-4 shadow-2xl shadow-black/60">
+          className="absolute inset-x-2 bottom-16 z-[90] rounded-xl border border-slate-600 bg-[#1a1a1a] p-4 shadow-2xl shadow-black/60">
           <header className="flex items-start justify-between gap-3">
             <div>
               <h2 id="source-import-title" className="font-medium text-white">导入原文</h2>
@@ -563,8 +563,8 @@ export function AgentConsole({
             </button>
           </header>
 
-          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-600 px-3 py-3 text-sm text-slate-300 hover:border-blue-500 hover:bg-blue-500/5">
-            <FileText className="size-5 shrink-0 text-blue-400" />
+          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-600 px-3 py-3 text-sm text-slate-300 hover:border-zinc-500 hover:bg-zinc-500/5">
+            <FileText className="size-5 shrink-0 text-zinc-400" />
             <span className="min-w-0 flex-1 truncate">{sourceFile?.name ?? "选择原文文件"}</span>
             <span className="text-xs text-slate-500">选择</span>
             <input
@@ -596,10 +596,10 @@ export function AgentConsole({
               setSourceError("");
             }}
             placeholder="把原文粘贴到这里，智能体会在导入后判断内容和结构…"
-            className="block max-h-48 min-h-28 w-full resize-y rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 focus:border-blue-500 disabled:opacity-50"
+            className="block max-h-48 min-h-28 w-full resize-y rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 focus:border-zinc-500 disabled:opacity-50"
           />
 
-          {sourceError ? <p role="alert" className="mt-2 text-xs text-red-300">{sourceError}</p> : null}
+          {sourceError ? <p role="alert" className="mt-2 text-xs text-zinc-300">{sourceError}</p> : null}
           <footer className="mt-3 flex items-center justify-end gap-2">
             <button type="button" disabled={sourceImporting} onClick={closeSourceDialog} className="rounded-md px-3 py-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white disabled:opacity-40">
               取消
@@ -609,7 +609,7 @@ export function AgentConsole({
               aria-label="确认导入"
               disabled={sourceImporting || (!sourceFile && !sourceText.trim())}
               onClick={() => void importSource()}
-              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
+              className="inline-flex items-center gap-2 rounded-md bg-zinc-600 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-500 disabled:cursor-not-allowed disabled:opacity-40">
               {sourceImporting ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
               {sourceImporting ? "导入中…" : "导入并交给智能体"}
             </button>
@@ -619,12 +619,12 @@ export function AgentConsole({
 
       <footer ref={footerRef} className="shrink-0 px-2 pb-2">
         {sourceNotice ? (
-          <div role="status" aria-label="原文导入成功" className="mb-2 flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+          <div role="status" aria-label="原文导入成功" className="mb-2 flex items-center gap-2 rounded-md bg-zinc-500/10 px-3 py-2 text-xs text-zinc-300">
             <CheckCircle2 className="size-3.5 shrink-0" />
             {sourceNotice}
           </div>
         ) : null}
-        <form onSubmit={handleSubmit} className="rounded-lg border border-slate-700 bg-slate-900 focus-within:border-blue-500">
+        <form onSubmit={handleSubmit} className="rounded-lg border border-slate-700 bg-slate-900 focus-within:border-zinc-500">
           <textarea
             aria-label="发送指令"
             rows={3}
@@ -701,7 +701,7 @@ export function AgentConsole({
                       role="menuitem"
                       disabled={snapshot.clearingMemory !== null}
                       onClick={() => clear("all")}
-                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs text-red-300 hover:bg-slate-800 disabled:opacity-50">
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs text-zinc-300 hover:bg-slate-800 disabled:opacity-50">
                       <Trash2 className="size-3.5" />
                       清除所有记忆
                     </button>
@@ -732,7 +732,7 @@ export function AgentConsole({
                           role="menuitemradio"
                           aria-checked={snapshot.thinkLevel === option.value}
                           onClick={() => updateThinkLevel(option.value)}
-                          className={`block w-full px-4 py-2 text-left text-xs hover:bg-slate-800 ${snapshot.thinkLevel === option.value ? "text-blue-300" : ""}`}>
+                          className={`block w-full px-4 py-2 text-left text-xs hover:bg-slate-800 ${snapshot.thinkLevel === option.value ? "text-zinc-300" : ""}`}>
                           {option.label}
                         </button>
                       ))}
@@ -752,7 +752,7 @@ export function AgentConsole({
                   : "发送"
               }
               disabled={busy ? !connected : !input.trim() || !connected}
-              className="grid size-8 place-items-center rounded-md bg-blue-600 text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
+              className="grid size-8 place-items-center rounded-md bg-zinc-600 text-white hover:bg-zinc-500 disabled:cursor-not-allowed disabled:opacity-40">
               {busy && !input.trim() ? (
                 <CircleStop className="size-4" />
               ) : (

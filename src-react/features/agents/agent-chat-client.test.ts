@@ -4,6 +4,38 @@ import type { HodorApiClient } from "@react/lib/api/client";
 import { createAgentChatClient, resolveAgentSocketUrl } from "./agent-chat-client";
 import type { AgentServerHandlers, AgentSocket, AgentSocketFactory } from "./types";
 
+// 真实工厂（defaultSocketFactory）最终调用 socket.io-client 的 io()。
+// mock io() 以便行为测试断言真实工厂把后端挂载路径 path=/api/socket.io 传给了传输层。
+const { mockIo } = vi.hoisted(() => {
+  const mockIo = vi.fn<(url: string, options: Record<string, unknown>) => unknown>(() => {
+    const socket = {
+      connected: false,
+      auth: undefined as Record<string, unknown> | undefined,
+      on() {
+        return socket;
+      },
+      off() {
+        return socket;
+      },
+      emit() {
+        return socket;
+      },
+      connect() {
+        socket.connected = true;
+        return socket;
+      },
+      disconnect() {
+        socket.connected = false;
+        return socket;
+      },
+    };
+    return socket;
+  });
+  return { mockIo };
+});
+
+vi.mock("socket.io-client", () => ({ io: mockIo }));
+
 class FakeSocket implements AgentSocket {
   connected = false;
   auth?: Record<string, unknown>;
@@ -242,6 +274,33 @@ describe("agent chat client", () => {
     expect(socket.connect).toHaveBeenCalledOnce();
     expect(client.getSnapshot().connection).toBe("connected");
     expect(socket.emitted).toContainEqual({ event: "updateThinkConfig", data: { think: false, thinlLevel: 0 } });
+  });
+
+  it("passes the /api/socket.io transport path to the real socket factory so the backend Express auth middleware does not 401 the namespace", () => {
+    mockIo.mockClear();
+    // 不注入 socketFactory：走真实 defaultSocketFactory -> io()。
+    const client = createAgentChatClient({
+      agentType: "scriptAgent",
+      projectId: 7,
+      apiBaseUrl: "http://localhost:10588/api",
+      getToken: () => "Bearer pancat-session",
+      apiClient: { request: vi.fn(async () => []) } as unknown as HodorApiClient,
+    });
+
+    client.connect();
+
+    expect(mockIo).toHaveBeenCalledTimes(1);
+    const [url, options] = mockIo.mock.calls[0] as [string, Record<string, unknown>];
+    // namespace URL 保持不变（/socket/scriptAgent），path 显式指向后端挂载路径。
+    expect(url).toBe("http://localhost:10588/api/socket/scriptAgent");
+    // 传输顺序冻结为 [polling, websocket]：先可靠建立认证会话再自动升级，避免本机 WebSocket 首握悬挂。
+    expect(options.transports).toEqual(["polling", "websocket"]);
+    expect(options).toMatchObject({
+      path: "/api/socket.io",
+      autoConnect: false,
+      transports: ["polling", "websocket"],
+      auth: { token: "Bearer pancat-session", isolationKey: "7:scriptAgent", projectId: 7 },
+    });
   });
 
   it("keeps the selected think level in client state and reapplies it after reconnect", () => {

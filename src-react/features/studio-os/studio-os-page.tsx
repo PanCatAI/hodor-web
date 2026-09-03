@@ -116,7 +116,6 @@ export function StudioOsPage({ projectId, groupId, api }: StudioOsPageProps) {
   }
 
   return <section className="studio-page" data-testid="studio-os-control-room">
-    <div className="studio-page-glow" aria-hidden="true" />
     <header className="studio-hero">
       <div><div className="studio-kicker"><Sparkles size={14} /> STUDIO OS / PROJECT GROUP CONTROL ROOM</div><h1>{model?.group?.name ?? `项目组 ${groupId}`}</h1><p>故事室的决定、导演室的镜头上下文与递归生产图，共用 Hodor 权威快照。页面不维护第二份数据库真相，也不提供生产发布入口。</p><div className="studio-hero-meta"><span>project {model?.group?.projectId ?? projectId}</span><span>group {groupId}</span><span>revision {revision ?? "—"}</span></div></div>
       <div className="studio-hero-aside"><span className="studio-eyebrow">AUTHORITY READBACK</span><strong>{model?.group?.status === "archived" ? "ARCHIVED" : model ? "LIVE SNAPSHOT" : "WAITING"}</strong><small>Hodor HTTP · {formatTime(model?.group?.updatedAt)}</small><button type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={14} className={loading ? "studio-spin" : ""} />刷新快照</button></div>

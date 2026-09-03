@@ -28,7 +28,7 @@ export interface ProjectDialogProps {
 }
 
 const fieldClass = "space-y-1.5 text-sm text-slate-300";
-const selectClass = "h-11 w-full rounded-md border border-border bg-[#0b0e15] px-3 text-sm text-foreground outline-none focus:border-primary";
+const selectClass = "h-11 w-full rounded-md border border-border bg-[#0e0e0e] px-3 text-sm text-foreground outline-none focus:border-primary";
 const textareaClass = "min-h-24 w-full rounded-md border border-border bg-black/20 px-3 py-2 text-sm text-foreground outline-none focus:border-primary";
 
 function defaultInput(project: HodorProject | null): ProjectInput {
@@ -190,7 +190,7 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={isEdit ? "编辑项目" : "新建项目"}>
-      <form onSubmit={(event) => void submit(event)} className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-[#10131b] p-6 shadow-2xl">
+      <form onSubmit={(event) => void submit(event)} className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-[#131313] p-6 shadow-2xl">
         <header className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold">{isEdit ? "编辑项目" : "新建项目"}</h2>
@@ -199,7 +199,7 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
           <Button type="button" variant="ghost" aria-label="关闭项目表单" onClick={onClose}><X size={18} /></Button>
         </header>
 
-        {error ? <div role="alert" className="mt-5 flex gap-2 rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-sm text-red-200"><AlertCircle size={17} />{error}</div> : null}
+        {error ? <div role="alert" className="mt-5 flex gap-2 rounded-lg border border-zinc-900/60 bg-zinc-950/30 p-3 text-sm text-zinc-200"><AlertCircle size={17} />{error}</div> : null}
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <label className={fieldClass}><span>项目名称</span><Input aria-label="项目名称" required value={form.name} onChange={(event) => update("name", event.target.value)} /></label>
@@ -260,7 +260,7 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
                 <Button
                   type="button"
                   variant="ghost"
-                  className="border border-blue-500/40 text-blue-200"
+                  className="border border-zinc-500/40 text-zinc-200"
                   disabled={extracting !== null}
                   onClick={() => void extractWorldProfile("merge")}>
                   {extracting === "merge" ? "整理中…" : "从原文整理"}
@@ -286,7 +286,7 @@ export function ProjectDialog({ api, project, onClose, onSaved, onManageManuals 
             <WorldProfileSummary profile={form.worldProfile} compact />
           </div>
           {worldProfileValidationError ? (
-            <div role="alert" className="mt-3 flex gap-2 rounded-lg border border-amber-700/50 bg-amber-950/20 p-3 text-sm text-amber-200">
+            <div role="alert" className="mt-3 flex gap-2 rounded-lg border border-zinc-700/50 bg-zinc-950/20 p-3 text-sm text-zinc-200">
               <AlertCircle size={17} />
               {worldProfileValidationError}
             </div>

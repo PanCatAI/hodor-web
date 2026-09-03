@@ -137,4 +137,17 @@ describe("StoryboardPage", () => {
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:grid");
     click.mockRestore();
   });
+
+  it("embedded mode drops the duplicated page header but keeps the toolbar", async () => {
+    const { container } = render(<StoryboardPage api={createApi()} projectId={7} scriptId={19} embedded />);
+    await screen.findByText("S01");
+    expect(screen.getByTestId("storyboard-page-embedded")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "分镜管理" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Storyboard")).not.toBeInTheDocument();
+    expect(container.querySelector(".min-h-screen")).toBeNull();
+    // 功能按钮保留：网格预览 / 下载网格 / 刷新状态。
+    expect(screen.getByRole("button", { name: "网格预览" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "下载网格" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "刷新状态" })).toBeInTheDocument();
+  });
 });

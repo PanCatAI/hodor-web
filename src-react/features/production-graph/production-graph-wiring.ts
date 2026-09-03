@@ -71,10 +71,18 @@ function resolveSocketUrl(apiBaseUrl: string): string {
   return `${origin}${path}/socket/productionGraph`.replace(/([^:]\/)\/+/, "$1");
 }
 
+/**
+ * 后端 Socket.IO Server 挂载在 path=/api/socket.io 下（Express 登录中间件只放行该前缀）。
+ * 客户端必须显式传 path，否则默认落到 /socket.io 并被中间件 401。
+ */
+const SOCKET_IO_PATH = "/api/socket.io";
+
 function defaultSocketFactory(url: string, auth: Record<string, unknown>): ProductionGraphSocketAdapterSocket {
   return io(url, {
+    path: SOCKET_IO_PATH,
     autoConnect: true,
-    transports: ["websocket", "polling"],
+    // 先走 polling 建立已认证会话，再自动升级 WebSocket；避免本机 WebSocket 首次握手悬挂。
+    transports: ["polling", "websocket"],
     reconnection: true,
     reconnectionAttempts: 8,
     reconnectionDelay: 500,

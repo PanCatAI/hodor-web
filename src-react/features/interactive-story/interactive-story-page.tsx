@@ -215,7 +215,7 @@ export function InteractiveStoryPage({
   ) : null;
 
   return (
-    <main className="relative h-screen overflow-hidden bg-[#090b10] text-slate-100">
+    <main className="relative h-screen overflow-hidden bg-[#0b0b0b] text-slate-100">
       {graph ? (
         <InteractiveStoryCanvas
           graph={graph}
@@ -236,7 +236,7 @@ export function InteractiveStoryPage({
         <div className="absolute inset-0 grid place-items-center text-sm text-slate-500">互动剧情图暂时为空。</div>
       )}
       {error ? (
-        <div role="alert" className="absolute left-1/2 top-3 z-[60] -translate-x-1/2 rounded-lg border border-red-500/30 bg-slate-950 px-3 py-2 text-xs text-red-300 shadow-xl">
+        <div role="alert" className="absolute left-1/2 top-3 z-[60] -translate-x-1/2 rounded-lg border border-zinc-500/30 bg-slate-950 px-3 py-2 text-xs text-zinc-300 shadow-xl">
           {error}
         </div>
       ) : null}

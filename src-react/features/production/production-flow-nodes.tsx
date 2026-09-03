@@ -67,7 +67,7 @@ function NodeCard({
       onClick={onClick}
       onKeyDown={onKeyDown}
       tabIndex={onClick ? 0 : undefined}
-      className={`rounded-lg border border-slate-700 bg-[#242626] p-4 text-slate-100 shadow-sm ${className}`}>
+      className={`rounded-lg border border-slate-700 bg-[#262626] p-4 text-slate-100 shadow-sm ${className}`}>
       {children}
     </article>
   );
@@ -190,7 +190,7 @@ function ImageTools({ src, name, scale = 1 }: { src: string; name: string; scale
   };
 
   const toolClassName =
-    "grid size-7 place-items-center rounded border border-slate-500 bg-[#242626]/90 text-white hover:bg-[#343636] focus:outline-none focus:ring-1 focus:ring-blue-400";
+    "grid size-7 place-items-center rounded border border-slate-500 bg-[#262626]/90 text-white hover:bg-[#363636] focus:outline-none focus:ring-1 focus:ring-zinc-400";
 
   return (
     <>
@@ -267,7 +267,7 @@ function ImageTools({ src, name, scale = 1 }: { src: string; name: string; scale
 function AssetImage({ asset, original }: { asset: DerivedAsset | ProductionAsset; original: boolean }) {
   const completedImage = original ? Boolean(asset.src) : Boolean(asset.src && asset.state === "completed");
   return (
-    <div className="production-node-media group/image relative aspect-square w-full overflow-hidden rounded bg-[#303232]">
+    <div className="production-node-media group/image relative aspect-square w-full overflow-hidden rounded bg-[#323232]">
       {completedImage ? (
         <>
           <img src={asset.src} alt={asset.name} className="size-full object-contain" loading="lazy" />
@@ -277,7 +277,7 @@ function AssetImage({ asset, original }: { asset: DerivedAsset | ProductionAsset
         <div className="flex size-full flex-col items-center justify-center gap-2 text-xs text-slate-400">
           {asset.state === "running" ? <LoaderCircle className="size-5 animate-spin" /> : null}
           {asset.state === "failed" ? (
-            <span title={asset.errorReason || undefined} className="text-red-400">
+            <span title={asset.errorReason || undefined} className="text-zinc-400">
               生成失败
             </span>
           ) : null}
@@ -305,7 +305,7 @@ function AssetCard({ asset, original, data }: { asset: DerivedAsset | Production
           openEditor();
         }
       }}
-      className={`group relative flex w-[200px] shrink-0 flex-col justify-between rounded-lg border border-slate-700 bg-[#292b2b] p-3 ${original ? "" : "cursor-pointer"}`}>
+      className={`group relative flex w-[200px] shrink-0 flex-col justify-between rounded-lg border border-slate-700 bg-[#2b2b2b] p-3 ${original ? "" : "cursor-pointer"}`}>
       <AssetImage asset={asset} original={original} />
       {!original ? (
         <button
@@ -315,7 +315,7 @@ function AssetCard({ asset, original, data }: { asset: DerivedAsset | Production
             event.stopPropagation();
             data.onRemoveAsset(asset.id);
           }}
-          className="production-node-hover-tools nodrag absolute right-1 top-1 grid size-7 place-items-center rounded-lg bg-red-600/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100 focus:opacity-100">
+          className="production-node-hover-tools nodrag absolute right-1 top-1 grid size-7 place-items-center rounded-lg bg-zinc-600/80 text-white opacity-0 transition-opacity hover:bg-zinc-600 group-hover:opacity-100 focus:opacity-100">
           <Trash2 className="size-4" />
         </button>
       ) : null}
@@ -323,7 +323,7 @@ function AssetCard({ asset, original, data }: { asset: DerivedAsset | Production
         <div className="flex items-center justify-between gap-2 text-[13px] font-semibold">
           <span className="max-w-[120px] truncate">{asset.name}</span>
           <span
-            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${original ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
+            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${original ? "bg-zinc-500/20 text-zinc-400" : "bg-zinc-500/20 text-zinc-400"}`}>
             {original ? "原资产" : "衍生"}
           </span>
         </div>
@@ -351,7 +351,7 @@ function AssetsNode({ data }: NodeProps) {
                   {asset.derive.length ? (
                     asset.derive.map((derived) => <AssetCard key={derived.id} asset={derived} original={false} data={nodeData} />)
                   ) : (
-                    <div className="flex w-[200px] shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#292b2b] text-sm text-slate-400">
+                    <div className="flex w-[200px] shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#2b2b2b] text-sm text-slate-400">
                       无衍生资产
                     </div>
                   )}
@@ -364,7 +364,7 @@ function AssetsNode({ data }: NodeProps) {
   );
 }
 
-const storyboardTagColors = ["#5bccb3", "#9c7cfc", "#fbbf24", "#5b9afc", "#e86b6b", "#7cb8fc", "#e8a855", "#34d399"];
+const storyboardTagColors = ["#b2b2b2", "#8c8c8c", "#c1c1c1", "#949494", "#868686", "#b0b0b0", "#b0b0b0", "#adadad"];
 
 function StoryboardNode({ data }: NodeProps) {
   const nodeData = data as ProductionNodeData;
@@ -399,14 +399,14 @@ function StoryboardNode({ data }: NodeProps) {
                   type="button"
                   aria-label={`在分镜 ${storyboard.id} 前插入`}
                   onClick={() => nodeData.onInsertStoryboard(storyboard.id, "before")}
-                  className={`production-node-hover-tools nodrag absolute left-0 top-1/2 z-10 grid size-8 -translate-x-[calc(50%+4px)] -translate-y-1/2 place-items-center rounded-full border border-blue-500 bg-[#242626] text-blue-400 transition-opacity ${hoveredIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
+                  className={`production-node-hover-tools nodrag absolute left-0 top-1/2 z-10 grid size-8 -translate-x-[calc(50%+4px)] -translate-y-1/2 place-items-center rounded-full border border-zinc-500 bg-[#262626] text-zinc-400 transition-opacity ${hoveredIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
                   <Plus className="size-4" />
                 </button>
                 <div className="cursor-pointer">
                   <div
                     data-testid={`storyboard-frame-image-${storyboard.id}`}
                     style={{ width: `${frameSize}px`, height: `${frameSize}px` }}
-                    className={`production-node-media relative shrink-0 overflow-hidden rounded-lg bg-[#303232] ${selected.has(storyboard.id) ? "ring-2 ring-blue-500" : ""}`}>
+                    className={`production-node-media relative shrink-0 overflow-hidden rounded-lg bg-[#323232] ${selected.has(storyboard.id) ? "ring-2 ring-zinc-500" : ""}`}>
                     <label
                       style={{ transform: `scale(${overlayScale})`, transformOrigin: "top left" }}
                       className="nodrag absolute left-[3px] top-[3px] z-[3] flex items-center gap-1">
@@ -415,7 +415,7 @@ function StoryboardNode({ data }: NodeProps) {
                         aria-label={`选择分镜 ${storyboard.id}`}
                         checked={selected.has(storyboard.id)}
                         onChange={() => nodeData.onToggleStoryboard(storyboard.id)}
-                        className="size-4 accent-blue-500"
+                        className="size-4 accent-zinc-500"
                       />
                       <span
                         className="rounded px-1 text-[10px] font-semibold leading-[18px] text-white"
@@ -440,7 +440,7 @@ function StoryboardNode({ data }: NodeProps) {
                         onClick={() => nodeData.onEditStoryboard(storyboard)}
                         className="nodrag flex size-full flex-col items-center justify-center gap-1.5 text-xs text-slate-400">
                         {storyboard.state === "running" ? <LoaderCircle className="size-5 animate-spin" /> : null}
-                        {storyboard.state === "failed" ? <span className="text-red-400">生成失败</span> : null}
+                        {storyboard.state === "failed" ? <span className="text-zinc-400">生成失败</span> : null}
                         {storyboard.state !== "running" && storyboard.state !== "failed" ? <span>未生成</span> : null}
                       </button>
                     )}
@@ -449,7 +449,7 @@ function StoryboardNode({ data }: NodeProps) {
                       aria-label={`删除分镜 ${storyboard.id}`}
                       onClick={() => nodeData.onDeleteStoryboards([storyboard.id])}
                       style={{ transform: `scale(${overlayScale})`, transformOrigin: "top right" }}
-                      className="production-node-hover-tools nodrag absolute right-[3px] top-[3px] z-10 grid size-7 place-items-center rounded-lg bg-red-600/80 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100 focus:opacity-100">
+                      className="production-node-hover-tools nodrag absolute right-[3px] top-[3px] z-10 grid size-7 place-items-center rounded-lg bg-zinc-600/80 text-white opacity-0 transition-opacity hover:bg-zinc-600 group-hover:opacity-100 focus:opacity-100">
                       <Trash2 className="size-4" />
                     </button>
                     <button
@@ -457,7 +457,7 @@ function StoryboardNode({ data }: NodeProps) {
                       aria-label={`编辑分镜信息 ${storyboard.id}`}
                       onClick={() => nodeData.onEditStoryboardInfo(storyboard)}
                       style={{ transform: `scale(${overlayScale})`, transformOrigin: "bottom left" }}
-                      className="production-node-hover-tools nodrag absolute bottom-[3px] left-[3px] z-10 grid size-7 place-items-center rounded-lg bg-blue-500/80 text-white opacity-0 transition-opacity hover:bg-blue-500 group-hover:opacity-100 focus:opacity-100">
+                      className="production-node-hover-tools nodrag absolute bottom-[3px] left-[3px] z-10 grid size-7 place-items-center rounded-lg bg-zinc-500/80 text-white opacity-0 transition-opacity hover:bg-zinc-500 group-hover:opacity-100 focus:opacity-100">
                       <Pencil className="size-4" />
                     </button>
                   </div>
@@ -466,7 +466,7 @@ function StoryboardNode({ data }: NodeProps) {
                   type="button"
                   aria-label={`在分镜 ${storyboard.id} 后插入`}
                   onClick={() => nodeData.onInsertStoryboard(storyboard.id, "after")}
-                  className={`production-node-hover-tools nodrag absolute right-0 top-1/2 z-10 grid size-8 translate-x-[calc(50%+4px)] -translate-y-1/2 place-items-center rounded-full border border-blue-500 bg-[#242626] text-blue-400 transition-opacity ${hoveredIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
+                  className={`production-node-hover-tools nodrag absolute right-0 top-1/2 z-10 grid size-8 translate-x-[calc(50%+4px)] -translate-y-1/2 place-items-center rounded-full border border-zinc-500 bg-[#262626] text-zinc-400 transition-opacity ${hoveredIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
                   <Plus className="size-4" />
                 </button>
               </article>
@@ -492,12 +492,12 @@ function StoryboardNode({ data }: NodeProps) {
               const value = Number(event.target.value);
               if (Number.isFinite(value)) setGridScale(Math.min(3, Math.max(0.1, value)));
             }}
-            className="w-[120px] rounded border border-slate-600 bg-[#1b1c1c] px-2 py-1 text-sm outline-none focus:border-blue-500"
+            className="w-[120px] rounded border border-slate-600 bg-[#1c1c1c] px-2 py-1 text-sm outline-none focus:border-zinc-500"
           />
         </label>
 
         <div data-testid="storyboard-selection-controls" className="nodrag mb-1.5 mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="rounded bg-blue-500/15 px-2 py-1 text-xs text-blue-300">已选 {selected.size} 项</span>
+          <span className="rounded bg-zinc-500/15 px-2 py-1 text-xs text-zinc-300">已选 {selected.size} 项</span>
           <button
             type="button"
             disabled={!nodeData.flow.storyboard.length}
@@ -517,7 +517,7 @@ function StoryboardNode({ data }: NodeProps) {
             aria-label="批量删除分镜"
             disabled={!nodeData.flow.storyboard.length || !selected.size}
             onClick={() => nodeData.onDeleteStoryboards(nodeData.selectedStoryboardIds)}
-            className="rounded bg-red-600 px-2 py-1 text-xs text-white disabled:opacity-50">
+            className="rounded bg-zinc-600 px-2 py-1 text-xs text-white disabled:opacity-50">
             批量删除
           </button>
         </div>
@@ -528,7 +528,7 @@ function StoryboardNode({ data }: NodeProps) {
             aria-label="预览全部分镜"
             disabled={!nodeData.flow.storyboard.length}
             onClick={nodeData.onPreviewStoryboards}
-            className="flex-1 rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50">
+            className="flex-1 rounded bg-zinc-600 px-4 py-2 text-sm text-white disabled:opacity-50">
             宫格预览
           </button>
           <button
@@ -536,7 +536,7 @@ function StoryboardNode({ data }: NodeProps) {
             aria-label="批量生成分镜图"
             disabled={!nodeData.flow.storyboard.length || !selected.size || nodeData.generatingStoryboards}
             onClick={nodeData.onGenerateStoryboards}
-            className="flex-1 rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50">
+            className="flex-1 rounded bg-zinc-600 px-4 py-2 text-sm text-white disabled:opacity-50">
             {nodeData.generatingStoryboards ? "生成中" : "生成分镜图"}
           </button>
         </div>
@@ -549,7 +549,7 @@ function WorkbenchNode({ data }: NodeProps) {
   const nodeData = data as ProductionNodeData;
   const cover = typeof nodeData.flow.workbench?.cover === "string" ? nodeData.flow.workbench.cover : "";
   const gradient =
-    typeof nodeData.flow.workbench?.gradient === "string" ? nodeData.flow.workbench.gradient : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+    typeof nodeData.flow.workbench?.gradient === "string" ? nodeData.flow.workbench.gradient : "linear-gradient(135deg, #818181 0%, #5a5a5a 100%)";
   return (
     <NodeCard
       id="workbench"

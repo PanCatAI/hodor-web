@@ -45,6 +45,12 @@ export default defineConfig({
       "/skills": "http://127.0.0.1:10588",
     },
   },
+  preview: {
+    port: 50288,
+    strictPort: true,
+    // 允许 canary/preview 页面级验证通过 loopback 别名（如 localtest.me）访问。
+    allowedHosts: ["localtest.me", "localhost", "127.0.0.1"],
+  },
   test: {
     environment: "jsdom",
     globals: true,

@@ -55,8 +55,11 @@ export interface AgentSocket {
 }
 
 export interface AgentSocketOptions {
+  /** 后端 Socket.IO Server 挂载路径；必须与服务端 path 一致，否则请求落到默认 /socket.io 被 401。 */
+  path: string;
   autoConnect: false;
-  transports: ["websocket", "polling"];
+  /** 传输顺序固定为先 polling 后 websocket：先可靠建立认证会话再自动升级，避免本机 WebSocket 首握悬挂。 */
+  transports: ["polling", "websocket"];
   reconnection: true;
   reconnectionAttempts: number;
   reconnectionDelay: number;

@@ -8,9 +8,9 @@ export interface WorldProfileEditorProps {
 }
 
 const inputClass =
-  "h-10 w-full rounded-md border border-slate-700 bg-slate-950/70 px-3 text-sm text-slate-100 outline-none focus:border-blue-500";
+  "h-10 w-full rounded-md border border-slate-700 bg-slate-950/70 px-3 text-sm text-slate-100 outline-none focus:border-zinc-500";
 const textareaClass =
-  "min-h-24 w-full resize-y rounded-md border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm leading-6 text-slate-100 outline-none focus:border-blue-500";
+  "min-h-24 w-full resize-y rounded-md border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm leading-6 text-slate-100 outline-none focus:border-zinc-500";
 
 const listFields: ReadonlyArray<{
   key: Exclude<keyof ProjectWorldProfileForm, "schemaVersion" | "genre" | "culturalBase" | "era" | "premise">;

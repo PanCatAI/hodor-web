@@ -96,9 +96,9 @@ const stateLabels: Record<ProductionState, string> = {
 
 const stateStyles: Record<ProductionState, string> = {
   idle: "border-slate-600 bg-slate-900 text-slate-400",
-  running: "border-blue-500/40 bg-blue-500/10 text-blue-300",
-  completed: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
-  failed: "border-red-500/40 bg-red-500/10 text-red-300",
+  running: "border-zinc-500/40 bg-zinc-500/10 text-zinc-300",
+  completed: "border-zinc-500/40 bg-zinc-500/10 text-zinc-300",
+  failed: "border-zinc-500/40 bg-zinc-500/10 text-zinc-300",
 };
 
 export function InteractiveProductionStageNode({ id, data }: NodeProps) {
@@ -107,13 +107,13 @@ export function InteractiveProductionStageNode({ id, data }: NodeProps) {
   const status = describeStage(node);
   const label = stageLabels[node.stage];
   return (
-    <article className="w-[330px] rounded-lg border border-slate-700 bg-[#242626] p-4 text-slate-100 shadow-sm" data-testid={`interactive-production-node-${id}`}>
+    <article className="w-[330px] rounded-lg border border-slate-700 bg-[#262626] p-4 text-slate-100 shadow-sm" data-testid={`interactive-production-node-${id}`}>
       <Handle id={`${id}-target`} type="target" position={Position.Left} />
       <Handle id={`${id}-source`} type="source" position={Position.Right} />
       <header className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <Icon className="size-4 text-blue-300" />
+            <Icon className="size-4 text-zinc-300" />
             {label}
           </div>
           <div className="mt-1 text-[11px] text-slate-500">{node.storyTitle}</div>

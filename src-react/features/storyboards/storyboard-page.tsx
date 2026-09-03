@@ -12,6 +12,8 @@ export interface StoryboardPageProps {
   onOpenDirectorDesk?: (storyboardId: number) => void;
   onOpenImageEditor?: (storyboard: Storyboard) => void;
   pollIntervalMs?: number;
+  /** 嵌入画布模块时去掉重复页面头，由模块 host 管理标题、关闭、宽度与滚动。 */
+  embedded?: boolean;
 }
 
 function frameName(item: Storyboard, position: number) {
@@ -19,9 +21,9 @@ function frameName(item: Storyboard, position: number) {
 }
 
 function stateStyle(state: string) {
-  if (state === "已完成") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
-  if (state === "生成中") return "border-amber-400/30 bg-amber-400/10 text-amber-300";
-  if (state === "生成失败") return "border-red-400/30 bg-red-400/10 text-red-300";
+  if (state === "已完成") return "border-zinc-400/30 bg-zinc-400/10 text-zinc-300";
+  if (state === "生成中") return "border-zinc-400/30 bg-zinc-400/10 text-zinc-300";
+  if (state === "生成失败") return "border-zinc-400/30 bg-zinc-400/10 text-zinc-300";
   return "border-slate-400/20 bg-slate-400/10 text-slate-400";
 }
 
@@ -34,7 +36,7 @@ function saveBlob(blob: Blob, name: string) {
   URL.revokeObjectURL(url);
 }
 
-export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, onOpenImageEditor, pollIntervalMs = 5000 }: StoryboardPageProps) {
+export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, onOpenImageEditor, pollIntervalMs = 5000, embedded = false }: StoryboardPageProps) {
   const [items, setItems] = useState<Storyboard[]>([]);
   const [storyboardTable, setStoryboardTable] = useState("");
   const [loading, setLoading] = useState(true);
@@ -178,30 +180,32 @@ export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, o
   }
 
   return (
-    <section className="space-y-5" aria-labelledby="storyboard-title">
+    <section data-testid={embedded ? "storyboard-page-embedded" : undefined} className="space-y-5" aria-labelledby="storyboard-title">
       <header className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Storyboard</p>
-          <h1 id="storyboard-title" className="mt-2 text-2xl font-semibold text-white">分镜管理</h1>
-          <p className="mt-1 text-sm text-slate-400">镜头脚本、生成状态和成片素材集中在这里。</p>
-        </div>
+        {!embedded ? (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Storyboard</p>
+            <h1 id="storyboard-title" className="mt-2 text-2xl font-semibold text-white">分镜管理</h1>
+            <p className="mt-1 text-sm text-slate-400">镜头脚本、生成状态和成片素材集中在这里。</p>
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-2"><Button variant="ghost" disabled={working || !availableImageIds.length} onClick={() => void previewGrid()}><Grid2X2 className="mr-2" size={16} />网格预览</Button><Button variant="ghost" disabled={working || !availableImageIds.length} onClick={() => void downloadGrid()}><Download className="mr-2" size={16} />下载网格</Button><Button variant="ghost" disabled={loading} onClick={() => void load()}><RefreshCw className={`mr-2 ${loading ? "animate-spin" : ""}`} size={16} />刷新状态</Button></div>
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
         <Button disabled={!selectedIds.length || working} onClick={() => void generateSelected()}><Wand2 className="mr-2" size={16} />批量生图 ({selectedIds.length})</Button>
-        <Button variant="ghost" className="text-red-300" disabled={!selectedIds.length || working} onClick={() => void removeSelected()}><Trash2 className="mr-2" size={16} />批量删除 ({selectedIds.length})</Button>
+        <Button variant="ghost" className="text-zinc-300" disabled={!selectedIds.length || working} onClick={() => void removeSelected()}><Trash2 className="mr-2" size={16} />批量删除 ({selectedIds.length})</Button>
         <label className="ml-auto flex items-center gap-2 text-sm text-slate-400"><input aria-label="选择全部分镜" type="checkbox" checked={items.length > 0 && items.every((item) => selectedIds.includes(item.id))} onChange={(event) => setSelectedIds(event.target.checked ? items.map((item) => item.id) : [])} />全选</label>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[{ label: "镜头总数", value: stats.total }, { label: "已完成", value: stats.finished }, { label: "生成中", value: stats.running }, { label: "失败", value: stats.failed }].map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-border bg-[#0d1119] px-4 py-3"><p className="text-xs text-slate-500">{stat.label}</p><p className="mt-1 text-2xl font-semibold text-white">{stat.value}</p></div>
+          <div key={stat.label} className="rounded-xl border border-border bg-[#111111] px-4 py-3"><p className="text-xs text-slate-500">{stat.label}</p><p className="mt-1 text-2xl font-semibold text-white">{stat.value}</p></div>
         ))}
       </div>
 
-      {storyboardTable ? <details className="rounded-xl border border-border bg-[#0d1119] p-4"><summary className="cursor-pointer text-sm font-medium text-slate-300">查看镜头表原文</summary><pre className="mt-4 max-h-80 overflow-auto whitespace-pre-wrap text-sm leading-6 text-slate-400">{storyboardTable}</pre></details> : null}
-      {error ? <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">{error}</p> : null}
+      {storyboardTable ? <details className="rounded-xl border border-border bg-[#111111] p-4"><summary className="cursor-pointer text-sm font-medium text-slate-300">查看镜头表原文</summary><pre className="mt-4 max-h-80 overflow-auto whitespace-pre-wrap text-sm leading-6 text-slate-400">{storyboardTable}</pre></details> : null}
+      {error ? <p role="alert" className="rounded-lg border border-zinc-400/30 bg-zinc-400/10 px-4 py-3 text-sm text-zinc-300">{error}</p> : null}
       {loading ? <p className="py-16 text-center text-sm text-slate-500">正在加载分镜…</p> : null}
       {!loading && items.length === 0 ? <p className="rounded-xl border border-dashed border-border py-20 text-center text-sm text-slate-500">当前剧本还没有分镜</p> : null}
 
@@ -210,7 +214,7 @@ export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, o
           const name = frameName(item, position);
           const stateText = item.state === "生成失败" && item.reason ? `生成失败：${item.reason}` : item.state || "未生成";
           return (
-            <article key={item.id} className="overflow-hidden rounded-xl border border-border bg-[#0d1119]">
+            <article key={item.id} className="overflow-hidden rounded-xl border border-border bg-[#111111]">
               <div className="relative aspect-video bg-black/30">
                 {item.src ? <img src={item.src} alt={`分镜 ${name}`} className="h-full w-full object-contain" loading="lazy" /> : <div className="grid h-full place-items-center text-slate-600"><ImageOff size={28} /></div>}
                 <span className="absolute left-3 top-3 rounded bg-black/75 px-2 py-1 font-mono text-xs text-white">{name}</span>
@@ -237,7 +241,7 @@ export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, o
                       </Button>
                     ) : null}
                     <Button aria-label={`编辑分镜 ${name}`} variant="ghost" onClick={() => setDraft({ ...item })}><Pencil size={16} /></Button>
-                    <Button aria-label={`删除分镜 ${name}`} variant="ghost" className="text-red-300 hover:bg-red-400/10" onClick={() => void remove(item)}><Trash2 size={16} /></Button>
+                    <Button aria-label={`删除分镜 ${name}`} variant="ghost" className="text-zinc-300 hover:bg-zinc-400/10" onClick={() => void remove(item)}><Trash2 size={16} /></Button>
                   </div>
                 </div>
               </div>
@@ -248,7 +252,7 @@ export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, o
 
       {draft ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/65" role="dialog" aria-modal="true" aria-labelledby="storyboard-editor-title">
-          <div className="h-full w-full max-w-2xl overflow-y-auto border-l border-border bg-[#0b0e14] p-6 shadow-2xl">
+          <div className="h-full w-full max-w-2xl overflow-y-auto border-l border-border bg-[#0e0e0e] p-6 shadow-2xl">
             <header className="mb-6 flex items-start justify-between">
               <div><h2 id="storyboard-editor-title" className="text-xl font-semibold text-white">编辑分镜</h2><p className="mt-1 text-sm text-slate-500">修改图片提示词和视频镜头描述。</p></div>
               <Button aria-label="关闭分镜编辑" variant="ghost" onClick={() => setDraft(null)}><X size={18} /></Button>
@@ -264,7 +268,7 @@ export function StoryboardPage({ api, projectId, scriptId, onOpenDirectorDesk, o
 
       {gridPreview ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-6" role="dialog" aria-modal="true" aria-labelledby="grid-preview-title">
-          <div className="max-h-full w-full max-w-6xl overflow-auto rounded-xl border border-border bg-[#0b0e14] p-5"><header className="mb-4 flex items-center justify-between"><h2 id="grid-preview-title" className="text-lg font-semibold text-white">分镜网格预览</h2><Button aria-label="关闭网格预览" variant="ghost" onClick={() => setGridPreview(null)}><X size={18} /></Button></header><img src={gridPreview} alt="分镜网格预览" className="mx-auto max-h-[75vh] max-w-full object-contain" /></div>
+          <div className="max-h-full w-full max-w-6xl overflow-auto rounded-xl border border-border bg-[#0e0e0e] p-5"><header className="mb-4 flex items-center justify-between"><h2 id="grid-preview-title" className="text-lg font-semibold text-white">分镜网格预览</h2><Button aria-label="关闭网格预览" variant="ghost" onClick={() => setGridPreview(null)}><X size={18} /></Button></header><img src={gridPreview} alt="分镜网格预览" className="mx-auto max-h-[75vh] max-w-full object-contain" /></div>
         </div>
       ) : null}
     </section>

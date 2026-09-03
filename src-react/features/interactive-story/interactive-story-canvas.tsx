@@ -123,11 +123,11 @@ function createEdges(graph: InteractiveStoryGraph): Edge[] {
     label: edge.label,
     animated: edge.kind === "choice",
     style: {
-      stroke: edge.kind === "choice" ? "#3b82f6" : "#475569",
+      stroke: edge.kind === "choice" ? "#7b7b7b" : "#535353",
       strokeWidth: edge.kind === "choice" ? 3 : 2,
     },
-    labelStyle: { fill: "#dbeafe", fontSize: 12 },
-    labelBgStyle: { fill: "#0f172a", fillOpacity: 0.94 },
+    labelStyle: { fill: "#e8e8e8", fontSize: 12 },
+    labelBgStyle: { fill: "#171717", fillOpacity: 0.94 },
     labelBgPadding: [8, 5],
     labelBgBorderRadius: 6,
   }));

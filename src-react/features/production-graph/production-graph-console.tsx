@@ -80,12 +80,12 @@ function randomIdempotencyKey(prefix: string): string {
 }
 
 function statusTone(status: string): string {
-  if (status === "succeeded") return "border-emerald-700/70 bg-emerald-950/40 text-emerald-200";
-  if (status === "running") return "border-blue-700/70 bg-blue-950/40 text-blue-200";
-  if (status === "failed" || status === "cancelled") return "border-red-800/70 bg-red-950/40 text-red-200";
-  if (status === "waiting_decision") return "border-amber-700/70 bg-amber-950/40 text-amber-200";
+  if (status === "succeeded") return "border-zinc-700/70 bg-zinc-950/40 text-zinc-200";
+  if (status === "running") return "border-zinc-700/70 bg-zinc-950/40 text-zinc-200";
+  if (status === "failed" || status === "cancelled") return "border-zinc-800/70 bg-zinc-950/40 text-zinc-200";
+  if (status === "waiting_decision") return "border-zinc-700/70 bg-zinc-950/40 text-zinc-200";
   if (status === "paused") return "border-slate-600 bg-slate-800/60 text-slate-200";
-  if (status === "ready") return "border-violet-700/70 bg-violet-950/30 text-violet-100";
+  if (status === "ready") return "border-zinc-700/70 bg-zinc-950/30 text-zinc-100";
   return "border-slate-700 bg-slate-900/60 text-slate-300";
 }
 
@@ -164,7 +164,7 @@ function NodeRow({
         onClick={() => onSelect(node)}
         className={`flex w-full flex-col gap-1 rounded-md border px-3 py-2 text-left text-xs transition ${statusTone(
           node.status,
-        )} ${selected ? "ring-2 ring-blue-400" : ""}`}>
+        )} ${selected ? "ring-2 ring-zinc-400" : ""}`}>
         <span className="flex items-center justify-between gap-2">
           <span className="font-medium">{node.title}</span>
           <span className="rounded-full border border-current/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
@@ -213,7 +213,7 @@ function CheckpointPanel({
   if (node.kind !== "checkpoint") return null;
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-xs text-amber-200">
+      <div className="flex items-center gap-2 text-xs text-zinc-200">
         <ShieldAlert className="size-4" />
         <span>
           {CHECKPOINT_REASON_LABELS[node.checkpointReason ?? "manual_review"]} 控制点 · {node.checkpointId}
@@ -221,7 +221,7 @@ function CheckpointPanel({
       </div>
       <p className="text-[11px] text-slate-300">{node.objective}</p>
       {decision ? (
-        <p className="text-[11px] text-emerald-200">
+        <p className="text-[11px] text-zinc-200">
           已记录决定：{decision.outcome} · 由 {decision.actorRef ?? "system"} 在 {decision.decisionAt} 记录
         </p>
       ) : (
@@ -233,7 +233,7 @@ function CheckpointPanel({
             key={outcome}
             type="button"
             aria-label={`提交检查点决定 ${outcome}`}
-            className="rounded-md border border-amber-700/60 bg-amber-950/40 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-900/40"
+            className="rounded-md border border-zinc-700/60 bg-zinc-950/40 px-2 py-1 text-[11px] text-zinc-100 hover:bg-zinc-900/40"
             onClick={() => onResolve(outcome)}>
             {outcome === "approved" ? "批准" : outcome === "rejected" ? "拒绝" : "推迟"}
           </button>
@@ -369,7 +369,7 @@ function LegacyProductionRunBanner({ store }: { store: ProductionGraphStore }) {
       role="status"
       aria-label="兼容 productionRun 进度"
       className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${
-        failed ? "border-amber-800/60 bg-amber-950/30 text-amber-100" : "border-slate-700 bg-slate-900/70 text-slate-200"
+        failed ? "border-zinc-800/60 bg-zinc-950/30 text-zinc-100" : "border-slate-700 bg-slate-900/70 text-slate-200"
       }`}>
       {failed ? <AlertTriangle className="size-3.5 shrink-0" /> : <Clock className="size-3.5 shrink-0" />}
       <div className="flex flex-col gap-1">
@@ -445,7 +445,7 @@ export function ProductionGraphConsole({
     return (
       <section
         aria-label="ProductionGraph v1 控制台"
-        className="flex h-full min-h-0 flex-col gap-3 rounded-lg border border-slate-800 bg-[#10131b] p-4 text-slate-200">
+        className="flex h-full min-h-0 flex-col gap-3 rounded-lg border border-slate-800 bg-[#131313] p-4 text-slate-200">
         <header className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">ProductionGraph v1</h2>
           <span className="text-[10px] uppercase tracking-wider text-slate-500">{featureLabel ?? "feature off"}</span>
@@ -461,7 +461,7 @@ export function ProductionGraphConsole({
     return (
       <section
         aria-label="ProductionGraph v1 控制台"
-        className="flex h-full min-h-0 flex-col gap-3 rounded-lg border border-slate-800 bg-[#10131b] p-4 text-slate-200">
+        className="flex h-full min-h-0 flex-col gap-3 rounded-lg border border-slate-800 bg-[#131313] p-4 text-slate-200">
         <header className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">ProductionGraph v1</h2>
           <span className="text-[10px] uppercase tracking-wider text-slate-500">{featureLabel ?? "feature on"}</span>
@@ -479,7 +479,7 @@ export function ProductionGraphConsole({
   return (
     <section
       aria-label="ProductionGraph v1 控制台"
-      className="flex h-full min-h-0 flex-col gap-3 rounded-lg border border-slate-800 bg-[#10131b] p-4 text-slate-200">
+      className="flex h-full min-h-0 flex-col gap-3 rounded-lg border border-slate-800 bg-[#131313] p-4 text-slate-200">
       <header className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">ProductionGraph v1</h2>
@@ -491,7 +491,7 @@ export function ProductionGraphConsole({
       </header>
 
       {state.lastError ? (
-        <div role="alert" className="rounded border border-red-900/60 bg-red-950/30 px-3 py-2 text-xs text-red-200">
+        <div role="alert" className="rounded border border-zinc-900/60 bg-zinc-950/30 px-3 py-2 text-xs text-zinc-200">
           <span className="font-medium">{state.lastError.code}</span> · {state.lastError.message}
         </div>
       ) : null}
@@ -502,8 +502,8 @@ export function ProductionGraphConsole({
           aria-label={`动作 ${notice.action} 结果`}
           className={`rounded-md border px-3 py-2 text-xs ${
             notice.ok
-              ? "border-emerald-800/60 bg-emerald-950/30 text-emerald-100"
-              : "border-amber-800/60 bg-amber-950/30 text-amber-100"
+              ? "border-zinc-800/60 bg-zinc-950/30 text-zinc-100"
+              : "border-zinc-800/60 bg-zinc-950/30 text-zinc-100"
           }`}>
           {notice.ok ? (
             <Fragment>

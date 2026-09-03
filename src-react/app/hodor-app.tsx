@@ -37,11 +37,11 @@ export function HodorApp({
   }, [resolveBackendApiBaseUrl]);
 
   if (error) {
-    return <main role="alert" className="grid min-h-screen place-items-center bg-[#090b10] px-6 text-red-300">{error}</main>;
+    return <main role="alert" className="grid min-h-screen place-items-center bg-[#0b0b0b] px-6 text-zinc-300">{error}</main>;
   }
 
   if (!router) {
-    return <main className="grid min-h-screen place-items-center bg-[#090b10] text-sm text-slate-400">正在连接 Hodor 后端…</main>;
+    return <main className="grid min-h-screen place-items-center bg-[#0b0b0b] text-sm text-slate-400">正在连接 Hodor 后端…</main>;
   }
 
   return <RouterProvider router={router} />;

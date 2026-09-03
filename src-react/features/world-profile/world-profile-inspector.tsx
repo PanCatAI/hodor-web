@@ -66,8 +66,8 @@ export function WorldProfileInspector({ profile, onSave, onClose, onExtract }: W
 
   return (
     <div role="dialog" aria-modal="true" aria-label="世界设定" className="fixed inset-0 z-[90] flex justify-end bg-slate-950/75 backdrop-blur-sm">
-      <form onSubmit={(event) => void submit(event)} className="h-full w-full max-w-3xl overflow-y-auto border-l border-slate-700 bg-[#10131b] p-6 shadow-2xl">
-        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-800 bg-[#10131b] pb-5">
+      <form onSubmit={(event) => void submit(event)} className="h-full w-full max-w-3xl overflow-y-auto border-l border-slate-700 bg-[#131313] p-6 shadow-2xl">
+        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-800 bg-[#131313] pb-5">
           <div>
             <h2 className="text-xl font-semibold text-slate-100">世界设定</h2>
             <p className="mt-1 text-sm text-slate-500">修改后只更新项目级节点，并由后端注入后续生产提示词。</p>
@@ -77,7 +77,7 @@ export function WorldProfileInspector({ profile, onSave, onClose, onExtract }: W
           </button>
         </header>
         {error ? (
-          <div role="alert" className="mt-5 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-300">
+          <div role="alert" className="mt-5 flex items-start gap-2 rounded-lg border border-zinc-500/30 bg-zinc-500/5 p-3 text-sm text-zinc-300">
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             {error}
           </div>
@@ -92,7 +92,7 @@ export function WorldProfileInspector({ profile, onSave, onClose, onExtract }: W
               aria-label="从原文整理世界设定"
               disabled={extracting !== null}
               onClick={() => void extract("merge")}
-              className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-xs text-blue-200 disabled:opacity-50">
+              className="rounded-lg border border-zinc-500/40 bg-zinc-500/10 px-3 py-2 text-xs text-zinc-200 disabled:opacity-50">
               {extracting === "merge" ? "整理中…" : "从原文整理"}
             </button>
             {profile ? (
@@ -110,11 +110,11 @@ export function WorldProfileInspector({ profile, onSave, onClose, onExtract }: W
         <div className="mt-6">
           <WorldProfileEditor value={draft} onChange={setDraft} compact />
         </div>
-        <footer className="sticky bottom-0 mt-6 flex justify-end gap-3 border-t border-slate-800 bg-[#10131b] py-4">
+        <footer className="sticky bottom-0 mt-6 flex justify-end gap-3 border-t border-slate-800 bg-[#131313] py-4">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300">
             取消
           </button>
-          <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50">
+          <button type="submit" disabled={saving} className="rounded-lg bg-zinc-600 px-4 py-2 text-sm text-white disabled:opacity-50">
             {saving ? "保存中…" : "保存世界设定"}
           </button>
         </footer>

@@ -65,7 +65,7 @@ function TextStage({
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         placeholder={`等待智能体生成${label}`}
-        className="min-h-[360px] flex-1 resize-none rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm leading-7 text-slate-100 outline-none focus:border-blue-500"
+        className="min-h-[360px] flex-1 resize-none rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm leading-7 text-slate-100 outline-none focus:border-zinc-500"
       />
       <div className="flex justify-end">
         <button
@@ -79,7 +79,7 @@ function TextStage({
               setSaving(false);
             }
           }}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-500 disabled:opacity-40">
+          className="flex items-center gap-2 rounded-lg bg-zinc-600 px-4 py-2 text-sm text-white hover:bg-zinc-500 disabled:opacity-40">
           {saving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
           保存
         </button>
@@ -126,16 +126,16 @@ function AssetStage({
             </div>
             <textarea aria-label={`${asset.name}描述`} value={asset.desc} onChange={(event) => onEdit(asset.id, "desc", event.target.value)} className="h-24 w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs leading-5" />
             <textarea aria-label={`${asset.name}提示词`} value={asset.prompt} onChange={(event) => onEdit(asset.id, "prompt", event.target.value)} className="h-28 w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs leading-5" />
-            {asset.errorReason ? <p className="text-xs text-red-300">{asset.errorReason}</p> : null}
+            {asset.errorReason ? <p className="text-xs text-zinc-300">{asset.errorReason}</p> : null}
             <div className="flex gap-2">
               <button type="button" aria-label={`保存${asset.name}`} onClick={() => void onCommit(asset.id)} className="flex items-center gap-2 rounded-lg border border-slate-600 px-3 py-2 text-xs hover:bg-slate-800">
                 <Save className="size-4" />保存
               </button>
-              <button type="button" disabled={busyId === asset.id} onClick={() => void onGenerate(asset.id)} className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs hover:bg-blue-500 disabled:opacity-50">
+              <button type="button" disabled={busyId === asset.id} onClick={() => void onGenerate(asset.id)} className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-zinc-600 px-3 py-2 text-xs hover:bg-zinc-500 disabled:opacity-50">
                 {busyId === asset.id ? <LoaderCircle className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
                 {asset.state === "failed" ? "重试生成" : "生成图片"}
               </button>
-              <button type="button" aria-label={`删除${asset.name}`} onClick={() => void onDelete(asset.id)} className="rounded-lg border border-red-500/40 px-3 text-red-300 hover:bg-red-500/10">
+              <button type="button" aria-label={`删除${asset.name}`} onClick={() => void onDelete(asset.id)} className="rounded-lg border border-zinc-500/40 px-3 text-zinc-300 hover:bg-zinc-500/10">
                 <Trash2 className="size-4" />
               </button>
             </div>
@@ -176,16 +176,16 @@ function StoryboardStage({
             </div>
             <textarea aria-label={`分镜 ${item.index + 1}描述`} value={item.videoDesc} onChange={(event) => onEdit({ ...item, videoDesc: event.target.value })} className="h-24 w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs leading-5" />
             <textarea aria-label={`分镜 ${item.index + 1}提示词`} value={item.prompt} onChange={(event) => onEdit({ ...item, prompt: event.target.value })} className="h-28 w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs leading-5" />
-            {item.errorReason ? <p className="text-xs text-red-300">{item.errorReason}</p> : null}
+            {item.errorReason ? <p className="text-xs text-zinc-300">{item.errorReason}</p> : null}
             <div className="flex gap-2">
               <button type="button" aria-label={`保存分镜 ${item.index + 1}`} onClick={() => void onCommit(item)} className="flex items-center gap-2 rounded-lg border border-slate-600 px-3 py-2 text-xs hover:bg-slate-800">
                 <Save className="size-4" />保存
               </button>
-              <button type="button" disabled={busyId === item.id} onClick={() => void onGenerate(item.id)} className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs hover:bg-blue-500 disabled:opacity-50">
+              <button type="button" disabled={busyId === item.id} onClick={() => void onGenerate(item.id)} className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-zinc-600 px-3 py-2 text-xs hover:bg-zinc-500 disabled:opacity-50">
                 {busyId === item.id ? <LoaderCircle className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
                 {item.state === "failed" ? "重试分镜" : "生成分镜"}
               </button>
-              <button type="button" aria-label={`删除分镜 ${item.index + 1}`} onClick={() => void onDelete(item.id)} className="rounded-lg border border-red-500/40 px-3 text-red-300 hover:bg-red-500/10"><Trash2 className="size-4" /></button>
+              <button type="button" aria-label={`删除分镜 ${item.index + 1}`} onClick={() => void onDelete(item.id)} className="rounded-lg border border-zinc-500/40 px-3 text-zinc-300 hover:bg-zinc-500/10"><Trash2 className="size-4" /></button>
             </div>
           </div>
         </article>
@@ -221,14 +221,14 @@ function WorkbenchStage({
           <textarea aria-label={`轨道 ${index + 1}视频提示词`} value={track.prompt} onChange={(event) => onPrompt(track, event.target.value)} className="mt-3 h-24 w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs leading-5" />
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {track.videoList.map((video) => (
-              <button key={video.id} type="button" onClick={() => void onSelect(track.id, video.id)} className={`overflow-hidden rounded-lg border text-left ${track.selectVideoId === video.id ? "border-emerald-500 ring-2 ring-emerald-500/20" : "border-slate-700"}`}>
+              <button key={video.id} type="button" onClick={() => void onSelect(track.id, video.id)} className={`overflow-hidden rounded-lg border text-left ${track.selectVideoId === video.id ? "border-zinc-500 ring-2 ring-zinc-500/20" : "border-slate-700"}`}>
                 {video.src ? <video src={video.src} className="aspect-video w-full bg-black object-contain" controls /> : <div className="grid aspect-video place-items-center bg-slate-900 text-xs text-slate-500">{stateLabel(video.state)}</div>}
-                <span className="flex items-center gap-2 px-3 py-2 text-xs">{track.selectVideoId === video.id ? <CheckCircle2 className="size-4 text-emerald-400" /> : null}候选 {video.id}</span>
+                <span className="flex items-center gap-2 px-3 py-2 text-xs">{track.selectVideoId === video.id ? <CheckCircle2 className="size-4 text-zinc-400" /> : null}候选 {video.id}</span>
               </button>
             ))}
           </div>
-          {track.errorReason ? <p className="mt-3 text-xs text-red-300">{track.errorReason}</p> : null}
-          <button type="button" disabled={busyId === track.id} onClick={() => void onGenerate(track)} className="mt-3 flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs hover:bg-blue-500 disabled:opacity-50">
+          {track.errorReason ? <p className="mt-3 text-xs text-zinc-300">{track.errorReason}</p> : null}
+          <button type="button" disabled={busyId === track.id} onClick={() => void onGenerate(track)} className="mt-3 flex items-center gap-2 rounded-lg bg-zinc-600 px-4 py-2 text-xs hover:bg-zinc-500 disabled:opacity-50">
             {busyId === track.id ? <LoaderCircle className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
             生成新候选视频
           </button>
@@ -387,24 +387,24 @@ export function InteractiveProductionStageInspector({
         {checks.map(([name, done]) => (
           <div key={name} className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3">
             <span>{name}</span>
-            <span className={done ? "text-emerald-300" : "text-slate-500"}>{done ? "已通过" : "待完成"}</span>
+            <span className={done ? "text-zinc-300" : "text-slate-500"}>{done ? "已通过" : "待完成"}</span>
           </div>
         ))}
-        <p className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 text-sm leading-6 text-blue-100">右侧剧本智能体可读取当前节点及全部上游结果，并继续执行缺失阶段。</p>
+        <p className="rounded-xl border border-zinc-500/20 bg-zinc-500/5 p-4 text-sm leading-6 text-zinc-100">右侧剧本智能体可读取当前节点及全部上游结果，并继续执行缺失阶段。</p>
       </div>
     );
   }
 
   return (
-    <aside role="region" aria-label={`${node.title}${label}节点详情`} className="absolute bottom-4 left-4 right-[430px] top-16 z-[70] flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-700 bg-[#0d1118]/98 text-slate-100 shadow-2xl">
+    <aside role="region" aria-label={`${node.title}${label}节点详情`} className="absolute bottom-4 left-4 right-[430px] top-16 z-[70] flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-700 bg-[#111111]/98 text-slate-100 shadow-2xl">
       <header className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
-        <div><strong className="text-base">{node.title}</strong><span className="ml-3 text-sm text-blue-300">{label}</span></div>
+        <div><strong className="text-base">{node.title}</strong><span className="ml-3 text-sm text-zinc-300">{label}</span></div>
         <div className="flex gap-2">
           <button type="button" aria-label="刷新节点详情" onClick={() => void onRefresh()} className="grid size-9 place-items-center rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800"><RefreshCw className="size-4" /></button>
           <button type="button" aria-label="关闭节点详情" onClick={onClose} className="grid size-9 place-items-center rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800"><X className="size-4" /></button>
         </div>
       </header>
-      {notice ? <div role="alert" className="border-b border-red-500/20 bg-red-500/10 px-5 py-3 text-sm text-red-200">{notice}</div> : null}
+      {notice ? <div role="alert" className="border-b border-zinc-500/20 bg-zinc-500/10 px-5 py-3 text-sm text-zinc-200">{notice}</div> : null}
       <div className="min-h-0 flex-1 overflow-y-auto p-5">{content}</div>
     </aside>
   );

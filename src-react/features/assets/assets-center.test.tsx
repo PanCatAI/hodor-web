@@ -191,4 +191,17 @@ describe("React asset center", () => {
     fireEvent.click(screen.getByRole("button", { name: "重试图片 黛利拉" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Pancat 暂时不可用");
   });
+
+  it("embedded mode drops the full-screen shell and duplicated page header", async () => {
+    const api = createFakeApi();
+    const { container } = render(<AssetsCenter projectId={42} api={api} embedded />);
+    await screen.findByText("黛利拉");
+    expect(screen.getByTestId("assets-center-embedded")).toBeInTheDocument();
+    expect(container.querySelector("main.min-h-screen")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "资产中心" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Asset Factory")).not.toBeInTheDocument();
+    // 功能按钮与列表仍在，交给模块 host 管理标题、关闭与滚动。
+    expect(screen.getByRole("button", { name: "新建角色" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "搜索资产" })).toBeInTheDocument();
+  });
 });

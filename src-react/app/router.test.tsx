@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { isValidElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ProductionAgentPage, ProductionAgentPanel } from "@react/features/agents";
+import { ProductionAgentPanel } from "@react/features/agents";
 import { ProductionWorkbench } from "@react/features/production";
 import type { ProductionApi, ProductionProject, ProductionWorkbenchProps } from "@react/features/production";
 import { HodorApp } from "./hodor-app";
@@ -20,10 +20,17 @@ function authenticate() {
 describe("Hodor React router", () => {
   beforeEach(() => {
     window.scrollTo = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
     openRoute("/projects");
   });
 
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -116,7 +123,15 @@ describe("Hodor React router", () => {
     const deepLink = renderProduction({ projectId: 7, projectType: "novel", episodeId: 19, view: "agent" });
     expect(isValidElement(deepLink)).toBe(true);
     if (!isValidElement(deepLink)) throw new Error("Agent 深链没有返回 React 元素");
-    expect(deepLink.type).toBe(ProductionAgentPage);
+    // 画布内嵌模式使用面板形态（display="panel"），不创建第二个全页壳。
+    expect(deepLink.type).toBe(ProductionAgentPanel);
+    expect(deepLink.props).toMatchObject({
+      projectId: 7,
+      episodeId: 19,
+      apiClient,
+      apiBaseUrl: "/api",
+      getToken: expect.any(Function),
+    });
   });
 
   it("requires a storyboard when the director desk route is opened directly", async () => {
@@ -316,8 +331,9 @@ describe("Hodor React router", () => {
 
     render(<HodorApp />);
 
-    expect(await screen.findByRole("button", { name: "开始制作视频" })).toBeInTheDocument();
-    expect(screen.getByText("协调资产、分镜、视频和后续生产任务。")).toBeInTheDocument();
+    // Agent 深链重定向到画布生产模块，模块 host 内嵌面板形态（无全页壳与重复描述头）。
+    expect(await screen.findByRole("dialog", { name: "生产模块" })).toBeInTheDocument();
+    expect(await screen.findByText("第一集")).toBeInTheDocument();
   });
 
   it("mounts the project-group Studio OS control room from the authoritative snapshot", async () => {

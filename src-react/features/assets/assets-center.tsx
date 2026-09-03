@@ -52,11 +52,11 @@ function StatusBadge({ asset }: { asset: AssetRecord }) {
   const status = assetStatus(asset);
   const tone =
     status === "生成中"
-      ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
+      ? "border-zinc-400/30 bg-zinc-400/10 text-zinc-300"
       : status === "生成失败"
-        ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
+        ? "border-zinc-400/30 bg-zinc-400/10 text-zinc-300"
         : status === "已完成"
-          ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+          ? "border-zinc-400/30 bg-zinc-400/10 text-zinc-300"
           : "border-slate-700 bg-slate-800 text-slate-400";
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${tone}`}>
@@ -110,9 +110,9 @@ function AssetRow({ asset, onPreview, onEdit, onDelete, onHistory, onRetryPrompt
       <div className="flex gap-1">
         <button type="button" aria-label={`编辑 ${asset.name}`} onClick={() => onEdit(asset)} className="p-2 text-slate-400 hover:text-white"><Pencil size={15} /></button>
         {VISUAL_TYPES.has(asset.type) ? <button type="button" aria-label={`图片历史 ${asset.name}`} onClick={() => onHistory(asset)} className="p-2 text-slate-400 hover:text-white"><History size={15} /></button> : null}
-        {asset.promptState === "生成失败" || asset.promptState === "失败" ? <button type="button" aria-label={`重试提示词 ${asset.name}`} onClick={() => onRetryPrompt(asset)} className="p-2 text-violet-400 hover:text-violet-300">重试词</button> : null}
-        {asset.state === "生成失败" ? <button type="button" aria-label={`重试图片 ${asset.name}`} onClick={() => onRetryImage(asset)} className="p-2 text-blue-400 hover:text-blue-300">重试图</button> : null}
-        <button type="button" aria-label={`删除 ${asset.name}`} onClick={() => onDelete(asset)} className="p-2 text-rose-400 hover:text-rose-300"><Trash2 size={15} /></button>
+        {asset.promptState === "生成失败" || asset.promptState === "失败" ? <button type="button" aria-label={`重试提示词 ${asset.name}`} onClick={() => onRetryPrompt(asset)} className="p-2 text-zinc-400 hover:text-zinc-300">重试词</button> : null}
+        {asset.state === "生成失败" ? <button type="button" aria-label={`重试图片 ${asset.name}`} onClick={() => onRetryImage(asset)} className="p-2 text-zinc-400 hover:text-zinc-300">重试图</button> : null}
+        <button type="button" aria-label={`删除 ${asset.name}`} onClick={() => onDelete(asset)} className="p-2 text-zinc-400 hover:text-zinc-300"><Trash2 size={15} /></button>
       </div>
     </div>
   );
@@ -124,12 +124,12 @@ function EditAssetDialog({ asset, api, onClose, onSaved }: { asset: AssetRecord;
   const [prompt, setPrompt] = useState(asset.prompt ?? "");
   const [error, setError] = useState("");
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-label={`编辑${asset.name}`}>
-    <form className="w-full max-w-lg space-y-4 rounded-xl border border-white/10 bg-[#11141b] p-6" onSubmit={async (event) => { event.preventDefault(); try { await api.updateAsset({ id: asset.id, name, describe, prompt, remark: asset.remark }); await onSaved(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "保存失败"); } }}>
+    <form className="w-full max-w-lg space-y-4 rounded-xl border border-white/10 bg-[#141414] p-6" onSubmit={async (event) => { event.preventDefault(); try { await api.updateAsset({ id: asset.id, name, describe, prompt, remark: asset.remark }); await onSaved(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "保存失败"); } }}>
       <h2 className="text-lg font-semibold">编辑资产</h2>
       <label className="block text-sm">名称<Input aria-label="编辑名称" className="mt-2" value={name} onChange={(event) => setName(event.target.value)} /></label>
       <label className="block text-sm">描述<textarea aria-label="编辑描述" className="mt-2 min-h-20 w-full rounded-md border border-border bg-transparent p-3" value={describe} onChange={(event) => setDescribe(event.target.value)} /></label>
       <label className="block text-sm">提示词<textarea aria-label="编辑提示词" className="mt-2 min-h-20 w-full rounded-md border border-border bg-transparent p-3" value={prompt} onChange={(event) => setPrompt(event.target.value)} /></label>
-      {error ? <p role="alert" className="text-sm text-rose-400">{error}</p> : null}
+      {error ? <p role="alert" className="text-sm text-zinc-400">{error}</p> : null}
       <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>取消</Button><Button type="submit">保存修改</Button></div>
     </form>
   </div>;
@@ -141,10 +141,10 @@ function HistoryDialog({ asset, api, projectId, onClose, onChanged }: { asset: A
   const load = async () => { try { setHistory(await api.getImageHistory(asset.id)); } catch (cause) { setError(cause instanceof Error ? cause.message : "读取历史失败"); } };
   useEffect(() => { void load(); }, [asset.id]);
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-label={`${asset.name}图片历史`}>
-    <section className="w-full max-w-3xl rounded-xl border border-white/10 bg-[#11141b] p-6">
+    <section className="w-full max-w-3xl rounded-xl border border-white/10 bg-[#141414] p-6">
       <div className="mb-4 flex justify-between"><h2 className="text-lg font-semibold">{asset.name} · 图片历史</h2><button aria-label="关闭历史" onClick={onClose}><X /></button></div>
-      {error ? <p role="alert" className="text-rose-400">{error}</p> : null}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{history?.tempAssets.map((image) => <figure key={image.id} className={`rounded-lg border p-2 ${image.selected ? "border-primary" : "border-white/10"}`}><img alt={`历史图片 ${image.id}`} src={image.filePath} className="aspect-video w-full rounded object-cover" /><div className="mt-2 flex gap-2"><button type="button" aria-label={`选择历史图片 ${image.id}`} className="text-xs text-primary" onClick={async () => { try { await api.selectImage({ id: asset.id, projectId, type: asset.type as VisualAssetType, imageId: image.id, prompt: asset.prompt }); await onChanged(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "选择历史图片失败"); } }}>使用</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-xs text-rose-400" onClick={async () => { try { await api.deleteImage(image.id); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "删除历史图片失败"); } }}>删除</button></div></figure>)}</div>
+      {error ? <p role="alert" className="text-zinc-400">{error}</p> : null}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{history?.tempAssets.map((image) => <figure key={image.id} className={`rounded-lg border p-2 ${image.selected ? "border-primary" : "border-white/10"}`}><img alt={`历史图片 ${image.id}`} src={image.filePath} className="aspect-video w-full rounded object-cover" /><div className="mt-2 flex gap-2"><button type="button" aria-label={`选择历史图片 ${image.id}`} className="text-xs text-primary" onClick={async () => { try { await api.selectImage({ id: asset.id, projectId, type: asset.type as VisualAssetType, imageId: image.id, prompt: asset.prompt }); await onChanged(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "选择历史图片失败"); } }}>使用</button><button type="button" aria-label={`删除历史图片 ${image.id}`} className="text-xs text-zinc-400" onClick={async () => { try { await api.deleteImage(image.id); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "删除历史图片失败"); } }}>删除</button></div></figure>)}</div>
     </section>
   </div>;
 }
@@ -153,8 +153,8 @@ function fileAsDataUrl(file: File): Promise<string> { return new Promise((resolv
 
 function UploadAssetDialog({ projectId, api, onClose, onUploaded }: { projectId: number; api: AssetApi; onClose: () => void; onUploaded: () => Promise<void> }) {
   const [name, setName] = useState(""); const [file, setFile] = useState<File | null>(null); const [error, setError] = useState("");
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-label="上传素材"><form className="w-full max-w-lg space-y-4 rounded-xl border border-white/10 bg-[#11141b] p-6" onSubmit={async (event) => { event.preventDefault(); if (!file || !name.trim()) { setError("请填写名称并选择文件"); return; } try { const base64 = await fileAsDataUrl(file); await api.uploadClip({ projectId, name: name.trim(), type: "clip", base64Data: base64 }); await onUploaded(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "上传失败"); } }}>
-    <h2 className="text-lg font-semibold">上传视频片段</h2><label className="block text-sm">名称<Input className="mt-2" value={name} onChange={(event) => setName(event.target.value)} /></label><input aria-label="选择文件" type="file" accept="video/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />{error ? <p role="alert" className="text-rose-400">{error}</p> : null}<div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>取消</Button><Button type="submit">上传</Button></div>
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-label="上传素材"><form className="w-full max-w-lg space-y-4 rounded-xl border border-white/10 bg-[#141414] p-6" onSubmit={async (event) => { event.preventDefault(); if (!file || !name.trim()) { setError("请填写名称并选择文件"); return; } try { const base64 = await fileAsDataUrl(file); await api.uploadClip({ projectId, name: name.trim(), type: "clip", base64Data: base64 }); await onUploaded(); onClose(); } catch (cause) { setError(cause instanceof Error ? cause.message : "上传失败"); } }}>
+    <h2 className="text-lg font-semibold">上传视频片段</h2><label className="block text-sm">名称<Input className="mt-2" value={name} onChange={(event) => setName(event.target.value)} /></label><input aria-label="选择文件" type="file" accept="video/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />{error ? <p role="alert" className="text-zinc-400">{error}</p> : null}<div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={onClose}>取消</Button><Button type="submit">上传</Button></div>
   </form></div>;
 }
 
@@ -184,7 +184,7 @@ function CreateAssetDialog({ projectId, type, api, onClose, onCreated }: { proje
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label={`新建${typeLabel(type)}`}>
-      <form onSubmit={submit} className="w-full max-w-lg rounded-xl border border-white/10 bg-[#11141b] p-6 shadow-2xl">
+      <form onSubmit={submit} className="w-full max-w-lg rounded-xl border border-white/10 bg-[#141414] p-6 shadow-2xl">
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold text-white">新建{typeLabel(type)}</h2>
@@ -198,7 +198,7 @@ function CreateAssetDialog({ projectId, type, api, onClose, onCreated }: { proje
           <label className="block text-sm text-slate-300">提示词<textarea className="mt-2 min-h-20 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm text-white outline-none focus:border-primary" value={form.prompt} onChange={(event) => setForm({ ...form, prompt: event.target.value })} /></label>
           <label className="block text-sm text-slate-300">备注<Input className="mt-2" value={form.remark} onChange={(event) => setForm({ ...form, remark: event.target.value })} /></label>
         </div>
-        {error ? <p className="mt-4 text-sm text-rose-400" role="alert">{error}</p> : null}
+        {error ? <p className="mt-4 text-sm text-zinc-400" role="alert">{error}</p> : null}
         <div className="mt-6 flex justify-end gap-3">
           <Button type="button" variant="ghost" className="border border-border" onClick={onClose}>取消</Button>
           <Button type="submit" disabled={submitting}>{submitting ? "创建中…" : "创建资产"}</Button>
@@ -212,9 +212,11 @@ export interface AssetsCenterProps {
   projectId: number;
   api?: AssetApi;
   imageModel?: string;
+  /** 嵌入画布模块时去掉全页壳与重复页面头，由模块 host 管理标题、关闭、宽度与滚动。 */
+  embedded?: boolean;
 }
 
-export function AssetsCenter({ projectId, api, imageModel = "pancat:pancat-image" }: AssetsCenterProps) {
+export function AssetsCenter({ projectId, api, imageModel = "pancat:pancat-image", embedded = false }: AssetsCenterProps) {
   const resolvedApi = useMemo(() => api ?? createDefaultAssetApi(), [api]);
   const [activeType, setActiveType] = useState<AssetType>("role");
   const [searchDraft, setSearchDraft] = useState("");
@@ -245,13 +247,19 @@ export function AssetsCenter({ projectId, api, imageModel = "pancat:pancat-image
   };
 
   return (
-    <main className="min-h-screen bg-[#090b10] p-5 text-slate-100 lg:p-7">
+    <main
+      data-testid={embedded ? "assets-center-embedded" : undefined}
+      className={`${embedded ? "h-full" : "min-h-screen"} bg-[#0b0b0b] p-5 text-slate-100 lg:p-7`}>
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Asset Factory</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">资产中心</h1>
-          <p className="mt-1 text-sm text-slate-500">项目 #{projectId} · 共 {total} 项</p>
-        </div>
+        {embedded ? (
+          <p className="text-sm text-slate-500">项目 #{projectId} · 共 {total} 项</p>
+        ) : (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Asset Factory</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight">资产中心</h1>
+            <p className="mt-1 text-sm text-slate-500">项目 #{projectId} · 共 {total} 项</p>
+          </div>
+        )}
         {VISUAL_TYPES.has(activeType) ? (
           <Button onClick={() => setCreating(true)}><Plus size={16} />新建{typeLabel(activeType)}</Button>
         ) : activeType === "clip" ? <Button aria-label="上传素材" onClick={() => setUploading(true)}><Upload size={16} />上传素材</Button> : <Button aria-label="新建音频" onClick={() => setCreatingAudio(true)}><Plus size={16} />新建音频</Button>}
@@ -275,16 +283,16 @@ export function AssetsCenter({ projectId, api, imageModel = "pancat:pancat-image
         <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={16} /><Input aria-label="搜索资产" className="pl-9" placeholder={`搜索${typeLabel(activeType)}名称`} value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} /></div>
         <Button type="submit" variant="ghost" className="border border-border">搜索</Button>
       </form>
-      {actionError ? <p role="alert" className="mb-4 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm text-rose-300">{actionError}</p> : null}
+      {actionError ? <p role="alert" className="mb-4 rounded-lg border border-zinc-500/20 bg-zinc-500/5 px-4 py-3 text-sm text-zinc-300">{actionError}</p> : null}
 
-      <section className="overflow-hidden rounded-lg border border-white/10 bg-[#0d1016]" aria-label={`${typeLabel(activeType)}列表`}>
+      <section className="overflow-hidden rounded-lg border border-white/10 bg-[#101010]" aria-label={`${typeLabel(activeType)}列表`}>
         {selectedIds.length ? <div className="flex items-center justify-between border-b border-white/10 px-4 py-2"><span className="text-sm text-slate-400">已选 {selectedIds.length} 项</span><Button aria-label="批量删除" variant="ghost" onClick={() => void batchDelete()}><Trash2 size={15} />批量删除</Button></div> : null}
         <div className="grid grid-cols-[32px_72px_minmax(140px,1fr)_minmax(180px,2fr)_110px_120px] gap-4 border-b border-white/10 bg-white/[.025] px-4 py-2.5 text-xs font-medium text-slate-500">
           <span>选择</span><span>预览</span><span>名称</span><span>提示词</span><span>状态</span><span>操作</span>
         </div>
         {loading ? <div className="grid min-h-52 place-items-center text-sm text-slate-500"><span className="flex items-center gap-2"><LoaderCircle className="animate-spin" size={16} />正在加载资产</span></div> : null}
         {!loading && error ? (
-          <div className="grid min-h-52 place-items-center px-6 text-center"><div><AlertCircle className="mx-auto text-rose-400" size={22} /><p role="alert" className="mt-3 text-sm text-rose-300">{error}</p><Button className="mt-4 border border-border" variant="ghost" onClick={() => void reload()}>重试</Button></div></div>
+          <div className="grid min-h-52 place-items-center px-6 text-center"><div><AlertCircle className="mx-auto text-zinc-400" size={22} /><p role="alert" className="mt-3 text-sm text-zinc-300">{error}</p><Button className="mt-4 border border-border" variant="ghost" onClick={() => void reload()}>重试</Button></div></div>
         ) : null}
         {!loading && !error && !items.length ? <div className="grid min-h-52 place-items-center text-sm text-slate-500">暂无{typeLabel(activeType)}资产</div> : null}
         {!loading && !error ? items.map((asset) => (

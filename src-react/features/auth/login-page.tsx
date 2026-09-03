@@ -39,7 +39,7 @@ export function LoginPage({ login, onAuthenticated, initialApiBaseUrl }: LoginPa
   const handleAuthenticated = onAuthenticated ?? (() => window.location.assign("#/projects"));
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#090b10] px-5 py-10 text-foreground">
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#0b0b0b] px-5 py-10 text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:48px_48px]" />
       <section className="relative w-full max-w-sm">
         <header className="mb-9">

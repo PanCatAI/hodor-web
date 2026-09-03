@@ -44,7 +44,7 @@ export function LoginForm({ login, onAuthenticated }: LoginFormProps) {
         />
       </div>
       {error ? (
-        <p role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p role="alert" className="rounded-md border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-sm text-zinc-300">
           {error}
         </p>
       ) : null}

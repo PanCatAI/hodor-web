@@ -229,7 +229,7 @@ interface JsonPanelProps {
 
 function JsonPanel({ section, value, loading, error, savedMessage, onChange, onReload, onSave }: JsonPanelProps) {
   return (
-    <section className="rounded-xl border border-border bg-[#10131a] p-5">
+    <section className="rounded-xl border border-border bg-[#131313] p-5">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="mr-auto">
           <h2 className="font-semibold text-slate-100">{section.label}配置</h2>
@@ -247,12 +247,12 @@ function JsonPanel({ section, value, loading, error, savedMessage, onChange, onR
         ) : null}
       </div>
       {error ? (
-        <p role="alert" className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <p role="alert" className="mb-4 rounded-lg border border-zinc-500/20 bg-zinc-500/10 px-4 py-3 text-sm text-zinc-300">
           {error}
         </p>
       ) : null}
       {savedMessage ? (
-        <p role="status" className="mb-4 text-sm text-emerald-400">
+        <p role="status" className="mb-4 text-sm text-zinc-400">
           {savedMessage}
         </p>
       ) : null}
@@ -429,7 +429,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
   function renderContent() {
     if (activeId === "prompts") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <div className="mr-auto">
               <h2 className="font-semibold text-slate-100">提示词管理</h2>
@@ -456,12 +456,12 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             </Button>
           </div>
           {error ? (
-            <p role="alert" className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="mb-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
           {savedMessage ? (
-            <p role="status" className="mb-4 text-sm text-emerald-400">
+            <p role="status" className="mb-4 text-sm text-zinc-400">
               {savedMessage}
             </p>
           ) : null}
@@ -502,7 +502,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "skills") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <div className="mr-auto">
               <h2 className="font-semibold text-slate-100">Skills 管理</h2>
@@ -529,12 +529,12 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             </Button>
           </div>
           {error ? (
-            <p role="alert" className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="mb-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
           {savedMessage ? (
-            <p role="status" className="mb-4 text-sm text-emerald-400">
+            <p role="status" className="mb-4 text-sm text-zinc-400">
               {savedMessage}
             </p>
           ) : null}
@@ -579,7 +579,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "providers") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <div className="mb-5 flex items-start gap-3">
             <div className="mr-auto">
               <h2 className="font-semibold text-slate-100">供应商配置</h2>
@@ -594,12 +594,12 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             </Button>
           </div>
           {error ? (
-            <p role="alert" className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="mb-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
           {savedMessage ? (
-            <p role="status" className="mb-4 text-sm text-emerald-400">
+            <p role="status" className="mb-4 text-sm text-zinc-400">
               {savedMessage}
             </p>
           ) : null}
@@ -685,20 +685,20 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
                       {enabled ? "停用" : "启用"}
                     </Button>
                     <Button
-                      className="bg-red-500 text-white hover:bg-red-400"
+                      className="bg-zinc-500 text-white hover:bg-zinc-400"
                       aria-label={`删除${provider.name}`}
                       onClick={() => setDeletingProviderId(provider.id)}>
                       删除
                     </Button>
                   </div>
                   {deletingProviderId === provider.id ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
-                      <p className="mr-auto text-sm text-red-200">删除会同时清除该供应商的智能体绑定。</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-zinc-500/20 bg-zinc-500/5 p-3">
+                      <p className="mr-auto text-sm text-zinc-200">删除会同时清除该供应商的智能体绑定。</p>
                       <Button variant="ghost" onClick={() => setDeletingProviderId("")}>
                         取消
                       </Button>
                       <Button
-                        className="bg-red-500 text-white"
+                        className="bg-zinc-500 text-white"
                         onClick={async () => {
                           try {
                             await settingsApi.run("providers", "delete", { id: provider.id });
@@ -992,7 +992,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "models") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <div className="mb-4 flex items-center gap-3">
             <div className="mr-auto">
               <h2 className="font-semibold">模型提示词映射</h2>
@@ -1012,12 +1012,12 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             </Button>
           </div>
           {error ? (
-            <p role="alert" className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="mb-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
           {savedMessage ? (
-            <p role="status" className="mb-4 text-sm text-emerald-400">
+            <p role="status" className="mb-4 text-sm text-zinc-400">
               {savedMessage}
             </p>
           ) : null}
@@ -1099,13 +1099,13 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
                     删除
                   </Button>
                   {deletingModelPromptPath === prompt.path ? (
-                    <div className="flex w-full items-center gap-3 rounded-md border border-red-500/20 bg-red-500/5 p-3">
-                      <span className="mr-auto text-sm text-red-200">确认删除 {prompt.name}？</span>
+                    <div className="flex w-full items-center gap-3 rounded-md border border-zinc-500/20 bg-zinc-500/5 p-3">
+                      <span className="mr-auto text-sm text-zinc-200">确认删除 {prompt.name}？</span>
                       <Button variant="ghost" onClick={() => setDeletingModelPromptPath("")}>
                         取消
                       </Button>
                       <Button
-                        className="bg-red-500 text-white"
+                        className="bg-zinc-500 text-white"
                         onClick={async () => {
                           try {
                             await settingsApi.run("models", "deletePrompt", { path: prompt.path });
@@ -1192,7 +1192,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
           .map((model) => ({ value: `${provider.id}:${model.modelName}`, label: `${provider.name} · ${model.name}` })),
       );
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <div className="mb-5 flex flex-wrap items-end gap-3">
             <div className="mr-auto">
               <h2 className="font-semibold">智能体部署</h2>
@@ -1233,12 +1233,12 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             ) : null}
           </div>
           {error ? (
-            <p role="alert" className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="mb-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
           {savedMessage ? (
-            <p role="status" className="mb-4 text-sm text-emerald-400">
+            <p role="status" className="mb-4 text-sm text-zinc-400">
               {savedMessage}
             </p>
           ) : null}
@@ -1338,7 +1338,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "database") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <div className="mb-5 flex flex-wrap items-center gap-3">
             <div className="mr-auto">
               <h2 className="font-semibold">本地数据库</h2>
@@ -1367,7 +1367,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
               }}>
               导出数据库
             </Button>
-            <Label className="cursor-pointer rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-black">
+            <Label className="cursor-pointer rounded-md bg-zinc-500 px-4 py-2 text-sm font-medium text-black">
               选择备份
               <input
                 aria-label="导入数据库文件"
@@ -1390,23 +1390,23 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             </Label>
           </div>
           {error ? (
-            <p role="alert" className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="mb-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
           {savedMessage ? (
-            <p role="status" className="mb-4 text-sm text-emerald-400">
+            <p role="status" className="mb-4 text-sm text-zinc-400">
               {savedMessage}
             </p>
           ) : null}
           {pendingImport ? (
-            <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+            <div className="mb-4 flex items-center gap-3 rounded-lg border border-zinc-500/30 bg-zinc-500/10 p-4">
               <p className="mr-auto text-sm">备份格式已通过检查，确认后替换当前数据。</p>
               <Button variant="ghost" onClick={() => setPendingImport(null)}>
                 取消
               </Button>
               <Button
-                className="bg-amber-500 text-black"
+                className="bg-zinc-500 text-black"
                 onClick={async () => {
                   try {
                     await settingsApi.run("database", "import", pendingImport);
@@ -1432,7 +1432,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
                       取消
                     </Button>
                     <Button
-                      className="bg-red-500 text-white"
+                      className="bg-zinc-500 text-white"
                       onClick={async () => {
                         try {
                           await settingsApi.run("database", "clearTable", { tableName: table.name });
@@ -1453,8 +1453,8 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
               </div>
             ))}
           </div>
-          <div className="mt-5 rounded-lg border border-red-500/20 bg-red-500/5 p-4">
-            <h3 className="font-medium text-red-200">清空全部数据</h3>
+          <div className="mt-5 rounded-lg border border-zinc-500/20 bg-zinc-500/5 p-4">
+            <h3 className="font-medium text-zinc-200">清空全部数据</h3>
             <p className="mt-1 text-sm text-slate-500">输入 HODOR 后才能执行。</p>
             <div className="mt-3 flex gap-3">
               <Input
@@ -1465,7 +1465,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
               />
               <Button
                 disabled={clearAllText !== "HODOR"}
-                className="bg-red-500 text-white"
+                className="bg-zinc-500 text-white"
                 onClick={async () => {
                   try {
                     await settingsApi.run("database", "clearAll");
@@ -1486,11 +1486,11 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "development") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <h2 className="font-semibold">开发工具</h2>
           <p className="mt-1 text-sm text-slate-500">浏览器开发工具请使用浏览器快捷键；这里仅管理服务端 AI 调试数据开关。</p>
           {error ? (
-            <p role="alert" className="my-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="my-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
@@ -1516,7 +1516,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             保存开发配置
           </Button>
           {savedMessage ? (
-            <p role="status" className="mt-3 text-sm text-emerald-400">
+            <p role="status" className="mt-3 text-sm text-zinc-400">
               {savedMessage}
             </p>
           ) : null}
@@ -1526,7 +1526,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "about") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <p className="text-xs font-semibold uppercase tracking-widest text-primary">Hodor</p>
           <h2 className="mt-2 text-2xl font-semibold">全自动内容生产工作台</h2>
           <p className="mt-2 text-sm text-slate-500">
@@ -1537,7 +1537,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             <p className="text-xs leading-5 text-slate-500">Hodor 基于 Toonflow 修改，原项目标识、版权和来源声明按 LICENSE 保留。</p>
           </div>
           {error ? (
-            <p role="alert" className="my-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="my-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
@@ -1569,7 +1569,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             </a>
           </div>
           {updateInfo ? (
-            <p role="status" className="mt-4 text-sm text-emerald-400">
+            <p role="status" className="mt-4 text-sm text-zinc-400">
               {updateInfo.needUpdate
                 ? `发现新版本 ${String(updateInfo.latestVersion ?? "")}`
                 : `当前已是最新版本 ${String(updateInfo.latestVersion ?? aboutVersion)}`}
@@ -1592,17 +1592,17 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             onReload={() => void loadRemote("memory")}
             onSave={() => void saveRemote()}
           />
-          <section className="rounded-xl border border-red-500/20 bg-[#10131a] p-5">
-            <h2 className="font-semibold text-red-200">清空全部记忆</h2>
+          <section className="rounded-xl border border-zinc-500/20 bg-[#131313] p-5">
+            <h2 className="font-semibold text-zinc-200">清空全部记忆</h2>
             <p className="mt-1 text-sm text-slate-500">该操作会删除所有已保存的智能体记忆，无法在浏览器中撤销。</p>
             {confirmingMemoryClear ? (
-              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/5 p-4">
-                <span className="mr-auto text-sm text-red-200">确认清空全部记忆？</span>
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-zinc-500/20 bg-zinc-500/5 p-4">
+                <span className="mr-auto text-sm text-zinc-200">确认清空全部记忆？</span>
                 <Button variant="ghost" onClick={() => setConfirmingMemoryClear(false)}>
                   取消
                 </Button>
                 <Button
-                  className="bg-red-500 text-white"
+                  className="bg-zinc-500 text-white"
                   onClick={async () => {
                     try {
                       await settingsApi.run("memory", "clear");
@@ -1617,7 +1617,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
                 </Button>
               </div>
             ) : (
-              <Button className="mt-4 bg-red-500 text-white" onClick={() => setConfirmingMemoryClear(true)}>
+              <Button className="mt-4 bg-zinc-500 text-white" onClick={() => setConfirmingMemoryClear(true)}>
                 清空全部记忆
               </Button>
             )}
@@ -1643,7 +1643,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "ui") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <h2 className="font-semibold text-slate-100">界面偏好</h2>
           <label className="mt-5 grid max-w-md gap-2 text-sm text-slate-300">
             主题
@@ -1667,7 +1667,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
             保存主题
           </Button>
           {savedMessage ? (
-            <p role="status" className="mt-3 text-sm text-emerald-400">
+            <p role="status" className="mt-3 text-sm text-zinc-400">
               {savedMessage}
             </p>
           ) : null}
@@ -1677,7 +1677,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "language") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <h2 className="font-semibold text-slate-100">界面语言</h2>
           <p className="mt-3 rounded-lg border border-border bg-black/20 p-4 text-sm text-slate-300">当前界面仅提供简体中文。</p>
         </section>
@@ -1686,11 +1686,11 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "files") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <h2 className="font-semibold text-slate-100">Hodor 文件目录</h2>
           <p className="mt-1 text-sm text-slate-500">桌面运行时会由后端打开对应目录；浏览器环境会返回后端能力错误。</p>
           {error ? (
-            <p role="alert" className="mt-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
+            <p role="alert" className="mt-4 rounded-lg bg-zinc-500/10 p-3 text-sm text-zinc-300">
               {error}
             </p>
           ) : null}
@@ -1719,7 +1719,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     if (activeId === "other") {
       return (
-        <section className="rounded-xl border border-border bg-[#10131a] p-5">
+        <section className="rounded-xl border border-border bg-[#131313] p-5">
           <h2 className="font-semibold">运行参数</h2>
           <p className="mt-3 rounded-lg border border-border bg-black/20 p-4 text-sm leading-6 text-slate-300">
             运行参数由云端产线合同管理，不在浏览器本地保存。批量并发、任务超时、剧本拆分和画布行为会在对应工作台接入真实合同后提供。
@@ -1731,7 +1731,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
     if (activeId === "request") {
       return (
         <div className="grid gap-5">
-          <section className="rounded-xl border border-border bg-[#10131a] p-5">
+          <section className="rounded-xl border border-border bg-[#131313] p-5">
             <div className="mb-5 flex items-start gap-3">
               <div className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
                 <Server className="size-5" />
@@ -1758,27 +1758,27 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
                 保存地址
               </Button>
               {savedMessage ? (
-                <span role="status" className="text-sm text-emerald-400">
+                <span role="status" className="text-sm text-zinc-400">
                   {savedMessage}
                 </span>
               ) : null}
             </div>
           </section>
-          <section className="rounded-xl border border-red-500/20 bg-[#10131a] p-5">
+          <section className="rounded-xl border border-zinc-500/20 bg-[#131313] p-5">
             <h2 className="font-semibold text-slate-100">Pancat 会话</h2>
             <p className="mt-1 text-sm text-slate-500">退出后需要重新登录才能进入 Hodor 工作台。</p>
             {confirmingLogout ? (
-              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/5 p-4">
-                <p className="mr-auto text-sm text-red-200">确定清除当前登录状态吗？</p>
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-zinc-500/20 bg-zinc-500/5 p-4">
+                <p className="mr-auto text-sm text-zinc-200">确定清除当前登录状态吗？</p>
                 <Button variant="ghost" onClick={() => setConfirmingLogout(false)}>
                   取消
                 </Button>
-                <Button className="bg-red-500 text-white hover:bg-red-400" onClick={logout}>
+                <Button className="bg-zinc-500 text-white hover:bg-zinc-400" onClick={logout}>
                   确认退出
                 </Button>
               </div>
             ) : (
-              <Button className="mt-4 bg-red-500 text-white hover:bg-red-400" onClick={() => setConfirmingLogout(true)}>
+              <Button className="mt-4 bg-zinc-500 text-white hover:bg-zinc-400" onClick={() => setConfirmingLogout(true)}>
                 <LogOut className="mr-2 size-4" />
                 退出登录
               </Button>
@@ -1790,9 +1790,9 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
     const session = readSession();
     return (
-      <section className="rounded-xl border border-red-500/20 bg-[#10131a] p-5">
+      <section className="rounded-xl border border-zinc-500/20 bg-[#131313] p-5">
         <div className="mb-5 flex items-start gap-3">
-          <div className="grid size-10 place-items-center rounded-lg bg-red-500/10 text-red-400">
+          <div className="grid size-10 place-items-center rounded-lg bg-zinc-500/10 text-zinc-400">
             <LogOut className="size-5" />
           </div>
           <div>
@@ -1806,17 +1806,17 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
           账号资料和密码统一由 Pancat 管理，Hodor 后端不保存或修改密码。
         </p>
         {confirmingLogout ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/5 p-4">
-            <p className="mr-auto text-sm text-red-200">确定清除当前登录状态吗？</p>
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-500/20 bg-zinc-500/5 p-4">
+            <p className="mr-auto text-sm text-zinc-200">确定清除当前登录状态吗？</p>
             <Button variant="ghost" onClick={() => setConfirmingLogout(false)}>
               取消
             </Button>
-            <Button className="bg-red-500 text-white hover:bg-red-400" onClick={logout}>
+            <Button className="bg-zinc-500 text-white hover:bg-zinc-400" onClick={logout}>
               确认退出
             </Button>
           </div>
         ) : (
-          <Button className="bg-red-500 text-white hover:bg-red-400" onClick={() => setConfirmingLogout(true)}>
+          <Button className="bg-zinc-500 text-white hover:bg-zinc-400" onClick={() => setConfirmingLogout(true)}>
             <LogOut className="mr-2 size-4" />
             退出登录
           </Button>
@@ -1826,7 +1826,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
   }
 
   return (
-    <main className="min-h-full bg-[#090b10] p-4 text-foreground lg:p-8">
+    <main className="min-h-full bg-[#0b0b0b] p-4 text-foreground lg:p-8">
       <header className="mb-6">
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">Workspace</p>
         <h1 className="text-3xl font-semibold tracking-tight">设置中心</h1>
@@ -1836,7 +1836,7 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
       <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
         <nav
           aria-label="设置分区"
-          className="grid content-start gap-1 rounded-xl border border-border bg-[#10131a] p-2 sm:grid-cols-3 xl:grid-cols-1">
+          className="grid content-start gap-1 rounded-xl border border-border bg-[#131313] p-2 sm:grid-cols-3 xl:grid-cols-1">
           {SECTIONS.map((section) => {
             const Icon = section.icon;
             const active = section.id === activeId;

@@ -71,15 +71,20 @@ export interface ProductionWorkbenchProps {
   onExtractWorldProfile?: (
     mode: "merge" | "replace",
   ) => NonNullable<ProductionProject["worldProfile"]> | Promise<NonNullable<ProductionProject["worldProfile"]>>;
+  /**
+   * 嵌入画布模块时的模式：不创建 h-screen / 全页壳，不渲染重复页面头；
+   * 标题、关闭、宽度与滚动统一由模块 host 管理。
+   */
+  embedded?: boolean;
 }
 
 const emptyFlow: ProductionFlowData = { script: "", scriptPlan: "", assets: [], storyboardTable: "", storyboard: [] };
 type WorkbenchMenu = "preview" | "generate" | "editVideo";
 const statusContent: Record<ProductionState, { label: string; className: string }> = {
   idle: { label: "未生成", className: "border-slate-700 bg-slate-900 text-slate-400" },
-  running: { label: "生成中", className: "border-blue-500/30 bg-blue-500/10 text-blue-300" },
-  completed: { label: "已完成", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
-  failed: { label: "生成失败", className: "border-red-500/30 bg-red-500/10 text-red-300" },
+  running: { label: "生成中", className: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300" },
+  completed: { label: "已完成", className: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300" },
+  failed: { label: "生成失败", className: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300" },
 };
 
 function StatusBadge({ state }: { state: ProductionState }) {
@@ -90,7 +95,7 @@ function StatusBadge({ state }: { state: ProductionState }) {
 function FailureReason({ children }: { children?: string }) {
   if (!children) return null;
   return (
-    <div role="alert" className="flex gap-2 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs leading-5 text-red-300">
+    <div role="alert" className="flex gap-2 rounded-lg border border-zinc-500/20 bg-zinc-500/5 px-3 py-2 text-xs leading-5 text-zinc-300">
       <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
       <span>{children}</span>
     </div>
@@ -359,7 +364,7 @@ function PreviewWorkbench({
                     setPlaying(true);
                   } else setPlaying(true);
                 }}
-                className="rounded-full p-2 text-blue-400">
+                className="rounded-full p-2 text-zinc-400">
                 {playing ? <Pause className="size-[22px]" /> : <Play className="size-[22px]" />}
               </button>
               <button
@@ -392,7 +397,7 @@ function PreviewWorkbench({
                         event.stopPropagation();
                         goTo(index);
                       }}
-                      className={`absolute top-0 h-full rounded ${index === currentIndex ? "bg-blue-500/50" : index < currentIndex ? "bg-blue-900" : "bg-transparent"}`}
+                      className={`absolute top-0 h-full rounded ${index === currentIndex ? "bg-zinc-500/50" : index < currentIndex ? "bg-zinc-900" : "bg-transparent"}`}
                       style={{
                         left: `${(cumulativeAt(index) / Math.max(totalDuration, 1)) * 100}%`,
                         width: `${(durationAt(index) / Math.max(totalDuration, 1)) * 100}%`,
@@ -406,9 +411,9 @@ function PreviewWorkbench({
                       style={{ left: `${(cumulativeAt(index + 1) / Math.max(totalDuration, 1)) * 100}%` }}
                     />
                   ))}
-                  <span className="pointer-events-none absolute left-0 top-0 z-10 h-full rounded bg-blue-500" style={{ width: `${progress}%` }} />
+                  <span className="pointer-events-none absolute left-0 top-0 z-10 h-full rounded bg-zinc-500" style={{ width: `${progress}%` }} />
                   <span
-                    className="pointer-events-none absolute top-1/2 z-30 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-blue-400 bg-slate-950"
+                    className="pointer-events-none absolute top-1/2 z-30 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-zinc-400 bg-slate-950"
                     style={{ left: `${progress}%` }}
                   />
                 </div>
@@ -483,7 +488,7 @@ function PreviewWorkbench({
               恢复顺序
             </button>
           </div>
-          <button type="button" aria-label="导出图片" onClick={() => void exportSelected()} className="flex items-center gap-1 text-sm text-blue-400">
+          <button type="button" aria-label="导出图片" onClick={() => void exportSelected()} className="flex items-center gap-1 text-sm text-zinc-400">
             <Download className="size-4" />
             导出图片
           </button>
@@ -513,7 +518,7 @@ function PreviewWorkbench({
               onKeyDown={(event) => {
                 if (event.key === "Enter") goTo(index);
               }}
-              className={`relative mr-3 h-[100px] w-40 shrink-0 overflow-hidden rounded-xl border-2 bg-slate-900 ${index === currentIndex ? "border-blue-500" : "border-transparent hover:border-blue-500"}`}>
+              className={`relative mr-3 h-[100px] w-40 shrink-0 overflow-hidden rounded-xl border-2 bg-slate-900 ${index === currentIndex ? "border-zinc-500" : "border-transparent hover:border-zinc-500"}`}>
               <input
                 type="checkbox"
                 aria-label={`选择分镜 ${storyboard.id}`}
@@ -547,7 +552,7 @@ function PreviewInfo({ title, children }: { title: string; children: ReactNode }
   return (
     <section className="mb-5 border-b border-slate-800 pb-4 last:border-0">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <span className="h-3.5 w-[3px] rounded bg-blue-500" />
+        <span className="h-3.5 w-[3px] rounded bg-zinc-500" />
         {title}
       </h2>
       <div className="text-sm leading-6 text-slate-300">{children}</div>
@@ -934,7 +939,7 @@ function GenerationWorkbench({
               aria-pressed={settings.audio}
               disabled={modelDetail ? modelDetail.audio !== "optional" : false}
               onClick={() => updateSettings({ audio: !settings.audio })}
-              className={`grid size-8 place-items-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${settings.audio ? "border-emerald-600 text-emerald-400" : "border-red-800 text-red-400"}`}>
+              className={`grid size-8 place-items-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${settings.audio ? "border-zinc-600 text-zinc-400" : "border-zinc-800 text-zinc-400"}`}>
               {settings.audio ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
             </button>
             <select
@@ -986,7 +991,7 @@ function GenerationWorkbench({
                   aria-label="生成轨道提示词"
                   disabled={activeTrack.state === "running"}
                   onClick={() => void onGeneratePrompt(activeTrack.id, settings)}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-xs disabled:opacity-50">
+                  className="rounded bg-zinc-600 px-3 py-1.5 text-xs disabled:opacity-50">
                   生成提示词
                 </button>
               </header>
@@ -1027,7 +1032,7 @@ function GenerationWorkbench({
                   aria-label="生成视频"
                   disabled={activeTrack.state === "running" || !settings.model || !activeTrack.prompt}
                   onClick={() => void onGenerateVideo(activeTrack.id, settings)}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-xs disabled:opacity-50">
+                  className="rounded bg-zinc-600 px-3 py-1.5 text-xs disabled:opacity-50">
                   生成
                 </button>
               </header>
@@ -1037,7 +1042,7 @@ function GenerationWorkbench({
                   {activeTrack.videoList.map((video) => (
                     <div
                       key={video.id}
-                      className={`group relative h-[90px] w-[130px] overflow-hidden rounded border-2 bg-slate-900 ${activeTrack.selectVideoId === video.id ? "border-blue-500" : "border-transparent"}`}>
+                      className={`group relative h-[90px] w-[130px] overflow-hidden rounded border-2 bg-slate-900 ${activeTrack.selectVideoId === video.id ? "border-zinc-500" : "border-transparent"}`}>
                       {video.state === "completed" && video.src ? (
                         <video src={video.src} muted preload="metadata" className="size-full object-cover" />
                       ) : null}
@@ -1048,7 +1053,7 @@ function GenerationWorkbench({
                         </div>
                       ) : null}
                       {video.state === "failed" ? (
-                        <div title={video.errorReason} className="absolute bottom-1 left-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px]">
+                        <div title={video.errorReason} className="absolute bottom-1 left-1 rounded bg-zinc-600 px-1.5 py-0.5 text-[10px]">
                           生成失败
                         </div>
                       ) : null}
@@ -1120,7 +1125,7 @@ function GenerationWorkbench({
                     onKeyDown={(event) => {
                       if (event.key === "Enter") setActiveTrackIndex(index);
                     }}
-                    className={`group relative h-full w-[150px] shrink-0 overflow-hidden rounded-lg border-2 bg-slate-900 ${index === activeTrackIndex ? "border-blue-500" : "border-transparent"}`}>
+                    className={`group relative h-full w-[150px] shrink-0 overflow-hidden rounded-lg border-2 bg-slate-900 ${index === activeTrackIndex ? "border-zinc-500" : "border-transparent"}`}>
                     <input
                       type="checkbox"
                       aria-label={`选择轨道 ${track.id}`}
@@ -1136,9 +1141,9 @@ function GenerationWorkbench({
                       }
                       className="absolute left-2 top-2 z-20"
                     />
-                    <span className="absolute bottom-2 left-2 z-20 rounded bg-blue-600 px-1.5 py-0.5 text-[10px]">#{index + 1}</span>
+                    <span className="absolute bottom-2 left-2 z-20 rounded bg-zinc-600 px-1.5 py-0.5 text-[10px]">#{index + 1}</span>
                     {track.selectVideoId ? (
-                      <span className="absolute left-2 top-8 z-20 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px]">已选择</span>
+                      <span className="absolute left-2 top-8 z-20 rounded bg-zinc-600 px-1.5 py-0.5 text-[10px]">已选择</span>
                     ) : null}
                     {selectedVideo ? (
                       <video src={selectedVideo.src} muted preload="metadata" className="size-full object-cover" />
@@ -1305,6 +1310,7 @@ export function ProductionWorkbench({
   renderProductionAgent,
   onWorldProfileChange,
   onExtractWorldProfile,
+  embedded = false,
 }: ProductionWorkbenchProps) {
   const [scripts, setScripts] = useState<ScriptSummary[]>([]);
   const [scriptId, setScriptId] = useState<number | null>(null);
@@ -1614,7 +1620,7 @@ export function ProductionWorkbench({
     return () => window.cancelAnimationFrame(animationFrame);
   }, [agentPanelOpen, tab]);
 
-  const canvasSurface =
+  const flowSurfaceContent =
     tab === "flow"
       ? (() => {
           const flowControls =
@@ -1648,7 +1654,7 @@ export function ProductionWorkbench({
             ) : null;
 
           return (
-            <main className="relative h-screen overflow-hidden bg-[#090b10] text-slate-100">
+            <>
               {scriptId != null ? (
                 <ProductionFlowBoard
                   api={api}
@@ -1677,7 +1683,7 @@ export function ProductionWorkbench({
               ) : null}
 
               {error ? (
-                <div className="absolute left-1/2 top-3 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg border border-red-500/30 bg-slate-950 px-3 py-2 shadow-xl">
+                <div className="absolute left-1/2 top-3 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg border border-zinc-500/30 bg-slate-950 px-3 py-2 shadow-xl">
                   <FailureReason>{error}</FailureReason>
                   <button
                     type="button"
@@ -1714,10 +1720,219 @@ export function ProductionWorkbench({
                   {canvasFps}
                 </span>
               ) : null}
-            </main>
+            </>
           );
         })()
       : null;
+
+  const canvasSurface = tab === "flow" ? <main className="relative h-screen overflow-hidden bg-[#0b0b0b] text-slate-100">{flowSurfaceContent}</main> : null;
+
+  const workbenchNav = (
+    <nav aria-label="视频工作台功能" className="flex w-fit shrink-0 items-center pb-4 pt-2">
+      {(
+        [
+          ["preview", "快速预览", Presentation],
+          ["generate", "视频生成", CirclePlay],
+          ["editVideo", "视频编辑", SquarePen],
+        ] as const
+      ).map(([id, label, Icon]) => (
+        <button
+          key={id}
+          type="button"
+          title={label}
+          aria-label={label}
+          aria-pressed={activeWorkbenchMenu === id}
+          onClick={() => changeWorkbenchMenu(id)}
+          className={`mr-1 grid size-[50px] place-items-center rounded-2xl transition-colors ${
+            activeWorkbenchMenu === id ? "bg-zinc-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+          }`}>
+          <Icon className="size-6" />
+        </button>
+      ))}
+    </nav>
+  );
+
+  const workbenchPanels = (
+    <>
+      {tab !== "flow" && (renderProductionAgent || onOpenAgent) && scriptId != null ? (
+        <button
+          type="button"
+          aria-expanded={renderProductionAgent ? agentPanelOpen : undefined}
+          onClick={() => {
+            if (renderProductionAgent) {
+              setAgentPanelOpen(true);
+              setTab("flow");
+              setWorkbenchOpen(false);
+            } else {
+              onOpenAgent?.(scriptId);
+            }
+          }}
+          className="flex items-center gap-1.5 rounded-lg border border-zinc-700/70 bg-zinc-500/10 px-3 py-2 text-xs text-zinc-200">
+          {renderProductionAgent && agentPanelOpen ? <PanelRightClose className="size-3.5" /> : <PanelRightOpen className="size-3.5" />}
+          生产智能体
+        </button>
+      ) : null}
+      {error ? (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <FailureReason>{error}</FailureReason>
+          <button
+            type="button"
+            aria-label="重新加载生产数据"
+            onClick={() => scriptId != null && void loadProductionData(scriptId)}
+            className="rounded-lg border border-slate-700 p-2">
+            <RefreshCw className="size-4" />
+          </button>
+        </div>
+      ) : null}
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-800 py-20 text-sm text-slate-400">
+          <LoaderCircle className="size-4 animate-spin" />
+          正在读取生产数据
+        </div>
+      ) : !scripts.length ? (
+        <div className="rounded-xl border border-dashed border-slate-800 py-20 text-center text-sm text-slate-500">项目还没有剧本。</div>
+      ) : activeWorkbenchMenu === "preview" && scriptId != null ? (
+        <PreviewWorkbench api={api} scriptId={scriptId} storyboards={storyboards} assets={flowData.assets} onError={setError} />
+      ) : activeWorkbenchMenu === "generate" ? (
+        <GenerationWorkbench
+          api={api}
+          project={project}
+          flowData={flowData}
+          storyboards={storyboards}
+          tracks={tracks}
+          setTracks={setTracks}
+          onAddTrack={addTrack}
+          onDeleteTrack={deleteTrack}
+          onGeneratePrompt={generatePrompt}
+          onGenerateVideo={generateVideo}
+          onError={setError}
+        />
+      ) : null}
+      {!loading && scripts.length && editorActivated ? (
+        <div
+          className={activeWorkbenchMenu === "editVideo" ? "h-full space-y-3 overflow-hidden" : "hidden"}
+          aria-hidden={activeWorkbenchMenu === "editVideo" ? undefined : true}>
+          {mediaError ? (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-xs text-zinc-200">
+              <span>{mediaError}</span>
+              <button
+                type="button"
+                aria-label="重试加载剪辑素材"
+                onClick={retryMediaLibrary}
+                className="rounded border border-zinc-400/40 px-2 py-1">
+                重试
+              </button>
+            </div>
+          ) : null}
+          <WebAvVideoEditor
+            key={`${project.id}:${scriptId}`}
+            clips={completedVideos}
+            mediaLibrary={mediaLibrary.map(toEditorMedia)}
+            videoRatio={project.videoRatio}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+
+  // 独立全页模式的页面头：项目名 + 剧本选择器。
+  const standaloneHeader =
+    tab !== "flow" ? (
+      <header className="mx-auto flex max-w-[1500px] flex-wrap items-end justify-between gap-4 px-5 pt-5 lg:px-8 lg:pt-8">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-sm text-zinc-300">
+            <Clapperboard className="size-4" />
+            生产工作台
+          </div>
+          <h1 className="text-2xl font-semibold">{project.name}</h1>
+        </div>
+        <label className="grid gap-1.5 text-xs text-slate-500">
+          当前剧本
+          <select
+            aria-label="当前剧本"
+            value={scriptId ?? ""}
+            disabled={switchingScript}
+            onChange={(event) => void switchScript(Number(event.target.value))}
+            className="min-w-52 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 disabled:opacity-50">
+            {scripts.map((script) => (
+              <option key={script.id} value={script.id}>
+                {script.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </header>
+    ) : null;
+
+  // 嵌入模式的紧凑剧本工具条：保留功能，不渲染页面头。
+  const embeddedScriptRow =
+    tab !== "flow" ? (
+      <div className="flex shrink-0 items-center gap-2">
+        <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 text-slate-300">
+          <FolderOpen className="size-4 shrink-0" />
+          <select
+            aria-label="当前剧本"
+            value={scriptId ?? ""}
+            disabled={switchingScript}
+            onChange={(event) => void switchScript(Number(event.target.value))}
+            className="min-w-40 bg-transparent text-sm text-slate-200 outline-none disabled:opacity-50">
+            {scripts.map((script) => (
+              <option key={script.id} value={script.id}>
+                {script.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          aria-label="刷新生产数据"
+          disabled={loading}
+          onClick={refreshSelectedFlow}
+          className="grid size-10 place-items-center rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900 disabled:opacity-50">
+          <RefreshCw className="size-4" />
+        </button>
+      </div>
+    ) : null;
+
+  if (embedded) {
+    return (
+      <div data-testid="production-workbench-embedded" className="flex h-full min-h-0 flex-col bg-[#0b0b0b] text-slate-100">
+        {tab === "flow" ? (
+          <div className="relative min-h-0 flex-1">
+            {flowSurfaceContent}
+            {workbenchOpen ? (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="视频工作台"
+                data-testid="production-workbench-embedded-overlay"
+                className="absolute inset-0 z-[60] flex min-h-0 flex-col overflow-hidden bg-[#0b0b0b]">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-800 px-4">
+                  {workbenchNav}
+                  <button
+                    type="button"
+                    aria-label="关闭视频工作台"
+                    onClick={() => setWorkbenchOpen(false)}
+                    className="grid size-10 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100">
+                    <X className="size-5" />
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">{workbenchPanels}</div>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+            {embeddedScriptRow}
+            {workbenchNav}
+            <div className="min-h-0 flex-1">{workbenchPanels}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -1728,56 +1943,10 @@ export function ProductionWorkbench({
           aria-modal={tab === "flow" ? true : undefined}
           aria-label={tab === "flow" ? "视频工作台" : undefined}
           data-testid={tab === "flow" ? "production-workbench-overlay" : undefined}
-          className={`${tab === "flow" ? "fixed inset-0 z-[100] h-screen overflow-hidden" : "min-h-screen"} bg-[#090b10] text-slate-100`}>
-          {tab !== "flow" ? (
-            <header className="mx-auto flex max-w-[1500px] flex-wrap items-end justify-between gap-4 px-5 pt-5 lg:px-8 lg:pt-8">
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-sm text-blue-300">
-                  <Clapperboard className="size-4" />
-                  生产工作台
-                </div>
-                <h1 className="text-2xl font-semibold">{project.name}</h1>
-              </div>
-              <label className="grid gap-1.5 text-xs text-slate-500">
-                当前剧本
-                <select
-                  aria-label="当前剧本"
-                  value={scriptId ?? ""}
-                  disabled={switchingScript}
-                  onChange={(event) => void switchScript(Number(event.target.value))}
-                  className="min-w-52 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 disabled:opacity-50">
-                  {scripts.map((script) => (
-                    <option key={script.id} value={script.id}>
-                      {script.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </header>
-          ) : null}
+          className={`${tab === "flow" ? "fixed inset-0 z-[100] h-screen overflow-hidden" : "min-h-screen"} bg-[#0b0b0b] text-slate-100`}>
+          {standaloneHeader}
           <div className={`${tab === "flow" ? "flex h-full min-h-0 flex-col px-4 pb-4 pt-2" : "mx-auto max-w-[1500px] px-5 pb-5 lg:px-8 lg:pb-8"}`}>
-            <nav aria-label="视频工作台功能" className="flex w-fit shrink-0 items-center pb-4 pt-2">
-              {(
-                [
-                  ["preview", "快速预览", Presentation],
-                  ["generate", "视频生成", CirclePlay],
-                  ["editVideo", "视频编辑", SquarePen],
-                ] as const
-              ).map(([id, label, Icon]) => (
-                <button
-                  key={id}
-                  type="button"
-                  title={label}
-                  aria-label={label}
-                  aria-pressed={activeWorkbenchMenu === id}
-                  onClick={() => changeWorkbenchMenu(id)}
-                  className={`mr-1 grid size-[50px] place-items-center rounded-2xl transition-colors ${
-                    activeWorkbenchMenu === id ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-                  }`}>
-                  <Icon className="size-6" />
-                </button>
-              ))}
-            </nav>
+            {workbenchNav}
             {tab === "flow" ? (
               <button
                 type="button"
@@ -1788,88 +1957,7 @@ export function ProductionWorkbench({
                 <X className="size-6" />
               </button>
             ) : null}
-            <div className={`${tab === "flow" ? "min-h-0 flex-1 overflow-hidden" : "mt-5"}`}>
-              {tab !== "flow" && (renderProductionAgent || onOpenAgent) && scriptId != null ? (
-                <button
-                  type="button"
-                  aria-expanded={renderProductionAgent ? agentPanelOpen : undefined}
-                  onClick={() => {
-                    if (renderProductionAgent) {
-                      setAgentPanelOpen(true);
-                      setTab("flow");
-                      setWorkbenchOpen(false);
-                    } else {
-                      onOpenAgent?.(scriptId);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 rounded-lg border border-violet-700/70 bg-violet-500/10 px-3 py-2 text-xs text-violet-200">
-                  {renderProductionAgent && agentPanelOpen ? <PanelRightClose className="size-3.5" /> : <PanelRightOpen className="size-3.5" />}
-                  生产智能体
-                </button>
-              ) : null}
-              {error ? (
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <FailureReason>{error}</FailureReason>
-                  <button
-                    type="button"
-                    aria-label="重新加载生产数据"
-                    onClick={() => scriptId != null && void loadProductionData(scriptId)}
-                    className="rounded-lg border border-slate-700 p-2">
-                    <RefreshCw className="size-4" />
-                  </button>
-                </div>
-              ) : null}
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-800 py-20 text-sm text-slate-400">
-                  <LoaderCircle className="size-4 animate-spin" />
-                  正在读取生产数据
-                </div>
-              ) : !scripts.length ? (
-                <div className="rounded-xl border border-dashed border-slate-800 py-20 text-center text-sm text-slate-500">项目还没有剧本。</div>
-              ) : activeWorkbenchMenu === "preview" && scriptId != null ? (
-                <PreviewWorkbench api={api} scriptId={scriptId} storyboards={storyboards} assets={flowData.assets} onError={setError} />
-              ) : activeWorkbenchMenu === "generate" ? (
-                <GenerationWorkbench
-                  api={api}
-                  project={project}
-                  flowData={flowData}
-                  storyboards={storyboards}
-                  tracks={tracks}
-                  setTracks={setTracks}
-                  onAddTrack={addTrack}
-                  onDeleteTrack={deleteTrack}
-                  onGeneratePrompt={generatePrompt}
-                  onGenerateVideo={generateVideo}
-                  onError={setError}
-                />
-              ) : null}
-              {!loading && scripts.length && editorActivated ? (
-                <div
-                  className={activeWorkbenchMenu === "editVideo" ? "h-full space-y-3 overflow-hidden" : "hidden"}
-                  aria-hidden={activeWorkbenchMenu === "editVideo" ? undefined : true}>
-                  {mediaError ? (
-                    <div
-                      role="alert"
-                      className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                      <span>{mediaError}</span>
-                      <button
-                        type="button"
-                        aria-label="重试加载剪辑素材"
-                        onClick={retryMediaLibrary}
-                        className="rounded border border-amber-400/40 px-2 py-1">
-                        重试
-                      </button>
-                    </div>
-                  ) : null}
-                  <WebAvVideoEditor
-                    key={`${project.id}:${scriptId}`}
-                    clips={completedVideos}
-                    mediaLibrary={mediaLibrary.map(toEditorMedia)}
-                    videoRatio={project.videoRatio}
-                  />
-                </div>
-              ) : null}
-            </div>
+            <div className={`${tab === "flow" ? "min-h-0 flex-1 overflow-hidden" : "mt-5"}`}>{workbenchPanels}</div>
           </div>
         </main>
       )}

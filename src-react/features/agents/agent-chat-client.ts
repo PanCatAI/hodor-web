@@ -56,6 +56,12 @@ interface ContentUpdateEvent {
 const defaultSocketFactory: AgentSocketFactory = (url, options) => io(url, options) as unknown as AgentSocket;
 let localMessageSequence = 0;
 
+/**
+ * 后端 Socket.IO Server 挂载在 path=/api/socket.io 下（Express 登录中间件只放行该前缀）。
+ * 客户端必须显式传 path，否则默认落到 /socket.io 并被中间件 401。
+ */
+export const AGENT_SOCKET_IO_PATH = "/api/socket.io";
+
 const WORK_TAGS: Record<AgentType, string[]> = {
   scriptAgent: ["storySkeleton", "adaptationStrategy", "scriptItem"],
   productionAgent: ["script", "scriptPlan", "storyboardTable", "storyboardItem"],
@@ -488,8 +494,10 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
   function ensureSocket(): AgentSocket {
     if (socket) return socket;
     socket = (options.socketFactory ?? defaultSocketFactory)(resolveAgentSocketUrl(options.apiBaseUrl, options.agentType), {
+      path: AGENT_SOCKET_IO_PATH,
       autoConnect: false,
-      transports: ["websocket", "polling"],
+      // 先走 polling 建立已认证会话，再自动升级 WebSocket；避免本机 WebSocket 首次握手悬挂。
+      transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: Number.POSITIVE_INFINITY,
       reconnectionDelay: 1000,
