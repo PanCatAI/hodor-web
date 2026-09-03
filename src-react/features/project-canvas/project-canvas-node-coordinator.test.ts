@@ -78,19 +78,118 @@ describe("coordinateProjectCanvasNodes", () => {
       updatedAt: 2,
     };
 
-    const first = coordinateProjectCanvasNodes(fixture.snapshots.p1Initial, interactive, new Map());
+    const linkedSnapshot = { ...fixture.snapshots.p1Initial, interactiveStoryGraphId: interactive.id };
+    const first = coordinateProjectCanvasNodes(linkedSnapshot, interactive, new Map());
     const production = first.find((node) => node.id === "node-a");
     const story = first.find((node) => node.id === "interactive:story-graph-7:scene-1");
 
     expect(story?.data).toMatchObject({ source: "interactive-story", sourceRef: "scene-1", title: "雨夜开场", status: "ready" });
 
     const second = coordinateProjectCanvasNodes(
-      fixture.snapshots.p1Initial,
+      linkedSnapshot,
       { ...interactive, revision: 4 },
       new Map(first.map((node) => [node.id, node])),
     );
     expect(second.find((node) => node.id === "node-a")).toBe(production);
     expect(second.find((node) => node.id === "interactive:story-graph-7:scene-1")).toBe(story);
+  });
+
+  it("does not mix an unbound production graph into the interactive story", () => {
+    const fixture = buildDualProjectFixture();
+    const interactive: InteractiveStoryGraph = {
+      id: "story-graph-7",
+      projectId: 7,
+      title: "互动剧情",
+      entryNodeId: "scene-1",
+      status: "ready",
+      revision: 1,
+      nodes: [
+        {
+          id: "scene-1",
+          graphId: "story-graph-7",
+          scriptId: 19,
+          kind: "scene",
+          title: "现场勘查",
+          summary: "进入案件",
+          position: { x: 900, y: 600 },
+          status: "ready",
+          script: null,
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      edges: [],
+      variables: [],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+
+    const nodes = coordinateProjectCanvasNodes(
+      { ...fixture.snapshots.p1Initial, interactiveStoryGraphId: null },
+      interactive,
+      new Map(),
+    );
+
+    expect(nodes.map((node) => node.data.source)).toEqual(["interactive-story"]);
+    expect(nodes.map((node) => node.data.title)).toEqual(["现场勘查"]);
+  });
+
+  it("orders cyclic interactive story nodes by their earliest distance from the entry", () => {
+    const fixture = buildDualProjectFixture();
+    const node = (id: string, title: string, createdAt: number) => ({
+      id,
+      graphId: "story-graph-7",
+      scriptId: 100 + createdAt,
+      kind: id === "ending" ? "ending" as const : id === "hub" ? "hub" as const : "scene" as const,
+      title,
+      summary: title,
+      position: { x: 0, y: 0 },
+      status: "ready" as const,
+      script: null,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    const interactive: InteractiveStoryGraph = {
+      id: "story-graph-7",
+      projectId: 7,
+      title: "互动剧情",
+      entryNodeId: "entry",
+      status: "ready",
+      revision: 1,
+      nodes: [
+        node("entry", "入口", 1),
+        node("evidence", "现场取证", 2),
+        node("interview", "人物审讯", 3),
+        node("hub", "线索汇合", 4),
+        node("ending", "真结局", 5),
+      ],
+      edges: [
+        { id: "e1", graphId: "story-graph-7", sourceNodeId: "entry", targetNodeId: "evidence", choiceText: "取证", condition: null, effects: [], priority: 0, createdAt: 1, updatedAt: 1 },
+        { id: "e2", graphId: "story-graph-7", sourceNodeId: "entry", targetNodeId: "interview", choiceText: "审讯", condition: null, effects: [], priority: 0, createdAt: 2, updatedAt: 2 },
+        { id: "e3", graphId: "story-graph-7", sourceNodeId: "evidence", targetNodeId: "interview", choiceText: "转向审讯", condition: null, effects: [], priority: 0, createdAt: 3, updatedAt: 3 },
+        { id: "e4", graphId: "story-graph-7", sourceNodeId: "interview", targetNodeId: "evidence", choiceText: "补查物证", condition: null, effects: [], priority: 0, createdAt: 4, updatedAt: 4 },
+        { id: "e5", graphId: "story-graph-7", sourceNodeId: "evidence", targetNodeId: "hub", choiceText: "汇合", condition: null, effects: [], priority: 0, createdAt: 5, updatedAt: 5 },
+        { id: "e6", graphId: "story-graph-7", sourceNodeId: "interview", targetNodeId: "hub", choiceText: "汇合", condition: null, effects: [], priority: 0, createdAt: 6, updatedAt: 6 },
+        { id: "e7", graphId: "story-graph-7", sourceNodeId: "hub", targetNodeId: "ending", choiceText: "揭晓", condition: null, effects: [], priority: 0, createdAt: 7, updatedAt: 7 },
+      ],
+      variables: [],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+
+    const nodes = coordinateProjectCanvasNodes(
+      { ...fixture.snapshots.p1Initial, interactiveStoryGraphId: null },
+      interactive,
+      new Map(),
+    );
+    const positions = Object.fromEntries(nodes.map((item) => [item.data.sourceRef, item.position]));
+
+    expect(positions.entry.x).toBeLessThan(positions.evidence.x);
+    expect(positions.evidence.x).toBe(positions.interview.x);
+    expect(positions.evidence.y).not.toBe(positions.interview.y);
+    expect(positions.interview.x).toBeLessThan(positions.hub.x);
+    expect(positions.hub.x).toBeLessThan(positions.ending.x);
+    assertNoOverlap(nodes);
   });
 
   it("lays out production and interactive nodes deterministically without overlap", () => {
@@ -136,8 +235,9 @@ describe("coordinateProjectCanvasNodes", () => {
       updatedAt: 2,
     };
 
-    const first = coordinateProjectCanvasNodes(fixture.snapshots.p1Initial, interactive, new Map());
-    const second = coordinateProjectCanvasNodes(fixture.snapshots.p1Initial, interactive, new Map());
+    const linkedSnapshot = { ...fixture.snapshots.p1Initial, interactiveStoryGraphId: interactive.id };
+    const first = coordinateProjectCanvasNodes(linkedSnapshot, interactive, new Map());
+    const second = coordinateProjectCanvasNodes(linkedSnapshot, interactive, new Map());
     expect(first.map((node) => ({ id: node.id, position: node.position }))).toEqual(second.map((node) => ({ id: node.id, position: node.position })));
 
     const boxes = first.map((node) => ({ x: node.position.x, y: node.position.y, width: 260, height: 160 }));

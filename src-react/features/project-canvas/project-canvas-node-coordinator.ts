@@ -28,6 +28,9 @@ export interface ProjectCanvasViewport {
 
 const GOAL_POSITION = { x: 80, y: 140 };
 const COLUMN_GAP = 64;
+const STORY_ORIGIN = { x: 80, y: 60 };
+const STORY_COLUMN_GAP = 96;
+const STORY_ROW_GAP = 64;
 
 export interface CanvasFramingKeyInput {
   graphId: string | null;
@@ -133,6 +136,68 @@ function productionNodeLayout(snapshot: ProductionGraphSnapshot, viewport: Proje
   return layout;
 }
 
+export function productionGraphMatchesInteractiveStory(
+  snapshot: ProductionGraphSnapshot,
+  interactive: InteractiveStoryGraph | null,
+): boolean {
+  return interactive === null || snapshot.interactiveStoryGraphId === interactive.id;
+}
+
+/**
+ * 互动剧情按入口的最短可达层级分列。回跳边不会把整张图拖成长链，
+ * 同层节点按服务端稳定顺序纵向排列，刷新后位置保持确定。
+ */
+function interactiveStoryLayout(
+  interactive: InteractiveStoryGraph,
+  originX: number,
+): Record<string, { x: number; y: number }> {
+  const ids = interactive.nodes.map((node) => node.id);
+  const idSet = new Set(ids);
+  const entryId = interactive.entryNodeId && idSet.has(interactive.entryNodeId) ? interactive.entryNodeId : ids[0];
+  if (!entryId) return {};
+
+  const adjacency = new Map(ids.map((id) => [id, [] as string[]]));
+  for (const edge of interactive.edges) {
+    if (!idSet.has(edge.sourceNodeId) || !idSet.has(edge.targetNodeId) || edge.sourceNodeId === edge.targetNodeId) continue;
+    const targets = adjacency.get(edge.sourceNodeId)!;
+    if (!targets.includes(edge.targetNodeId)) targets.push(edge.targetNodeId);
+  }
+
+  const rank = new Map<string, number>([[entryId, 0]]);
+  const queue = [entryId];
+  while (queue.length > 0) {
+    const source = queue.shift()!;
+    const nextRank = (rank.get(source) ?? 0) + 1;
+    for (const target of adjacency.get(source) ?? []) {
+      if (rank.has(target)) continue;
+      rank.set(target, nextRank);
+      queue.push(target);
+    }
+  }
+  const disconnectedRank = Math.max(0, ...rank.values()) + 1;
+  for (const id of ids) if (!rank.has(id)) rank.set(id, disconnectedRank);
+
+  const levels = new Map<number, string[]>();
+  for (const id of ids) {
+    const level = rank.get(id) ?? disconnectedRank;
+    levels.set(level, [...(levels.get(level) ?? []), id]);
+  }
+  const maxLevelCount = Math.max(1, ...[...levels.values()].map((levelIds) => levelIds.length));
+  const maxLevelHeight = maxLevelCount * PROJECT_CANVAS_NODE_SIZE.height + (maxLevelCount - 1) * STORY_ROW_GAP;
+  const layout: Record<string, { x: number; y: number }> = {};
+  for (const [level, levelIds] of [...levels.entries()].sort(([left], [right]) => left - right)) {
+    const levelHeight = levelIds.length * PROJECT_CANVAS_NODE_SIZE.height + (levelIds.length - 1) * STORY_ROW_GAP;
+    const startY = STORY_ORIGIN.y + Math.round((maxLevelHeight - levelHeight) / 2);
+    levelIds.forEach((id, index) => {
+      layout[id] = {
+        x: originX + level * (PROJECT_CANVAS_NODE_SIZE.width + STORY_COLUMN_GAP),
+        y: startY + index * (PROJECT_CANVAS_NODE_SIZE.height + STORY_ROW_GAP),
+      };
+    });
+  }
+  return layout;
+}
+
 function toCanvasNode(
   graphNode: ProductionGraphNode,
   source: ProjectCanvasNodeData["source"],
@@ -158,23 +223,27 @@ export function coordinateProjectCanvasNodes(
   previous: ReadonlyMap<string, ProjectCanvasNode>,
   viewport: ProjectCanvasViewport = PROJECT_CANVAS_DEFAULT_VIEWPORT,
 ): ProjectCanvasNode[] {
-  const layout = productionNodeLayout(snapshot, viewport);
-  const productionNodes = snapshot.nodes.map((graphNode) =>
-    toCanvasNode(graphNode, "production-graph", graphNode.id, layout[graphNode.id] ?? GOAL_POSITION, previous.get(graphNode.id)),
-  );
+  const includeProductionGraph = productionGraphMatchesInteractiveStory(snapshot, interactive);
+  const layout = includeProductionGraph ? productionNodeLayout(snapshot, viewport) : {};
+  const productionNodes = includeProductionGraph
+    ? snapshot.nodes.map((graphNode) =>
+        toCanvasNode(graphNode, "production-graph", graphNode.id, layout[graphNode.id] ?? GOAL_POSITION, previous.get(graphNode.id)),
+      )
+    : [];
   if (!interactive) return productionNodes;
 
   const interactiveNodes = interactive.nodes;
-  const originX = Math.max(0, ...productionNodes.map((node) => node.position.x + PROJECT_CANVAS_NODE_SIZE.width)) + COLUMN_GAP * 2;
-  const minX = interactiveNodes.length ? Math.min(...interactiveNodes.map((node) => node.position.x)) : 0;
-  const minY = interactiveNodes.length ? Math.min(...interactiveNodes.map((node) => node.position.y)) : 0;
+  const originX = productionNodes.length > 0
+    ? Math.max(...productionNodes.map((node) => node.position.x + PROJECT_CANVAS_NODE_SIZE.width)) + COLUMN_GAP * 2
+    : STORY_ORIGIN.x;
+  const storyLayout = interactiveStoryLayout(interactive, originX);
   const storyNodes = interactiveNodes.map((node) => {
     const graphNode = interactiveGraphNode(interactive.id, node);
     return toCanvasNode(
       graphNode,
       "interactive-story",
       node.id,
-      { x: originX + (node.position.x - minX), y: 60 + (node.position.y - minY) },
+      storyLayout[node.id] ?? STORY_ORIGIN,
       previous.get(graphNode.id),
     );
   });

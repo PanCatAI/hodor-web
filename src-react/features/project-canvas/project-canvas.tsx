@@ -42,6 +42,7 @@ import {
 import {
   canvasFramingKey,
   coordinateProjectCanvasNodes,
+  productionGraphMatchesInteractiveStory,
   projectCanvasFitViewOptions,
   shouldReframeCanvas,
   type ProjectCanvasNode,
@@ -195,7 +196,7 @@ function GraphNodeCard({ data, selected }: NodeProps<ProjectCanvasNode>) {
 const nodeTypes: NodeTypes = { "production-graph": GraphNodeCard };
 
 function graphEdges(snapshot: ProductionGraphSnapshot, interactive: InteractiveStoryGraph | null) {
-  const productionEdges = snapshot.edges.map((edge) => ({
+  const productionEdges = (productionGraphMatchesInteractiveStory(snapshot, interactive) ? snapshot.edges : []).map((edge) => ({
     id: edge.id,
     source: edge.sourceNodeId,
     target: edge.targetNodeId,
