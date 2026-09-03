@@ -59,6 +59,174 @@ function setup() {
 }
 
 describe("agent chat client", () => {
+  it("exposes the latest production run update for visible stage progress", () => {
+    const socket = new FakeSocket();
+    const client = createAgentChatClient({
+      agentType: "productionAgent",
+      projectId: 1785500718774,
+      episodeId: 16,
+      apiBaseUrl: "http://localhost:10588/api",
+      getToken: () => "Bearer pancat-session",
+      apiClient: { request: vi.fn(async () => []) } as unknown as HodorApiClient,
+      socketFactory: vi.fn(() => socket) as unknown as AgentSocketFactory,
+    });
+
+    client.connect();
+    socket.trigger("productionRun:update", {
+      runId: "production-run-1",
+      stage: "generateAssets",
+      status: "running",
+      attempt: 3,
+      objective: "生成资产图片",
+      updatedAt: "2026-08-01T03:53:41.876Z",
+      error: null,
+    });
+
+    expect(client.getSnapshot().productionRun).toEqual({
+      runId: "production-run-1",
+      stage: "generateAssets",
+      status: "running",
+      attempt: 3,
+      objective: "生成资产图片",
+      updatedAt: "2026-08-01T03:53:41.876Z",
+      error: null,
+    });
+  });
+
+  it("restores active production progress after reconnecting to an existing run", () => {
+    const socket = new FakeSocket();
+    const client = createAgentChatClient({
+      agentType: "productionAgent",
+      projectId: 1785500718774,
+      episodeId: 16,
+      apiBaseUrl: "http://localhost:10588/api",
+      getToken: () => "Bearer pancat-session",
+      apiClient: { request: vi.fn(async () => []) } as unknown as HodorApiClient,
+      socketFactory: vi.fn(() => socket) as unknown as AgentSocketFactory,
+    });
+
+    client.connect();
+    socket.trigger("productionRun:restore", {
+      activeRuns: [
+        {
+          runId: "production-run-restored",
+          stage: "storyboardGen",
+          status: "running",
+          attempt: 2,
+          objective: "继续生成剩余分镜图",
+          updatedAt: "2026-08-01T04:07:58.000Z",
+          error: null,
+        },
+      ],
+    });
+
+    expect(client.getSnapshot().productionRun).toMatchObject({
+      runId: "production-run-restored",
+      stage: "storyboardGen",
+      status: "running",
+      attempt: 2,
+    });
+  });
+
+  it("restores the retryable failure when a newer unrelated terminal run exists", () => {
+    const socket = new FakeSocket();
+    const client = createAgentChatClient({
+      agentType: "scriptAgent",
+      projectId: 1785500718774,
+      apiBaseUrl: "http://localhost:10588/api",
+      getToken: () => "Bearer pancat-session",
+      apiClient: { request: vi.fn(async () => []) } as unknown as HodorApiClient,
+      socketFactory: vi.fn(() => socket) as unknown as AgentSocketFactory,
+    });
+
+    client.connect();
+    socket.trigger("productionRun:restore", {
+      activeRuns: [],
+      recentTerminalRuns: [
+        {
+          runId: "newer-cancelled-run",
+          stage: "storyboardPanel",
+          status: "cancelled",
+          attempt: 1,
+          objective: "重复运行",
+          updatedAt: "2026-08-01T04:11:37.000Z",
+          error: null,
+        },
+        {
+          runId: "retryable-storyboard-run",
+          stage: "storyboardGen",
+          status: "failed",
+          attempt: 2,
+          objective: "补齐分镜图",
+          updatedAt: "2026-08-01T04:06:22.000Z",
+          error: { message: "临时网关错误", retryable: true },
+        },
+      ],
+    });
+
+    expect(client.getSnapshot().productionRun?.runId).toBe("retryable-storyboard-run");
+  });
+
+  it("automatically resumes a retryable production failure from the interactive script conversation", () => {
+    vi.useFakeTimers();
+    try {
+      const { client, socket } = setup();
+      client.connect();
+
+      socket.trigger("productionRun:update", {
+        runId: "production-run-retryable",
+        stage: "storyboardGen",
+        status: "failed",
+        attempt: 2,
+        objective: "生成剩余分镜图",
+        updatedAt: "2026-08-01T04:07:58.000Z",
+        error: { message: "Pancat 临时网关错误", retryable: true },
+      });
+      vi.advanceTimersByTime(5_000);
+
+      expect(client.getSnapshot().productionRun).toMatchObject({
+        runId: "production-run-retryable",
+        stage: "storyboardGen",
+        status: "failed",
+      });
+      expect(socket.emitted).toContainEqual({
+        event: "chat",
+        data: expect.objectContaining({
+          content: expect.stringContaining("storyboardGen"),
+        }),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("automatically resumes each failed attempt while ignoring duplicate updates for the same attempt", () => {
+    vi.useFakeTimers();
+    try {
+      const { client, socket } = setup();
+      client.connect();
+      const failure = {
+        runId: "production-run-retryable",
+        stage: "storyboardGen",
+        status: "failed",
+        objective: "生成剩余分镜图",
+        updatedAt: "2026-08-01T04:07:58.000Z",
+        error: { message: "临时网关错误", retryable: true },
+      };
+
+      socket.trigger("productionRun:update", { ...failure, attempt: 2 });
+      vi.advanceTimersByTime(5_000);
+      socket.trigger("productionRun:update", { ...failure, attempt: 2 });
+      vi.advanceTimersByTime(5_000);
+      socket.trigger("productionRun:update", { ...failure, attempt: 3 });
+      vi.advanceTimersByTime(5_000);
+
+      expect(socket.emitted.filter((entry) => entry.event === "chat")).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("connects to the existing namespace with Pancat session auth", () => {
     const { client, socket, socketFactory } = setup();
 

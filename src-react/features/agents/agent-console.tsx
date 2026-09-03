@@ -15,7 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import type { AgentChatClient, AgentMessageContent, MemoryType } from "./types";
+import type { AgentChatClient, AgentMessageContent, MemoryType, ProductionRunProgress } from "./types";
 
 interface AgentConsoleProps {
   client: AgentChatClient;
@@ -56,6 +56,40 @@ const memoryLabels: Record<MemoryType, string> = {
   summary: "摘要记忆",
   all: "所有记忆",
 };
+
+const productionStageLabels: Record<string, string> = {
+  directorPlan: "导演计划",
+  baseAssets: "基础资产分析",
+  deriveAssets: "衍生资产分析",
+  generateAssets: "资产生成",
+  storyboardTable: "分镜表",
+  storyboardPanel: "分镜面板",
+  blocking: "场面调度",
+  coverage: "机位覆盖",
+  previs: "三维预演",
+  storyboardGen: "分镜图生成",
+  videoGen: "视频生成",
+  recommendedCut: "推荐剪辑",
+  edit: "成片剪辑",
+  supervision: "监督验收",
+};
+
+function ProductionRunStatus({ run }: { run: ProductionRunProgress }) {
+  const stage = productionStageLabels[run.stage] ?? run.stage;
+  const failed = run.status === "failed" || run.status === "blocked";
+  const message = run.error?.message;
+  return (
+    <div role="status" aria-label="生产阶段进度" className="min-w-64 space-y-2 text-sm">
+      <div className="flex items-center gap-2">
+        {failed ? <XCircle className="size-4 text-red-400" /> : <LoaderCircle className="size-4 animate-spin text-blue-400" />}
+        <span className="font-medium text-slate-100">{stage}</span>
+        <span className="text-xs text-slate-500">第 {run.attempt} 次尝试</span>
+      </div>
+      <p className="leading-5 text-slate-400">{run.objective}</p>
+      {message ? <p className="rounded bg-red-950/40 px-2 py-1.5 text-xs leading-5 text-red-200">{message}</p> : null}
+    </div>
+  );
+}
 
 function stringifyData(data: unknown): string {
   if (typeof data === "string") return data;
@@ -490,11 +524,15 @@ export function AgentConsole({
                     <ContentBlock key={content.id ?? `${message.id}-${index}`} content={content} role={message.role} onSuggestion={send} />
                   ))}
                   {(message.status === "pending" || message.status === "streaming") && message.content.length === 0 ? (
-                    <span role="status" aria-label="生成中" className="flex h-5 items-center gap-1">
-                      <i className="size-1.5 animate-pulse rounded-full bg-slate-500" />
-                      <i className="size-1.5 animate-pulse rounded-full bg-slate-500 [animation-delay:120ms]" />
-                      <i className="size-1.5 animate-pulse rounded-full bg-slate-500 [animation-delay:240ms]" />
-                    </span>
+                    snapshot.productionRun ? (
+                      <ProductionRunStatus run={snapshot.productionRun} />
+                    ) : (
+                      <span role="status" aria-label="生成中" className="flex h-5 items-center gap-1">
+                        <i className="size-1.5 animate-pulse rounded-full bg-slate-500" />
+                        <i className="size-1.5 animate-pulse rounded-full bg-slate-500 [animation-delay:120ms]" />
+                        <i className="size-1.5 animate-pulse rounded-full bg-slate-500 [animation-delay:240ms]" />
+                      </span>
+                    )
                   ) : null}
                   {message.ext?.error ? <p className="text-sm text-red-300">{stringifyData(message.ext.error)}</p> : null}
                 </div>

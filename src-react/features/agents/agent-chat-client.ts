@@ -14,6 +14,7 @@ import type {
   AgentSocketFactory,
   AgentType,
   MemoryType,
+  ProductionRunProgress,
 } from "./types";
 
 interface CreateAgentChatClientOptions {
@@ -151,6 +152,9 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
   let hasConnected = false;
   const rawContent = new Map<string, string>();
   const persistedWorkTags = new Map<string, string>();
+  const resumedRunAttempts = new Set<string>();
+  let recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingRecoveryRun: ProductionRunProgress | null = null;
   const initialMessages = (options.initialMessages ?? []).map(cloneMessage);
   const initialMessageIds = new Set(initialMessages.map((message) => message.id));
   let snapshot: AgentChatSnapshot = {
@@ -160,6 +164,7 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
     currentMessageId: null,
     messages: initialMessages,
     error: null,
+    productionRun: null,
     loadingHistory: false,
     clearingMemory: null,
   };
@@ -254,6 +259,53 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
     });
   }
 
+  function clearRecoveryTimer() {
+    if (recoveryTimer) clearTimeout(recoveryTimer);
+    recoveryTimer = null;
+  }
+
+  function scheduleProductionRecovery(run: ProductionRunProgress) {
+    const recoveryKey = `${run.runId}:${run.attempt}`;
+    if (!run.error?.retryable || resumedRunAttempts.has(recoveryKey)) return;
+    pendingRecoveryRun = run;
+    clearRecoveryTimer();
+    const resumeWhenIdle = () => {
+      recoveryTimer = null;
+      if (
+        !pendingRecoveryRun ||
+        pendingRecoveryRun.runId !== run.runId ||
+        pendingRecoveryRun.attempt !== run.attempt ||
+        resumedRunAttempts.has(recoveryKey)
+      ) return;
+      if (!socket?.connected) return;
+      if (snapshot.activity !== "idle") {
+        recoveryTimer = setTimeout(resumeWhenIdle, 2_000);
+        return;
+      }
+      resumedRunAttempts.add(recoveryKey);
+      pendingRecoveryRun = null;
+      const messageContext = options.messageContext?.();
+      socket.emit("chat", {
+        content: `继续自动恢复生产阶段 ${run.stage}。读取现有成功产物，只重试失败或缺失项；随后补齐完整流水线中缺失的场面调度、机位覆盖、三维预演、分镜、视频、建议剪辑、成片和监督阶段，不要询问用户。`,
+        ...(messageContext && Object.keys(messageContext).length > 0 ? { context: messageContext } : {}),
+      });
+    };
+    recoveryTimer = setTimeout(resumeWhenIdle, 5_000);
+  }
+
+  function acceptProductionRun(run: ProductionRunProgress | null) {
+    update({ productionRun: run });
+    if (!run) return;
+    if (run.status === "running" || run.status === "queued") {
+      pendingRecoveryRun = null;
+      clearRecoveryTimer();
+      return;
+    }
+    if (run.status === "failed" || run.status === "blocked" || run.status === "partial") {
+      scheduleProductionRecovery(run);
+    }
+  }
+
   function markMessageActive(
     messageId: string,
     activity: AgentActivityState,
@@ -278,9 +330,25 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
       void Promise.resolve(options.handlers?.restoreWorkData?.()).catch((error) => update({ error: toErrorMessage(error) }));
       if (reconnecting) void client.loadHistory();
     });
-    activeSocket.on("disconnect", () => update({ connection: "disconnected" }));
+    activeSocket.on("disconnect", () => {
+      clearRecoveryTimer();
+      update({ connection: "disconnected" });
+    });
     activeSocket.on("connect_error", (error: unknown) => update({ connection: "error", error: toErrorMessage(error) }));
     activeSocket.on("error", (error: unknown) => update({ error: toErrorMessage(error) }));
+
+    activeSocket.on("productionRun:update", (run: ProductionRunProgress) => acceptProductionRun(run));
+    activeSocket.on(
+      "productionRun:restore",
+      (restored: { activeRuns?: ProductionRunProgress[]; recentTerminalRuns?: ProductionRunProgress[] }) => {
+        const retryableFailure = restored.recentTerminalRuns?.find(
+          (run) =>
+            (run.status === "failed" || run.status === "blocked" || run.status === "partial") &&
+            run.error?.retryable,
+        );
+        acceptProductionRun(restored.activeRuns?.[0] ?? retryableFailure ?? restored.recentTerminalRuns?.[0] ?? null);
+      },
+    );
 
     activeSocket.on("message", (event: MessageEvent) => {
       const message = cloneMessage(event);
@@ -447,6 +515,7 @@ export function createAgentChatClient(options: CreateAgentChatClientOptions): Ag
       activeSocket.connect();
     },
     disconnect() {
+      clearRecoveryTimer();
       options.handlers?.stopRecovery?.();
       socket?.disconnect();
       update({ connection: "disconnected" });

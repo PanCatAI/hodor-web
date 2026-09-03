@@ -11,7 +11,7 @@ import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createInteractiveStoryApi, InteractiveStoryPage } from "@react/features/interactive-story";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
-import { createStudioOsApi, StudioOsPage } from "@react/features/studio-os";
+import { createEvolutionStudioOsApi, createStudioOsApi, EvolutionStudioOsPage, StudioOsPage } from "@react/features/studio-os";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
 import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
 import { TasksPage } from "@react/features/tasks";
@@ -359,13 +359,34 @@ function ProductionRoutePage() {
   return <ProductionWorkbenchRoutePage projectId={projectId} initialScriptId={episodeId} />;
 }
 
-function StudioOsRoutePage() {
+function ProjectStudioOsRoutePage() {
   const projectId = readProjectId();
   const { groupId } = projectStudioOsRoute.useSearch();
   const { apiClient } = projectStudioOsRoute.useRouteContext();
+  const [studioView, setStudioView] = useState<"control-room" | "evaluation">("control-room");
+  const controlRoomApi = useMemo(() => createStudioOsApi(apiClient), [apiClient]);
+  const evaluationApi = useMemo(() => createEvolutionStudioOsApi(apiClient), [apiClient]);
   if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
   const resolvedGroupId = groupId ?? `project-${projectId}`;
-  return <StudioOsPage projectId={projectId} groupId={resolvedGroupId} api={createStudioOsApi(apiClient)} />;
+  return (
+    <>
+      <WorkspaceBoundary>
+        <nav aria-label="Studio OS 视图" className="mb-5 flex gap-2">
+          <button type="button" onClick={() => setStudioView("control-room")} aria-pressed={studioView === "control-room"}>
+            控制室
+          </button>
+          <button type="button" onClick={() => setStudioView("evaluation")} aria-pressed={studioView === "evaluation"}>
+            专业创作评估
+          </button>
+        </nav>
+        {studioView === "control-room" ? (
+          <StudioOsPage projectId={projectId} groupId={resolvedGroupId} api={controlRoomApi} />
+        ) : (
+          <EvolutionStudioOsPage api={evaluationApi} />
+        )}
+      </WorkspaceBoundary>
+    </>
+  );
 }
 
 function InteractiveStoryRoutePage() {
@@ -447,11 +468,13 @@ function SettingsRoutePage() {
   );
 }
 
+
 const settingsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/settings",
   component: SettingsRoutePage,
 });
+
 
 const projectNovelRoute = createRoute({
   getParentRoute: () => protectedRoute,
@@ -494,7 +517,7 @@ const projectStudioOsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>) => ({
     groupId: typeof search.groupId === "string" && search.groupId.trim() ? search.groupId.trim() : undefined,
   }),
-  component: StudioOsRoutePage,
+  component: ProjectStudioOsRoutePage,
 });
 
 const projectInteractiveStoryRoute = createRoute({
