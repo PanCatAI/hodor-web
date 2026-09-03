@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { FolderKanban, GitBranch, ListTodo, PanelsTopLeft } from "lucide-react";
+import { FolderKanban, GitBranch, ListTodo } from "lucide-react";
 
 export interface GlobalNavigationItem {
   label: string;
@@ -19,8 +19,7 @@ export interface ProjectNavigationItem {
     | "/projects/$projectId/storyboards"
     | "/projects/$projectId/production"
     | "/projects/$projectId/interactive"
-    | "/projects/$projectId/director-desk"
-    | "/projects/$projectId/studio-os";
+    | "/projects/$projectId/director-desk";
   icon: LucideIcon;
 }
 
@@ -31,5 +30,4 @@ export const globalNavigation: GlobalNavigationItem[] = [
 
 export const projectNavigation: ProjectNavigationItem[] = [
   { label: "画布", to: "/projects/$projectId/canvas", icon: GitBranch },
-  { label: "控制室", to: "/projects/$projectId/studio-os", icon: PanelsTopLeft },
 ];

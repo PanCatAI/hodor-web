@@ -11,7 +11,6 @@ import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createInteractiveStoryApi, InteractiveStoryPage, type InteractiveStoryGraph } from "@react/features/interactive-story";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
-import { createStudioOsApi, StudioOsPage } from "@react/features/studio-os";
 import { ProjectCanvas, StoryModule, type ProjectCanvasModuleId, type ProjectCanvasModuleRenderContext, type ProjectCanvasModuleRenderers } from "@react/features/project-canvas";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
 import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
@@ -379,15 +378,6 @@ function ProductionRoutePage() {
   return <ProductionWorkbenchRoutePage projectId={projectId} initialScriptId={episodeId} />;
 }
 
-function StudioOsRoutePage() {
-  const projectId = readProjectId();
-  const { groupId } = projectStudioOsRoute.useSearch();
-  const { apiClient } = projectStudioOsRoute.useRouteContext();
-  if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
-  const resolvedGroupId = groupId ?? `project-${projectId}`;
-  return <StudioOsPage projectId={projectId} groupId={resolvedGroupId} api={createStudioOsApi(apiClient)} />;
-}
-
 function InteractiveStoryRoutePage() {
   const projectId = readProjectId();
   const { apiClient, apiBaseUrl, getToken } = projectInteractiveStoryRoute.useRouteContext();
@@ -670,10 +660,13 @@ const projectProductionRoute = createRoute({
 const projectStudioOsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects/$projectId/studio-os",
-  validateSearch: (search: Record<string, unknown>) => ({
-    groupId: typeof search.groupId === "string" && search.groupId.trim() ? search.groupId.trim() : undefined,
-  }),
-  component: StudioOsRoutePage,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/projects/$projectId/canvas",
+      params,
+      search: { module: undefined, view: undefined, scriptId: undefined, episodeId: undefined },
+    });
+  },
 });
 
 const projectInteractiveStoryRoute = createRoute({
