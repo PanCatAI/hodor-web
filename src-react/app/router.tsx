@@ -56,6 +56,11 @@ function createDefaultContext(): RouterContext {
   return createRouterContext(resolveBrowserApiBaseUrl());
 }
 
+function selectedProjectId(): string | null {
+  const value = localStorage.getItem("hodorSelectedProjectId")?.trim();
+  return value && /^\d+$/.test(value) && Number(value) > 0 ? value : null;
+}
+
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
   notFoundComponent: () => <PlaceholderPage title="页面不存在" description="这个工作台地址不存在，请从左侧导航重新进入。" />,
@@ -65,7 +70,14 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: ({ context }) => {
-    throw redirect({ to: context.getToken() ? "/projects" : "/login" });
+    if (!context.getToken()) throw redirect({ to: "/login" });
+    const projectId = selectedProjectId();
+    if (!projectId) throw redirect({ to: "/projects" });
+    throw redirect({
+      to: "/projects/$projectId/canvas",
+      params: { projectId },
+      search: { module: undefined, view: undefined, scriptId: undefined, episodeId: undefined },
+    });
   },
 });
 
@@ -77,7 +89,15 @@ function LoginRoutePage() {
     <LoginPage
       login={apiClient.login}
       onAuthenticated={() => {
-        void router.navigate({ to: "/projects" }).then(() => router.invalidate());
+        const projectId = selectedProjectId();
+        const navigation = projectId
+          ? router.navigate({
+              to: "/projects/$projectId/canvas",
+              params: { projectId },
+              search: { module: undefined, view: undefined, scriptId: undefined, episodeId: undefined },
+            })
+          : router.navigate({ to: "/projects" });
+        void navigation.then(() => router.invalidate());
       }}
     />
   );
@@ -87,7 +107,14 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
   beforeLoad: ({ context }) => {
-    if (context.getToken()) throw redirect({ to: "/projects" });
+    if (!context.getToken()) return;
+    const projectId = selectedProjectId();
+    if (!projectId) throw redirect({ to: "/projects" });
+    throw redirect({
+      to: "/projects/$projectId/canvas",
+      params: { projectId },
+      search: { module: undefined, view: undefined, scriptId: undefined, episodeId: undefined },
+    });
   },
   component: LoginRoutePage,
 });
@@ -555,6 +582,15 @@ function ProjectCanvasRoutePage() {
 const projectsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/projects",
+  beforeLoad: () => {
+    const projectId = selectedProjectId();
+    if (!projectId) return;
+    throw redirect({
+      to: "/projects/$projectId/canvas",
+      params: { projectId },
+      search: { module: undefined, view: undefined, scriptId: undefined, episodeId: undefined },
+    });
+  },
   component: ProjectsRoutePage,
 });
 
@@ -747,10 +783,6 @@ const projectDirectorDeskRoute = createRoute({
   validateSearch: (search: Record<string, unknown>) => ({ storyboardId: positiveInteger(search.storyboardId) }),
   component: DirectorDeskRoutePage,
 });
-
-function selectedProjectId(): string | null {
-  return localStorage.getItem("hodorSelectedProjectId");
-}
 
 const legacyProjectRoute = createRoute({
   getParentRoute: () => protectedRoute,

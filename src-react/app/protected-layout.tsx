@@ -12,7 +12,9 @@ export function ProtectedLayout() {
   const matchRoute = useMatchRoute();
   const account = readSession();
   const desktop = detectRuntime() === "electron";
-  const canvasFullscreen = Boolean(matchRoute({ to: "/projects/$projectId/canvas", fuzzy: false }));
+  const canvasFullscreen = Boolean(
+    matchRoute({ to: "/projects", fuzzy: false }) || matchRoute({ to: "/projects/$projectId/canvas", fuzzy: false }),
+  );
   const { projectId } = useParams({ strict: false }) as { projectId?: string };
   const numericProjectId = Number(projectId);
   const { project, loading, error } = useCurrentProject(

@@ -50,7 +50,7 @@ describe("Hodor React router", () => {
     expect(screen.getByRole("button", { name: "登录" })).toBeInTheDocument();
   });
 
-  it("renders the workspace navigation for an authenticated session", async () => {
+  it("keeps the project chooser free of the retired workspace sidebar", async () => {
     authenticate();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ data: [] }), {
@@ -61,11 +61,25 @@ describe("Hodor React router", () => {
 
     render(<HodorApp />);
 
-    expect(await screen.findByRole("navigation", { name: "工作台导航" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "项目" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "任务" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "设置" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "资产" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "项目" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "工作台导航" })).not.toBeInTheDocument();
+  });
+
+  it("redirects the authenticated project entry to the selected full-screen canvas", async () => {
+    authenticate();
+    localStorage.setItem("hodorSelectedProjectId", "7");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ id: 7, projectType: "novel" }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(<HodorApp />);
+
+    await waitFor(() => expect(window.location.hash).toBe("#/projects/7/canvas"));
+    expect(await screen.findByTestId("project-canvas-goal-prompt")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "工作台导航" })).not.toBeInTheDocument();
   });
 
   it("hides the persistent workspace navigation on the full-screen project canvas", async () => {
