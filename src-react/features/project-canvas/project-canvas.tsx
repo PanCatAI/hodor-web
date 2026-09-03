@@ -70,6 +70,8 @@ export interface ProjectCanvasProps {
   agentSocketFactory?: AgentSocketFactory;
   /** 完全注入已装配好的智能体客户端（测试用）；优先于 apiClient 内部创建。 */
   agentClient?: AgentChatClient;
+  /** 项目智能体完成一轮工作后重新读取互动剧情图。 */
+  onRefreshInteractiveGraph?: () => void | Promise<void>;
   /** 从全屏画布进入阶段智能体与模型配置。 */
   onOpenModelSettings?: () => void;
   /** 将拖入或选择的原文导入当前项目，并交给当前项目智能体。 */
@@ -596,6 +598,7 @@ export function ProjectCanvas({
   apiClient,
   agentSocketFactory,
   agentClient: injectedAgentClient,
+  onRefreshInteractiveGraph,
   onOpenModelSettings,
   onImportSource,
 }: ProjectCanvasProps) {
@@ -687,8 +690,14 @@ export function ProjectCanvas({
   // 取景决策 key：首次加载、graphId/revision 变化、覆盖层关闭时变化 → fitView；
   // 普通重渲染与用户拖动画布不改变 key，不会反复重置视口。
   const framingKey = useMemo(
-    () => canvasFramingKey({ graphId: snapshot?.graphId ?? null, revision: snapshot?.revision ?? null, overlayCloseCount }),
-    [overlayCloseCount, snapshot?.graphId, snapshot?.revision],
+    () => canvasFramingKey({
+      graphId: snapshot?.graphId ?? null,
+      revision: snapshot?.revision ?? null,
+      interactiveGraphId: interactiveGraph?.id ?? null,
+      interactiveRevision: interactiveGraph?.revision ?? null,
+      overlayCloseCount,
+    }),
+    [interactiveGraph?.id, interactiveGraph?.revision, overlayCloseCount, snapshot?.graphId, snapshot?.revision],
   );
 
   // 覆盖层（阶段模块 / Agent 抽屉 / 节点检查器）从打开到关闭时计数 +1，并入 framing key。
@@ -792,6 +801,17 @@ export function ProjectCanvas({
       messageContext: () => ({ ...canvasContextRef.current }),
     });
   }, [agentSocketFactory, apiBaseUrl, apiClient, getToken, injectedAgentClient, projectId]);
+
+  useEffect(() => {
+    if (!agentClient || !onRefreshInteractiveGraph) return;
+    let previousActivity = agentClient.getSnapshot().activity;
+    return agentClient.subscribe(() => {
+      const activity = agentClient.getSnapshot().activity;
+      const finishedWork = (previousActivity === "pending" || previousActivity === "streaming") && activity === "idle";
+      previousActivity = activity;
+      if (finishedWork) void onRefreshInteractiveGraph();
+    });
+  }, [agentClient, onRefreshInteractiveGraph]);
 
   // Escape 按层级关闭最上层覆盖层：阶段模块 > 智能体抽屉 > 节点检查器。
   useEffect(() => {

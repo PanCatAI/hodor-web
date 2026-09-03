@@ -32,6 +32,8 @@ const COLUMN_GAP = 64;
 export interface CanvasFramingKeyInput {
   graphId: string | null;
   revision: number | null;
+  interactiveGraphId?: string | null;
+  interactiveRevision?: number | null;
   overlayCloseCount: number;
 }
 
@@ -41,7 +43,10 @@ export interface CanvasFramingKeyInput {
  */
 export function canvasFramingKey(input: CanvasFramingKeyInput): string {
   const graph = input.graphId != null && input.revision != null ? `${input.graphId}@${input.revision}` : `pending@${input.graphId ?? "none"}`;
-  return `${graph}|overlays:${input.overlayCloseCount}`;
+  const interactiveGraph = input.interactiveGraphId != null && input.interactiveRevision != null
+    ? `${input.interactiveGraphId}@${input.interactiveRevision}`
+    : `pending@${input.interactiveGraphId ?? "none"}`;
+  return `${graph}|interactive:${interactiveGraph}|overlays:${input.overlayCloseCount}`;
 }
 
 /** 取景决策：previous 为 null（首次加载）或 key 发生变化时返回 true。 */

@@ -282,6 +282,33 @@ describe("canvasFramingKey / shouldReframeCanvas", () => {
     expect(shouldReframeCanvas(base, canvasFramingKey({ graphId: "graph-p2", revision: 1, overlayCloseCount: 0 }))).toBe(true);
   });
 
+  it("reframes when the interactive story graph arrives or changes revision", () => {
+    const beforeInteractiveGraph = canvasFramingKey({
+      graphId: "graph-p1",
+      revision: 1,
+      interactiveGraphId: null,
+      interactiveRevision: null,
+      overlayCloseCount: 0,
+    });
+    const firstInteractiveRevision = canvasFramingKey({
+      graphId: "graph-p1",
+      revision: 1,
+      interactiveGraphId: "story-graph-8",
+      interactiveRevision: 1,
+      overlayCloseCount: 0,
+    });
+    const secondInteractiveRevision = canvasFramingKey({
+      graphId: "graph-p1",
+      revision: 1,
+      interactiveGraphId: "story-graph-8",
+      interactiveRevision: 2,
+      overlayCloseCount: 0,
+    });
+
+    expect(firstInteractiveRevision).not.toBe(beforeInteractiveGraph);
+    expect(secondInteractiveRevision).not.toBe(firstInteractiveRevision);
+  });
+
   it("reframes when an overlay closes while opening one keeps the key stable", () => {
     const base = key(0);
     const afterClose = key(1);

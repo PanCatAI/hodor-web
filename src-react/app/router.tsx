@@ -1,5 +1,5 @@
 import { createHashHistory, createRootRouteWithContext, createRoute, createRouter, redirect, useParams, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ProductionAgentPage, ProductionAgentPanel, ScriptAgentPage, ScriptAgentPanel, useSourceImporter } from "@react/features/agents";
 import { AssetsCenter, createAssetApi } from "@react/features/assets";
@@ -506,6 +506,8 @@ function ProjectCanvasRoutePage() {
   const projectsApi = useMemo(() => createProjectsApi(apiClient), [apiClient]);
   const productionProject = useMemo(() => (projectId != null && project ? normalizeProductionProject(project, projectId) : null), [project, projectId]);
   const [interactiveGraph, setInteractiveGraph] = useState<InteractiveStoryGraph | null>(null);
+  const [interactiveGraphRefreshKey, setInteractiveGraphRefreshKey] = useState(0);
+  const refreshInteractiveGraph = useCallback(() => setInteractiveGraphRefreshKey((key) => key + 1), []);
 
   useEffect(() => {
     if (projectId == null) {
@@ -521,7 +523,7 @@ function ProjectCanvasRoutePage() {
     return () => {
       cancelled = true;
     };
-  }, [interactiveApi, projectId]);
+  }, [interactiveApi, interactiveGraphRefreshKey, projectId]);
   const renderProduction = useMemo(
     () => projectId != null && productionProject
       ? createProjectCanvasProductionRenderer({ projectId, productionApi, productionProject, apiClient, apiBaseUrl, getToken })
@@ -586,6 +588,7 @@ function ProjectCanvasRoutePage() {
       initialView={search.view}
       openInitialModuleWithoutSnapshot={openInitialModuleWithoutSnapshot}
       interactiveGraph={interactiveGraph}
+      onRefreshInteractiveGraph={refreshInteractiveGraph}
       moduleRenderers={renderers}
       onImportSource={importSource}
       onOpenModelSettings={() => void router.navigate({ to: "/settings", search: { section: "agents", projectId } })}

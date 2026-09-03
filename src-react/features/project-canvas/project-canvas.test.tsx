@@ -840,6 +840,40 @@ describe("ProjectCanvas", () => {
     expect(await within(drawer).findByText("已按指令生成该镜头的分镜描述。")).toBeInTheDocument();
   });
 
+  it("refreshes the interactive graph after the project agent finishes writing", async () => {
+    const { wiring } = createWiring(true);
+    const agentSocket = new FakeAgentSocket();
+    const socketFactory = vi.fn(() => agentSocket) as unknown as AgentSocketFactory;
+    const onRefreshInteractiveGraph = vi.fn(async () => undefined);
+
+    render(
+      <ProjectCanvas
+        projectId={7}
+        projectType="interactive"
+        apiBaseUrl="http://localhost:24680/api"
+        getToken={() => "Bearer canary"}
+        wiring={wiring}
+        apiClient={{ request: vi.fn(async () => []) } as unknown as HodorApiClient}
+        agentSocketFactory={socketFactory}
+        onRefreshInteractiveGraph={onRefreshInteractiveGraph}
+      />,
+    );
+
+    await waitFor(() => expect(agentSocket.connected).toBe(true));
+    act(() => {
+      agentSocket.trigger("message", {
+        id: "assistant-writing-graph",
+        role: "assistant",
+        status: "streaming",
+        datetime: "",
+        content: [{ type: "text", data: "正在写入互动节点", status: "streaming" }],
+      });
+      agentSocket.trigger("message:update", { id: "assistant-writing-graph", status: "complete" });
+    });
+
+    await waitFor(() => expect(onRefreshInteractiveGraph).toHaveBeenCalledTimes(1));
+  });
+
   it("closes the open overlay on Escape and restores focus to its trigger", async () => {
     const { wiring } = createWiring(true);
     render(
