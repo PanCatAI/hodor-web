@@ -14,6 +14,7 @@ import {
   Play,
   RotateCcw,
   Send,
+  Settings,
   Sparkles,
   X,
 } from "lucide-react";
@@ -69,6 +70,8 @@ export interface ProjectCanvasProps {
   agentSocketFactory?: AgentSocketFactory;
   /** 完全注入已装配好的智能体客户端（测试用）；优先于 apiClient 内部创建。 */
   agentClient?: AgentChatClient;
+  /** 从全屏画布进入阶段智能体与模型配置。 */
+  onOpenModelSettings?: () => void;
 }
 
 export const PROJECT_CANVAS_MODULES = [
@@ -239,12 +242,14 @@ function goalNode(
 
 function GoalPrompt({
   onSubmit,
+  onOpenModelSettings,
   busy,
   error,
   initialObjective = "",
   initialConstraints = "",
 }: {
   onSubmit: (objective: string, constraints: string) => void;
+  onOpenModelSettings?: () => void;
   busy: boolean;
   error: string | null;
   initialObjective?: string;
@@ -256,9 +261,20 @@ function GoalPrompt({
   return (
     <section className="relative mx-auto flex min-h-dvh max-w-5xl items-center px-6 py-16" data-testid="project-canvas-goal-prompt">
       <div className="relative w-full overflow-hidden rounded-[2rem] border border-slate-700/80 bg-[#121212]/95 p-8 shadow-[0_30px_100px_rgba(0,0,0,.45)] md:p-14">
-        <div className="absolute right-8 top-8 text-zinc-300/70">
-          <Sparkles className="size-7" />
-        </div>
+        {onOpenModelSettings ? (
+          <button
+            type="button"
+            aria-label="模型设置"
+            onClick={onOpenModelSettings}
+            className="absolute right-8 top-8 inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-zinc-300/50 hover:text-zinc-100">
+            <Settings className="size-4" />
+            模型设置
+          </button>
+        ) : (
+          <div className="absolute right-8 top-8 text-zinc-300/70">
+            <Sparkles className="size-7" />
+          </div>
+        )}
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-300">制作工作台 / 01</p>
         <h1 className="mt-5 max-w-2xl text-4xl font-semibold tracking-tight text-slate-50 md:text-6xl">
           {confirmed ? "确认你的制作目标" : "先说说你想完成什么"}
@@ -578,6 +594,7 @@ export function ProjectCanvas({
   apiClient,
   agentSocketFactory,
   agentClient: injectedAgentClient,
+  onOpenModelSettings,
 }: ProjectCanvasProps) {
   const liveWiring = useProductionGraphWiring({ projectId, apiBaseUrl, getToken });
   const wiring = injectedWiring ?? liveWiring;
@@ -946,6 +963,7 @@ export function ProjectCanvas({
     return (
       <GoalPrompt
         onSubmit={(objective, constraints) => void createGoal(objective, constraints)}
+        onOpenModelSettings={onOpenModelSettings}
         busy={goalBusy}
         error={goalError}
         initialObjective={goalDraft?.goal ?? ""}
@@ -1069,6 +1087,16 @@ export function ProjectCanvas({
               </span>
             ) : null}
           </span>
+          {onOpenModelSettings ? (
+            <button
+              type="button"
+              aria-label="模型设置"
+              onClick={onOpenModelSettings}
+              className="grid size-9 shrink-0 place-items-center rounded-lg border border-slate-600 text-slate-300 transition hover:border-zinc-300/50 hover:text-zinc-100"
+              title="模型设置">
+              <Settings className="size-4" />
+            </button>
+          ) : null}
           <button
             type="button"
             aria-label="打开项目智能体"

@@ -14,6 +14,23 @@ function createSettingsApiStub(overrides: Partial<SettingsApi> = {}): SettingsAp
 }
 
 describe("SettingsPage", () => {
+  it("opens the requested agent section and returns to the project canvas", async () => {
+    const load = vi.fn(async () => ({ deployments: {}, providers: [], useMode: "0" }));
+    const onBackToCanvas = vi.fn();
+    render(
+      <SettingsPage
+        api={createSettingsApiStub({ load })}
+        initialSection="agents"
+        onBackToCanvas={onBackToCanvas}
+      />,
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledWith("agents"));
+    expect(screen.getByRole("button", { name: "智能体" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "返回画布" }));
+    expect(onBackToCanvas).toHaveBeenCalledOnce();
+  });
+
   it("shows the upstream attribution in the about section", async () => {
     render(<SettingsPage api={createSettingsApiStub()} />);
     fireEvent.click(screen.getByRole("button", { name: "关于" }));

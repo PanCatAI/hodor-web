@@ -10,7 +10,7 @@ import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type Product
 import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createInteractiveStoryApi, InteractiveStoryPage, type InteractiveStoryGraph } from "@react/features/interactive-story";
 import { createProjectsApi, ProjectsPage } from "@react/features/projects";
-import { createSettingsApi, SettingsPage } from "@react/features/settings";
+import { createSettingsApi, SettingsPage, type SettingsSectionId } from "@react/features/settings";
 import { ProjectCanvas, StoryModule, type ProjectCanvasModuleId, type ProjectCanvasModuleRenderContext, type ProjectCanvasModuleRenderers } from "@react/features/project-canvas";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
 import { createStoryboardApi, StoryboardPage, type Storyboard } from "@react/features/storyboards";
@@ -576,7 +576,23 @@ function ProjectCanvasRoutePage() {
   if (loading) return <MissingContext>正在读取项目画布…</MissingContext>;
   if (error) return <MissingContext>{error}</MissingContext>;
   const openInitialModuleWithoutSnapshot = search.module === "storyboards" || (search.module === "production" && search.view === "agent" && search.episodeId != null);
-  return <ProjectCanvas projectId={projectId} projectType={project?.projectType ?? "novel"} apiBaseUrl={apiBaseUrl} getToken={getToken} apiClient={apiClient} initialModule={search.module} initialScriptId={search.scriptId} initialEpisodeId={search.episodeId} initialView={search.view} openInitialModuleWithoutSnapshot={openInitialModuleWithoutSnapshot} interactiveGraph={interactiveGraph} moduleRenderers={renderers} />;
+  return (
+    <ProjectCanvas
+      projectId={projectId}
+      projectType={project?.projectType ?? "novel"}
+      apiBaseUrl={apiBaseUrl}
+      getToken={getToken}
+      apiClient={apiClient}
+      initialModule={search.module}
+      initialScriptId={search.scriptId}
+      initialEpisodeId={search.episodeId}
+      initialView={search.view}
+      openInitialModuleWithoutSnapshot={openInitialModuleWithoutSnapshot}
+      interactiveGraph={interactiveGraph}
+      moduleRenderers={renderers}
+      onOpenModelSettings={() => void router.navigate({ to: "/settings", search: { section: "agents", projectId } })}
+    />
+  );
 }
 
 const projectsRoute = createRoute({
@@ -607,6 +623,7 @@ const tasksRoute = createRoute({
 
 function SettingsRoutePage() {
   const router = useRouter();
+  const search = settingsRoute.useSearch();
   const { apiClient, apiBaseUrl, getToken } = settingsRoute.useRouteContext();
   const authenticatedToken = getToken();
   const api = useMemo(
@@ -625,13 +642,51 @@ function SettingsRoutePage() {
     [apiBaseUrl, apiClient, authenticatedToken],
   );
   return (
-    <SettingsPage api={api} apiBaseUrl={apiBaseUrl} onLoggedOut={() => void router.navigate({ to: "/login" }).then(() => router.invalidate())} />
+    <SettingsPage
+      api={api}
+      apiBaseUrl={apiBaseUrl}
+      initialSection={search.section}
+      onBackToCanvas={search.projectId
+        ? () => void router.navigate({
+            to: "/projects/$projectId/canvas",
+            params: { projectId: String(search.projectId) },
+            search: { module: undefined, view: undefined, scriptId: undefined, episodeId: undefined },
+          })
+        : undefined}
+      onLoggedOut={() => void router.navigate({ to: "/login" }).then(() => router.invalidate())}
+    />
   );
+}
+
+const SETTINGS_SECTIONS = new Set<SettingsSectionId>([
+  "ui",
+  "language",
+  "providers",
+  "models",
+  "agents",
+  "prompts",
+  "skills",
+  "memory",
+  "database",
+  "files",
+  "other",
+  "request",
+  "development",
+  "about",
+  "session",
+]);
+
+function settingsSection(value: unknown): SettingsSectionId | undefined {
+  return typeof value === "string" && SETTINGS_SECTIONS.has(value as SettingsSectionId) ? (value as SettingsSectionId) : undefined;
 }
 
 const settingsRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: "/settings",
+  validateSearch: (search: Record<string, unknown>) => ({
+    section: settingsSection(search.section),
+    projectId: positiveInteger(search.projectId),
+  }),
   component: SettingsRoutePage,
 });
 

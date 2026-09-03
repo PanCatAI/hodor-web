@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   Bot,
   Braces,
   Database,
@@ -34,6 +35,8 @@ interface SettingsPageProps {
   api?: SettingsApi;
   apiBaseUrl?: string;
   onLoggedOut?: () => void;
+  initialSection?: SettingsSectionId;
+  onBackToCanvas?: () => void;
 }
 
 interface SectionDefinition {
@@ -270,9 +273,9 @@ function JsonPanel({ section, value, loading, error, savedMessage, onChange, onR
   );
 }
 
-export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOut }: SettingsPageProps) {
+export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOut, initialSection, onBackToCanvas }: SettingsPageProps) {
   const settingsApi = useMemo(() => api ?? createDefaultSettingsApi(), [api]);
-  const [activeId, setActiveId] = useState<SettingsSectionId>("request");
+  const [activeId, setActiveId] = useState<SettingsSectionId>(initialSection ?? "request");
   const [apiBaseUrl, setApiBaseUrl] = useState(() => configuredApiBaseUrl ?? initialApiBaseUrl());
   const [remoteJson, setRemoteJson] = useState("{}");
   const [loading, setLoading] = useState(false);
@@ -318,6 +321,10 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
   const [confirmingMemoryClear, setConfirmingMemoryClear] = useState(false);
 
   const activeSection = SECTIONS.find((section) => section.id === activeId) ?? SECTIONS[0];
+
+  useEffect(() => {
+    if (initialSection) setActiveId(initialSection);
+  }, [initialSection]);
 
   async function loadRemote(section: SettingsSectionId, preserveMessage = false) {
     setLoading(true);
@@ -1827,10 +1834,18 @@ export function SettingsPage({ api, apiBaseUrl: configuredApiBaseUrl, onLoggedOu
 
   return (
     <main className="min-h-full bg-[#0b0b0b] p-4 text-foreground lg:p-8">
-      <header className="mb-6">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">Workspace</p>
-        <h1 className="text-3xl font-semibold tracking-tight">设置中心</h1>
-        <p className="mt-2 text-sm text-slate-400">管理 Hodor 工作台、服务端配置和 Pancat 登录状态。</p>
+      <header className="mb-6 flex flex-wrap items-start gap-4">
+        {onBackToCanvas ? (
+          <Button variant="ghost" onClick={onBackToCanvas} className="mt-0.5 shrink-0">
+            <ArrowLeft className="mr-2 size-4" />
+            返回画布
+          </Button>
+        ) : null}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">Workspace</p>
+          <h1 className="text-3xl font-semibold tracking-tight">设置中心</h1>
+          <p className="mt-2 text-sm text-slate-400">管理 Hodor 工作台、服务端配置和 Pancat 登录状态。</p>
+        </div>
       </header>
 
       <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">

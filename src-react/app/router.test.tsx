@@ -98,6 +98,30 @@ describe("Hodor React router", () => {
     expect(screen.queryByRole("navigation", { name: "工作台导航" })).not.toBeInTheDocument();
   });
 
+  it("round-trips between the canvas and agent model settings without restoring the old sidebar", async () => {
+    authenticate();
+    openRoute("/projects/7/canvas");
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const data = url.endsWith("/project/getProject")
+        ? [{ id: 7, projectType: "novel" }]
+        : url.includes("/setting/agent/get")
+          ? { deployments: {}, providers: [], useMode: "0" }
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    render(<HodorApp />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "模型设置" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/settings?section=agents&projectId=7"));
+    expect(await screen.findByRole("button", { name: "智能体" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("navigation", { name: "工作台导航" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "返回画布" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/projects/7/canvas"));
+  });
+
   it("keeps the embedded production agent in the canvas workbench while preserving the deep-link page", () => {
     const apiClient = { request: vi.fn() } as never;
     const productionApi = {} as ProductionApi;

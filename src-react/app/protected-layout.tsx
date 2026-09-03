@@ -12,8 +12,10 @@ export function ProtectedLayout() {
   const matchRoute = useMatchRoute();
   const account = readSession();
   const desktop = detectRuntime() === "electron";
-  const canvasFullscreen = Boolean(
-    matchRoute({ to: "/projects", fuzzy: false }) || matchRoute({ to: "/projects/$projectId/canvas", fuzzy: false }),
+  const fullscreenRoute = Boolean(
+    matchRoute({ to: "/projects", fuzzy: false }) ||
+      matchRoute({ to: "/projects/$projectId/canvas", fuzzy: false }) ||
+      matchRoute({ to: "/settings", fuzzy: false }),
   );
   const { projectId } = useParams({ strict: false }) as { projectId?: string };
   const numericProjectId = Number(projectId);
@@ -30,9 +32,9 @@ export function ProtectedLayout() {
   };
 
   return (
-    <div className={`min-h-screen bg-[#0a0a0a] text-foreground ${canvasFullscreen ? "block" : "lg:grid lg:grid-cols-[248px_minmax(0,1fr)]"} ${desktop ? "pt-9" : ""}`}>
+    <div className={`min-h-screen bg-[#0a0a0a] text-foreground ${fullscreenRoute ? "block" : "lg:grid lg:grid-cols-[248px_minmax(0,1fr)]"} ${desktop ? "pt-9" : ""}`}>
       <DesktopTitleBar />
-      {!canvasFullscreen ? (
+      {!fullscreenRoute ? (
         <aside className="border-b border-border bg-[#101010] lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
           <div className="flex h-full flex-col px-4 py-4 lg:px-5 lg:py-6">
             <Link to="/projects" className="mb-5 flex items-center gap-3 px-2 lg:mb-10">
@@ -79,6 +81,7 @@ export function ProtectedLayout() {
               <p className="truncate px-2 text-sm text-slate-300">{account?.name ?? "Pancat 操作员"}</p>
               <Link
                 to="/settings"
+                search={{ section: undefined, projectId: undefined }}
                 className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-white/5 hover:text-slate-200"
                 activeProps={{ className: "bg-primary/10 text-zinc-300" }}
               >
@@ -98,7 +101,7 @@ export function ProtectedLayout() {
         </aside>
       ) : null}
 
-      <main className={`min-w-0 overflow-hidden ${canvasFullscreen ? "min-h-screen" : ""}`}>
+      <main className={`min-w-0 overflow-hidden ${fullscreenRoute ? "min-h-screen" : ""}`}>
         <CurrentProjectProvider value={{ project, loading, error }}>
           <Outlet />
         </CurrentProjectProvider>

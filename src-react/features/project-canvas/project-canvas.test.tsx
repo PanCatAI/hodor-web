@@ -246,6 +246,25 @@ describe("ProjectCanvas", () => {
     );
   });
 
+  it("opens model settings from the full-screen canvas header", async () => {
+    const { wiring } = createWiring(true);
+    const onOpenModelSettings = vi.fn();
+    render(
+      <ProjectCanvas
+        projectId={7}
+        projectType="novel"
+        apiBaseUrl="http://localhost:24680/api"
+        getToken={() => null}
+        wiring={wiring}
+        onOpenModelSettings={onOpenModelSettings}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "模型设置" }));
+
+    expect(onOpenModelSettings).toHaveBeenCalledOnce();
+  });
+
   it.each(["novel", "interactive"] as const)(
     "uses the same canvas shell for %s projects and keeps the graph running under module panels",
     async (projectType) => {
