@@ -156,7 +156,7 @@ function useEpisodeTitle(apiClient: HodorApiClient, projectId: number, episodeId
   return title;
 }
 
-function useSourceImporter(apiClient: HodorApiClient, projectId: number) {
+export function useSourceImporter(apiClient: HodorApiClient, projectId: number) {
   const storyApi = useMemo(() => createStoryApi(apiClient), [apiClient]);
   return useCallback(
     async (source: SourceImportRequest): Promise<SourceImportResult> => {

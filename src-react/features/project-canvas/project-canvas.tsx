@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 
-import { AgentConsole, createAgentChatClient, type AgentChatClient, type AgentSocketFactory } from "@react/features/agents";
+import { AgentConsole, createAgentChatClient, type AgentChatClient, type AgentSocketFactory, type SourceImportRequest, type SourceImportResult } from "@react/features/agents";
 import { CanvasAgentPanel, InfiniteCanvas } from "@react/features/canvas";
 import type { InteractiveStoryGraph } from "@react/features/interactive-story";
 import {
@@ -72,6 +72,8 @@ export interface ProjectCanvasProps {
   agentClient?: AgentChatClient;
   /** 从全屏画布进入阶段智能体与模型配置。 */
   onOpenModelSettings?: () => void;
+  /** 将拖入或选择的原文导入当前项目，并交给当前项目智能体。 */
+  onImportSource?: (source: SourceImportRequest) => Promise<SourceImportResult>;
 }
 
 export const PROJECT_CANVAS_MODULES = [
@@ -595,6 +597,7 @@ export function ProjectCanvas({
   agentSocketFactory,
   agentClient: injectedAgentClient,
   onOpenModelSettings,
+  onImportSource,
 }: ProjectCanvasProps) {
   const liveWiring = useProductionGraphWiring({ projectId, apiBaseUrl, getToken });
   const wiring = injectedWiring ?? liveWiring;
@@ -739,10 +742,7 @@ export function ProjectCanvas({
     () => ({ projectId, projectType, scriptId: initialScriptId, episodeId: initialEpisodeId, view: initialView }),
     [initialEpisodeId, initialScriptId, initialView, projectId, projectType],
   );
-  const visibleModules = useMemo(
-    () => PROJECT_CANVAS_MODULES.filter((module) => module.id !== "interactive" || projectType === "interactive"),
-    [projectType],
-  );
+  const visibleModules = PROJECT_CANVAS_MODULES;
   const stageStatus = useMemo(() => summarizeCanvasStageStatus(snapshot), [snapshot]);
   const stageItem = activeModule ? (visibleModules.find((module) => module.id === activeModule) ?? null) : null;
   const stageLabel = stageItem?.label ?? "画布总览";
@@ -1237,7 +1237,7 @@ export function ProjectCanvas({
                   revision={snapshot?.revision ?? null}
                 />
                 <div className="min-h-0 flex-1">
-                  <AgentConsole client={agentClient} title="项目智能体" display="panel" />
+                  <AgentConsole client={agentClient} title="项目智能体" display="panel" onImportSource={onImportSource} />
                 </div>
               </div>
             ) : (

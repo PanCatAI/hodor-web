@@ -194,8 +194,8 @@ describe("agent pages", () => {
       );
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "导入原文" }));
-    fireEvent.change(screen.getByLabelText("选择原文文件"), {
+    fireEvent.click(screen.getByRole("button", { name: "上传文档" }));
+    fireEvent.change(screen.getByLabelText("选择文档"), {
       target: { files: [new File(["第一章 雨夜\n她推开门。"], "locked-room.md", { type: "text/markdown" })] },
     });
     fireEvent.click(screen.getByRole("button", { name: "确认导入" }));

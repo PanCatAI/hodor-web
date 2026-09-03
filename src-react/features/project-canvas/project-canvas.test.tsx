@@ -288,7 +288,7 @@ describe("ProjectCanvas", () => {
     },
   );
 
-  it("renders real business module controls on the same canvas and only exposes interactive for interactive projects", async () => {
+  it("renders every business module on the same canvas and exposes interactive work for ordinary projects", async () => {
     const { wiring } = createWiring(true);
     const { unmount } = render(
       <ProjectCanvas
@@ -313,7 +313,9 @@ describe("ProjectCanvas", () => {
       expect(screen.getByTestId(`module-host-${moduleId}`)).toHaveTextContent(content);
       fireEvent.click(screen.getByRole("button", { name: `关闭${label}模块` }));
     }
-    expect(screen.queryByRole("button", { name: "打开互动模块" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "打开互动模块" }));
+    expect(screen.getByTestId("module-host-interactive")).toHaveTextContent("刷新互动剧情");
+    fireEvent.click(screen.getByRole("button", { name: "关闭互动模块" }));
     expect(screen.getByTestId("project-canvas-infinite-canvas")).toBeInTheDocument();
     unmount();
 
@@ -1244,11 +1246,7 @@ describe("ProjectCanvas", () => {
       for (const label of ["目标", "原文/剧本", "选角", "资产", "分镜", "生产"]) {
         expect(within(stageBar).getByRole("button", { name: `打开${label}模块` })).toBeInTheDocument();
       }
-      if (projectType === "interactive") {
-        expect(within(stageBar).getByRole("button", { name: "打开互动模块" })).toBeInTheDocument();
-      } else {
-        expect(within(stageBar).queryByRole("button", { name: "打开互动模块" })).not.toBeInTheDocument();
-      }
+      expect(within(stageBar).getByRole("button", { name: "打开互动模块" })).toBeInTheDocument();
       expect(screen.getByTestId("canvas-flow-status")).toHaveTextContent("项目流程");
       view.unmount();
     }

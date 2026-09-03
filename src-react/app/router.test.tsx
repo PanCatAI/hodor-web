@@ -20,7 +20,7 @@ function authenticate() {
 describe("Hodor React router", () => {
   beforeEach(() => {
     window.scrollTo = vi.fn();
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ data: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -52,7 +52,7 @@ describe("Hodor React router", () => {
 
   it("keeps the project chooser free of the retired workspace sidebar", async () => {
     authenticate();
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ data: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -68,7 +68,7 @@ describe("Hodor React router", () => {
   it("redirects the authenticated project entry to the selected full-screen canvas", async () => {
     authenticate();
     localStorage.setItem("hodorSelectedProjectId", "7");
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ data: [{ id: 7, projectType: "novel" }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -85,7 +85,7 @@ describe("Hodor React router", () => {
   it("hides the persistent workspace navigation on the full-screen project canvas", async () => {
     authenticate();
     openRoute("/projects/7/canvas");
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ data: [{ id: 7, projectType: "novel" }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -276,7 +276,7 @@ describe("Hodor React router", () => {
   it("mounts the migrated original-text page with the route project id", async () => {
     authenticate();
     openRoute("/projects/7/novels");
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ data: [{ id: 7, projectType: "novel" }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -292,7 +292,7 @@ describe("Hodor React router", () => {
   it("mounts the migrated asset center with the route project id", async () => {
     authenticate();
     openRoute("/projects/7/assets");
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ data: [{ id: 7, projectType: "novel" }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -411,7 +411,7 @@ describe("Hodor React router", () => {
     expect(request.mock.calls.filter(([input]) => String(input).endsWith("/project/getProject"))).toHaveLength(1);
   });
 
-  it("redirects the legacy interactive route to the unified canvas without initializing the old graph", async () => {
+  it("redirects the legacy interactive route to the unified canvas and loads the graph for an ordinary project", async () => {
     authenticate();
     openRoute("/projects/7/interactive");
     const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -424,7 +424,7 @@ describe("Hodor React router", () => {
 
     await waitFor(() => expect(window.location.hash).toBe("#/projects/7/canvas?module=interactive"));
     expect(await screen.findByTestId("project-canvas-goal-prompt")).toBeInTheDocument();
-    expect(request.mock.calls.some(([input]) => String(input).includes("/interactiveStory/graph/"))).toBe(false);
+    expect(request.mock.calls.some(([input]) => String(input).includes("/interactiveStory/graph/"))).toBe(true);
   });
 
   it("preserves legacy project search context while redirecting to the canvas", async () => {

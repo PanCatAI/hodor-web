@@ -220,8 +220,8 @@ describe("AgentConsole", () => {
     const onImportSource = vi.fn(async () => ({ sourceName: "粘贴原文", chapterCount: 2 }));
     render(<AgentConsole client={client} title="互动剧智能体" display="panel" onImportSource={onImportSource} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "导入原文" }));
-    fireEvent.change(screen.getByLabelText("粘贴原文"), {
+    fireEvent.click(screen.getByRole("button", { name: "上传文档" }));
+    fireEvent.change(screen.getByLabelText("粘贴文档内容"), {
       target: { value: "第一章 雨夜\n她推开门。\n第二章 追踪\n脚步声逼近。" },
     });
     fireEvent.click(screen.getByRole("button", { name: "确认导入" }));
@@ -231,8 +231,8 @@ describe("AgentConsole", () => {
         text: "第一章 雨夜\n她推开门。\n第二章 追踪\n脚步声逼近。",
       }),
     );
-    expect(client.send).toHaveBeenCalledWith(expect.stringContaining("已导入原文“粘贴原文”，共 2 章"));
-    expect(await screen.findByRole("status", { name: "原文导入成功" })).toHaveTextContent("已导入 2 章");
+    expect(client.send).toHaveBeenCalledWith(expect.stringContaining("已上传文档“粘贴原文”，共解析为 2 章"));
+    expect(await screen.findByRole("status", { name: "文档上传成功" })).toHaveTextContent("文档已解析为 2 章");
   });
 
   it("lets the user choose txt, docx, or markdown from the chat composer", () => {
@@ -246,8 +246,28 @@ describe("AgentConsole", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "导入原文" }));
-    expect(screen.getByLabelText("选择原文文件")).toHaveAttribute("accept", expect.stringContaining(".md"));
+    fireEvent.click(screen.getByRole("button", { name: "上传文档" }));
+    expect(screen.getByLabelText("选择文档")).toHaveAttribute("accept", expect.stringContaining(".md"));
     expect(screen.getByText("支持 TXT、DOCX、MD，最大 10MB")).toBeInTheDocument();
+  });
+
+  it("imports a document dropped anywhere on the conversation and tells the current agent to read it", async () => {
+    const client = createClient();
+    const onImportSource = vi.fn(async () => ({ sourceName: "人物小传", chapterCount: 1 }));
+    render(<AgentConsole client={client} title="项目智能体" display="panel" onImportSource={onImportSource} />);
+    const file = new File(["第一章\n她推开门。"], "人物小传.md", { type: "text/markdown" });
+
+    fireEvent.dragEnter(screen.getByRole("region", { name: "项目智能体对话框" }), {
+      dataTransfer: { files: [file], types: ["Files"] },
+    });
+    expect(screen.getByText("松开即可交给项目智能体")).toBeInTheDocument();
+
+    fireEvent.drop(screen.getByRole("region", { name: "项目智能体对话框" }), {
+      dataTransfer: { files: [file], types: ["Files"] },
+    });
+
+    await waitFor(() => expect(onImportSource).toHaveBeenCalledWith({ file }));
+    expect(client.send).toHaveBeenCalledWith(expect.stringContaining("已上传文档“人物小传”，共解析为 1 章"));
+    expect(await screen.findByRole("status", { name: "文档上传成功" })).toHaveTextContent("文档已解析为 1 章");
   });
 });

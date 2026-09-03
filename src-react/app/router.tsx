@@ -1,7 +1,7 @@
 import { createHashHistory, createRootRouteWithContext, createRoute, createRouter, redirect, useParams, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { ProductionAgentPage, ProductionAgentPanel, ScriptAgentPage, ScriptAgentPanel } from "@react/features/agents";
+import { ProductionAgentPage, ProductionAgentPanel, ScriptAgentPage, ScriptAgentPanel, useSourceImporter } from "@react/features/agents";
 import { AssetsCenter, createAssetApi } from "@react/features/assets";
 import { LoginPage } from "@react/features/auth/login-page";
 import { CastingPage, createCastingApi } from "@react/features/casting";
@@ -418,11 +418,8 @@ function InteractiveStoryRoutePage() {
   );
 
   if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
-  if (loading) return <MissingContext>正在核验项目类型…</MissingContext>;
+  if (loading) return <MissingContext>正在读取项目…</MissingContext>;
   if (error) return <MissingContext>{error}</MissingContext>;
-  if (project?.projectType !== "interactive") {
-    return <MissingContext>当前项目使用线性流程，只有互动剧项目可以进入互动剧情画布。</MissingContext>;
-  }
   if (!productionProject) return <MissingContext>正在读取互动剧生产配置…</MissingContext>;
   return (
     <InteractiveStoryPage
@@ -500,6 +497,7 @@ function ProjectCanvasRoutePage() {
   const search = projectCanvasRoute.useSearch();
   const { project, loading, error } = useCurrentProjectContext();
   const storyApi = useMemo(() => createStoryApi(apiClient, { requestBlob: createAuthenticatedBlobRequest(apiBaseUrl) }), [apiBaseUrl, apiClient]);
+  const importSource = useSourceImporter(apiClient, projectId ?? 0);
   const castingApi = useMemo(() => createCastingApi(apiClient), [apiClient]);
   const assetsApi = useMemo(() => createAssetApi(apiClient), [apiClient]);
   const storyboardApi = useMemo(() => createStoryboardApi(apiClient, { requestBlob: createAuthenticatedBlobRequest(apiBaseUrl) }), [apiBaseUrl, apiClient]);
@@ -510,7 +508,7 @@ function ProjectCanvasRoutePage() {
   const [interactiveGraph, setInteractiveGraph] = useState<InteractiveStoryGraph | null>(null);
 
   useEffect(() => {
-    if (projectId == null || project?.projectType !== "interactive") {
+    if (projectId == null) {
       setInteractiveGraph(null);
       return;
     }
@@ -523,7 +521,7 @@ function ProjectCanvasRoutePage() {
     return () => {
       cancelled = true;
     };
-  }, [interactiveApi, project?.projectType, projectId]);
+  }, [interactiveApi, projectId]);
   const renderProduction = useMemo(
     () => projectId != null && productionProject
       ? createProjectCanvasProductionRenderer({ projectId, productionApi, productionProject, apiClient, apiBaseUrl, getToken })
@@ -532,7 +530,6 @@ function ProjectCanvasRoutePage() {
   );
   const renderers = useMemo<ProjectCanvasModuleRenderers>(() => {
     if (projectId == null || !productionProject) return {};
-    const projectType = project?.projectType ?? "novel";
     const openStoryboard = (script: Script) => {
       void router.navigate({
         to: "/projects/$projectId/canvas",
@@ -548,7 +545,7 @@ function ProjectCanvasRoutePage() {
       assets: () => <AssetsCenter projectId={projectId} imageModel={productionProject.imageModel ?? "pancat:pancat-image"} api={assetsApi} embedded />,
       storyboards: ({ scriptId }) => scriptId ? <StoryboardPage api={storyboardApi} projectId={projectId} scriptId={scriptId} embedded /> : <ScriptPage api={storyApi} projectId={projectId} embedded onOpenStoryboard={openStoryboard} />,
       production: (context) => renderProduction?.(context) ?? null,
-      interactive: () => projectType === "interactive" ? (
+      interactive: () => (
         <InteractiveStoryPage
           projectId={projectId}
           api={interactiveApi}
@@ -569,9 +566,9 @@ function ProjectCanvasRoutePage() {
             />
           )}
         />
-      ) : null,
+      ),
     };
-  }, [apiBaseUrl, apiClient, assetsApi, castingApi, getToken, interactiveApi, productionApi, productionProject, project, projectsApi, renderProduction, router, storyApi, storyboardApi]);
+  }, [apiBaseUrl, apiClient, assetsApi, castingApi, getToken, interactiveApi, productionApi, productionProject, projectsApi, renderProduction, router, storyApi, storyboardApi]);
   if (projectId == null) return <MissingContext>项目编号无效，请返回项目列表重新选择。</MissingContext>;
   if (loading) return <MissingContext>正在读取项目画布…</MissingContext>;
   if (error) return <MissingContext>{error}</MissingContext>;
@@ -590,6 +587,7 @@ function ProjectCanvasRoutePage() {
       openInitialModuleWithoutSnapshot={openInitialModuleWithoutSnapshot}
       interactiveGraph={interactiveGraph}
       moduleRenderers={renderers}
+      onImportSource={importSource}
       onOpenModelSettings={() => void router.navigate({ to: "/settings", search: { section: "agents", projectId } })}
     />
   );
