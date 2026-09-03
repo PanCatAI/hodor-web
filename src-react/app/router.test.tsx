@@ -15,6 +15,7 @@ function authenticate() {
 describe("Hodor React router", () => {
   beforeEach(() => {
     window.scrollTo = vi.fn();
+    localStorage.removeItem("hodorSelectedProjectId");
     openRoute("/projects");
   });
 
@@ -31,7 +32,7 @@ describe("Hodor React router", () => {
   it("redirects protected routes to the Pancat login page", async () => {
     render(<HodorApp />);
 
-    expect(await screen.findByRole("heading", { name: "Hodor" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Hodor Studio OS" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "登录" })).toBeInTheDocument();
   });
 
@@ -47,10 +48,65 @@ describe("Hodor React router", () => {
     render(<HodorApp />);
 
     expect(await screen.findByRole("navigation", { name: "工作台导航" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "项目" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "工作台" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "任务" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "设置" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "资产" })).not.toBeInTheDocument();
+  });
+
+  it("uses Studio OS as the only authenticated entry when a project is selected", async () => {
+    authenticate();
+    localStorage.setItem("hodorSelectedProjectId", "7");
+    openRoute("/");
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const data = url.endsWith("/project/getProject")
+        ? [{ id: 7, name: "夜航项目", projectType: "novel" }]
+        : url.endsWith("/studio-os-vnext/groups/project-7/snapshot")
+          ? {
+              revision: 1,
+              snapshot: {
+                schemaVersion: "1",
+                groups: [{ schemaVersion: "1", groupId: "project-7", projectId: "7", name: "夜航项目组", status: "active", revision: 1, createdAt: "2026-08-11T00:00:00.000Z", updatedAt: "2026-08-11T00:00:00.000Z" }],
+                assets: [], tasks: [], decisions: [], packets: [], leases: [], batches: [], verifications: [], events: [], idempotency: [],
+              },
+            }
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    render(<HodorApp />);
+
+    await waitFor(() => expect(window.location.hash).toBe("#/projects/7/studio-os"));
+    expect(await screen.findByRole("heading", { name: "夜航项目组" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "项目" })).not.toBeInTheDocument();
+  });
+
+  it("enters the first project Studio OS instead of rendering the legacy project page", async () => {
+    authenticate();
+    openRoute("/projects");
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      const data = url.endsWith("/project/getProject")
+        ? [{ id: 8, name: "长安项目", projectType: "interactive" }]
+        : url.endsWith("/studio-os-vnext/groups/project-8/snapshot")
+          ? {
+              revision: 1,
+              snapshot: {
+                schemaVersion: "1",
+                groups: [{ schemaVersion: "1", groupId: "project-8", projectId: "8", name: "长安项目组", status: "active", revision: 1, createdAt: "2026-08-11T00:00:00.000Z", updatedAt: "2026-08-11T00:00:00.000Z" }],
+                assets: [], tasks: [], decisions: [], packets: [], leases: [], batches: [], verifications: [], events: [], idempotency: [],
+              },
+            }
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    render(<HodorApp />);
+
+    await waitFor(() => expect(window.location.hash).toBe("#/projects/8/studio-os"));
+    expect(await screen.findByRole("heading", { name: "长安项目组" })).toBeInTheDocument();
+    expect(localStorage.getItem("hodorSelectedProjectId")).toBe("8");
   });
 
   it("requires a storyboard when the director desk route is opened directly", async () => {

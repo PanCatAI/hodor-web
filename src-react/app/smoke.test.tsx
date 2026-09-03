@@ -11,7 +11,7 @@ describe("Hodor React app", () => {
     render(<HodorApp resolveBackendApiBaseUrl={resolveBackendApiBaseUrl} />);
 
     expect(screen.getByText("正在连接 Hodor 后端…")).toBeInTheDocument();
-    expect(await screen.findByText("Hodor")).toBeInTheDocument();
+    expect(await screen.findByText("Hodor Studio OS")).toBeInTheDocument();
     expect(resolveBackendApiBaseUrl).toHaveBeenCalledOnce();
   });
 });

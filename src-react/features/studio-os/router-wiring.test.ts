@@ -40,9 +40,11 @@ describe("Studio OS frontend entry wiring (non-browser static)", () => {
     expect(navigationSource).not.toContain('to: "/studio-os"');
   });
 
-  it("keeps existing global and project navigation intact", () => {
-    expect(navigationSource).toContain('{ label: "项目", to: "/projects", icon: FolderKanban }');
+  it("makes Studio OS the single workspace entry without mounting the legacy project page", () => {
+    expect(navigationSource).toContain('{ label: "工作台", to: "/projects", icon: PanelsTopLeft }');
     expect(navigationSource).toContain('{ label: "任务", to: "/tasks", icon: ListTodo }');
     expect(navigationSource).toContain('"/projects/$projectId/director-desk"');
+    expect(routerSource).not.toContain("ProjectsPage");
+    expect(routerSource).toContain('to: "/projects/$projectId/studio-os"');
   });
 });

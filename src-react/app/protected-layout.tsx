@@ -17,11 +17,14 @@ export function ProtectedLayout() {
     router.options.context.apiClient,
     Number.isInteger(numericProjectId) && numericProjectId > 0 ? numericProjectId : null,
   );
+  const studioNavigation = projectNavigation.filter((item) => item.to === "/projects/$projectId/studio-os");
   const interactiveCanvasNavigation = projectNavigation.filter((item) => item.to === "/projects/$projectId/interactive");
-  const secondaryProjectNavigation = projectNavigation.filter((item) => item.to !== "/projects/$projectId/interactive");
+  const secondaryProjectNavigation = projectNavigation.filter(
+    (item) => item.to !== "/projects/$projectId/studio-os" && item.to !== "/projects/$projectId/interactive",
+  );
   const visibleProjectNavigation = project?.projectType === "interactive"
-    ? [...interactiveCanvasNavigation, ...secondaryProjectNavigation]
-    : secondaryProjectNavigation;
+    ? [...studioNavigation, ...interactiveCanvasNavigation, ...secondaryProjectNavigation]
+    : [...studioNavigation, ...secondaryProjectNavigation];
 
   const logout = async () => {
     clearSession();
@@ -38,7 +41,7 @@ export function ProtectedLayout() {
             <span className="grid size-10 place-items-center rounded-xl bg-primary font-black text-primary-foreground">H</span>
             <span>
               <strong className="block text-lg tracking-tight">Hodor</strong>
-              <span className="text-xs text-slate-500">自动内容生产线</span>
+              <span className="text-xs text-slate-500">Agent 专业创作系统</span>
             </span>
           </Link>
 

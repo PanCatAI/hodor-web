@@ -9,7 +9,7 @@ import { createHodorDirectorDeskAdapter, DirectorDeskPage, type DirectorDeskEdit
 import { createProductionApi, ImageFlowEditor, ProductionWorkbench, type ProductionProject, type StoryboardItem } from "@react/features/production";
 import type { ProductionVideoRatio } from "@react/features/production/types";
 import { createInteractiveStoryApi, InteractiveStoryPage } from "@react/features/interactive-story";
-import { createProjectsApi, ProjectsPage } from "@react/features/projects";
+import { createProjectsApi } from "@react/features/projects";
 import { createSettingsApi, SettingsPage } from "@react/features/settings";
 import { createEvolutionStudioOsApi, createStudioOsApi, EvolutionStudioOsPage, StudioOsPage } from "@react/features/studio-os";
 import { createAuthenticatedBlobRequest, createStoryApi, NovelPage, ScriptPage, type Script } from "@react/features/story";
@@ -101,9 +101,43 @@ const protectedRoute = createRoute({
 });
 
 function ProjectsRoutePage() {
+  const router = useRouter();
   const { apiClient } = projectsRoute.useRouteContext();
   const api = useMemo(() => createProjectsApi(apiClient), [apiClient]);
-  return <ProjectsPage api={api} />;
+  const [entryState, setEntryState] = useState<"loading" | "empty" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.listProjects()
+      .then((projects) => {
+        if (cancelled) return;
+        const rememberedProjectId = selectedProjectId();
+        const project = projects.find((item) => String(item.id) === rememberedProjectId) ?? projects[0];
+        if (!project) {
+          setEntryState("empty");
+          return;
+        }
+        const projectId = String(project.id);
+        localStorage.setItem("hodorSelectedProjectId", projectId);
+        void router.navigate({
+          to: "/projects/$projectId/studio-os",
+          params: { projectId },
+          search: { groupId: undefined },
+          replace: true,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setEntryState("error");
+      });
+    return () => { cancelled = true; };
+  }, [api, router]);
+
+  const message = entryState === "empty"
+    ? "当前没有可进入的项目，请通过创作对话建立第一个项目。"
+    : entryState === "error"
+      ? "项目上下文读取失败，请刷新后重试。"
+      : "正在进入 Hodor Studio OS…";
+  return <MissingContext>{message}</MissingContext>;
 }
 
 function readProjectId(): number | null {

@@ -46,11 +46,11 @@ export function LoginPage({ login, onAuthenticated, initialApiBaseUrl }: LoginPa
           <div className="mb-4 flex items-center gap-3">
             <div className="grid size-11 place-items-center rounded-xl bg-primary font-black text-primary-foreground">H</div>
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight">Hodor</h1>
-              <p className="mt-1 text-sm text-slate-500">自动内容生产线</p>
+              <h1 className="text-3xl font-semibold tracking-tight">Hodor Studio OS</h1>
+              <p className="mt-1 text-sm text-slate-500">Agent 专业创作系统</p>
             </div>
           </div>
-          <p className="max-w-xs text-sm leading-6 text-slate-400">使用 Pancat 账号进入项目、资产和生产工作台。</p>
+          <p className="max-w-xs text-sm leading-6 text-slate-400">使用 Pancat 账号进入唯一的专业创作控制室。</p>
         </header>
 
         <LoginForm login={login ?? defaultLogin} onAuthenticated={handleAuthenticated} />
